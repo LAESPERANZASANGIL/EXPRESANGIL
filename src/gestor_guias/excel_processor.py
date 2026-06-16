@@ -13,10 +13,9 @@ REPORT_COLUMNS = {
     "GUIA": 6,
     "TIPO DE SERVICIO": 13,
     "DESTINATARIO": 23,
-    # La direccion cae en el bloque intermedio entre destinatario (23) y
-    # municipio (39). Si una importacion real la trae corrida, ajusta solo
-    # este indice contra una planilla de Colvanes de ejemplo.
-    "DIRECCION": 31,
+    # Direccion verificada contra planilla real de contratistas (980941):
+    # cae en la columna 30, entre destinatario (23) y municipio (39).
+    "DIRECCION": 30,
     "MUNICIPIO": 39,
     "UNID": 48,
     "VALOR": 58,
@@ -29,7 +28,8 @@ REPORT_COLUMNS_REEXPEDIDORES = {
     "GUIA": 5,
     "TIPO DE SERVICIO": 11,
     "DESTINATARIO": 20,
-    # Bloque intermedio entre destinatario (20) y municipio (35).
+    # Direccion verificada contra planilla real de reexpedidores (980974):
+    # columna 27, entre destinatario (20) y municipio (35).
     "DIRECCION": 27,
     "MUNICIPIO": 35,
     "UNID": 47,

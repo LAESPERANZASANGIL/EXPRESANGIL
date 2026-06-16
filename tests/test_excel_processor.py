@@ -201,7 +201,7 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     worksheet["G18"] = "01-4-158816547"
     worksheet["N18"] = "DE "
     worksheet["X18"] = "SERGIO ANDRES CORZO"
-    worksheet["AF18"] = "CALLE 5 # 10-20"
+    worksheet["AE18"] = "CALLE 5 # 10-20"
     worksheet["AN18"] = "SAN GIL"
     worksheet["AW18"] = 1
     worksheet["BG18"] = 0
