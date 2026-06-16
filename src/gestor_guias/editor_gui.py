@@ -76,7 +76,7 @@ class GuiaEditorApp:
         table_frame = ttk.Frame(self.root)
         table_frame.pack(fill="both", expand=True, padx=12, pady=(12, 6))
 
-        columns = ("sel", "guia", "destinatario", "direccion", "municipio", "valor", "operador", "estado", "causal")
+        columns = ("sel", "planilla", "guia", "destinatario", "direccion", "municipio", "valor", "operador", "estado", "causal")
         self.tree = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -89,6 +89,7 @@ class GuiaEditorApp:
 
         headings = {
             "sel": "",
+            "planilla": "PLANILLA",
             "guia": "GUIA",
             "destinatario": "DESTINATARIO",
             "direccion": "DIRECCION",
@@ -100,6 +101,7 @@ class GuiaEditorApp:
         }
         widths = {
             "sel": 36,
+            "planilla": 110,
             "guia": 140,
             "destinatario": 260,
             "direccion": 240,
@@ -282,6 +284,7 @@ class GuiaEditorApp:
                 iid=row["guia"],
                 values=(
                     "[x]" if row["guia"] in self.checked_guides else "[ ]",
+                    row["planilla"] or "",
                     row["guia"],
                     row["destinatario"],
                     row["direccion"] or "",
@@ -302,7 +305,7 @@ class GuiaEditorApp:
         if not search:
             return self.rows
 
-        fields = ("guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal")
+        fields = ("planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal")
         return [
             row
             for row in self.rows
@@ -316,10 +319,10 @@ class GuiaEditorApp:
 
         values = self.tree.item(selected[0], "values")
         if len(selected) == 1:
-            self.guia_var.set(values[1])
-            self.operador_var.set(values[5])
-            self.estado_var.set(values[6])
-            self.causal_var.set(values[7])
+            self.guia_var.set(values[2])
+            self.operador_var.set(values[7])
+            self.estado_var.set(values[8])
+            self.causal_var.set(values[9])
         else:
             self.guia_var.set(f"{len(selected)} guias seleccionadas")
 
