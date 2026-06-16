@@ -43,6 +43,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 ## Git y archivos ignorados
 
+- **Antes de cualquier push, correr la suite completa y confirmar que esta en verde**: `.venv\Scripts\python.exe -m pytest`. Si algun test falla, NO hacer push: arreglar la causa primero. Esto aplica siempre, sin importar cuan pequeno parezca el cambio.
 - **No versionar**: `config/settings.toml`, `config/credentials.json`, `config/token.json`, todo `data/`, `*.egg-info/`, `.venv/`, `__pycache__/`, `*.pyc`. Ya estan en `.gitignore`.
 - Un clon nuevo necesita copiar `config/settings.example.toml` -> `config/settings.toml` antes de correr.
 - Rama principal: `main`. Remoto: `origin` (GitHub `LAESPERANZASANGIL/EXPRESANGIL`).
