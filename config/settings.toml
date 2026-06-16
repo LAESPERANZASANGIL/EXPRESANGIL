@@ -1,0 +1,36 @@
+[gmail]
+credentials_file = "config/credentials.json"
+token_file = "config/token.json"
+timezone = "America/Bogota"
+senders = [
+  "auxmebuca@enviacolvanes.com.co",
+  "reexbuca@enviacolvanes.com.co"
+]
+
+[paths]
+attachments_dir = "data/attachments"
+output_dir = "data/output"
+database_file = "data/database/guias.db"
+
+[excel]
+columns = [
+  "PLANILLA",
+  "SERVICIO",
+  "GUIA",
+  "UNID",
+  "TIPO DE SERVICIO",
+  "DESTINATARIO",
+  "DIRECCION",
+  "MUNICIPIO",
+  "VALOR",
+  "OPERADOR",
+  "ESTADO",
+  "CAUSAL",
+  "FECHA",
+  "INGRESO"
+]
+editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
+
+[oficina]
+nombre = "SAN GIL"
+admin_name = "JOHAN A. ORTIZ"

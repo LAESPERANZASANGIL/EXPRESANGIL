@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-config/settings.toml
 config/credentials.json
 config/token.json
 
