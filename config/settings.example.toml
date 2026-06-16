@@ -20,6 +20,7 @@ columns = [
   "UNID",
   "TIPO DE SERVICIO",
   "DESTINATARIO",
+  "DIRECCION",
   "MUNICIPIO",
   "VALOR",
   "OPERADOR",

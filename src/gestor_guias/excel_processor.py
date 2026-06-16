@@ -13,6 +13,10 @@ REPORT_COLUMNS = {
     "GUIA": 6,
     "TIPO DE SERVICIO": 13,
     "DESTINATARIO": 23,
+    # La direccion cae en el bloque intermedio entre destinatario (23) y
+    # municipio (39). Si una importacion real la trae corrida, ajusta solo
+    # este indice contra una planilla de Colvanes de ejemplo.
+    "DIRECCION": 31,
     "MUNICIPIO": 39,
     "UNID": 48,
     "VALOR": 58,
@@ -25,6 +29,8 @@ REPORT_COLUMNS_REEXPEDIDORES = {
     "GUIA": 5,
     "TIPO DE SERVICIO": 11,
     "DESTINATARIO": 20,
+    # Bloque intermedio entre destinatario (20) y municipio (35).
+    "DIRECCION": 27,
     "MUNICIPIO": 35,
     "UNID": 47,
     "VALOR": 57,
@@ -227,6 +233,7 @@ def read_colvanes_report(dataframe: pd.DataFrame, required_columns: list[str]) -
                 "UNID": clean_value(get_position(row, columns["UNID"])),
                 "TIPO DE SERVICIO": clean_value(get_position(row, columns["TIPO DE SERVICIO"])),
                 "DESTINATARIO": clean_value(get_position(row, columns["DESTINATARIO"])),
+                "DIRECCION": clean_value(get_position(row, columns["DIRECCION"])),
                 "MUNICIPIO": clean_value(get_position(row, columns["MUNICIPIO"])),
                 "VALOR": normalize_value(get_position(row, columns["VALOR"])),
                 "OPERADOR": "",

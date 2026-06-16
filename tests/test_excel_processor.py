@@ -18,6 +18,7 @@ REQUIRED_COLUMNS = [
     "UNID",
     "TIPO DE SERVICIO",
     "DESTINATARIO",
+    "DIRECCION",
     "MUNICIPIO",
     "VALOR",
     "OPERADOR",
@@ -200,6 +201,7 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     worksheet["G18"] = "01-4-158816547"
     worksheet["N18"] = "DE "
     worksheet["X18"] = "SERGIO ANDRES CORZO"
+    worksheet["AF18"] = "CALLE 5 # 10-20"
     worksheet["AN18"] = "SAN GIL"
     worksheet["AW18"] = 1
     worksheet["BG18"] = 0
@@ -215,6 +217,7 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     assert result.loc[0, "UNID"] == "1"
     assert result.loc[0, "TIPO DE SERVICIO"] == "DE"
     assert result.loc[0, "DESTINATARIO"] == "SERGIO ANDRES CORZO"
+    assert result.loc[0, "DIRECCION"] == "CALLE 5 # 10-20"
     assert result.loc[0, "MUNICIPIO"] == "SAN GIL"
     assert result.loc[0, "VALOR"] == "$ -"
     assert result.loc[0, "FECHA"] == "2026-06-09 00:00:00"

@@ -151,7 +151,7 @@ El archivo diario conserva exactamente estas columnas:
 
 ```text
 PLANILLA  SERVICIO  GUIA  UNID  TIPO DE SERVICIO  DESTINATARIO
-MUNICIPIO  VALOR  OPERADOR  ESTADO  CAUSAL  FECHA  INGRESO
+DIRECCION  MUNICIPIO  VALOR  OPERADOR  ESTADO  CAUSAL  FECHA  INGRESO
 ```
 
 Reglas aplicadas desde los reportes descargados:

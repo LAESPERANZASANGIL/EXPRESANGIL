@@ -76,7 +76,7 @@ class GuiaEditorApp:
         table_frame = ttk.Frame(self.root)
         table_frame.pack(fill="both", expand=True, padx=12, pady=(12, 6))
 
-        columns = ("sel", "guia", "destinatario", "municipio", "valor", "operador", "estado", "causal")
+        columns = ("sel", "guia", "destinatario", "direccion", "municipio", "valor", "operador", "estado", "causal")
         self.tree = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -91,6 +91,7 @@ class GuiaEditorApp:
             "sel": "",
             "guia": "GUIA",
             "destinatario": "DESTINATARIO",
+            "direccion": "DIRECCION",
             "municipio": "MUNICIPIO",
             "valor": "VALOR",
             "operador": "OPERADOR",
@@ -101,6 +102,7 @@ class GuiaEditorApp:
             "sel": 36,
             "guia": 140,
             "destinatario": 260,
+            "direccion": 240,
             "municipio": 160,
             "valor": 110,
             "operador": 150,
@@ -282,6 +284,7 @@ class GuiaEditorApp:
                     "[x]" if row["guia"] in self.checked_guides else "[ ]",
                     row["guia"],
                     row["destinatario"],
+                    row["direccion"] or "",
                     row["municipio"],
                     format_pesos(row["valor"]),
                     row["operador"],
@@ -299,7 +302,7 @@ class GuiaEditorApp:
         if not search:
             return self.rows
 
-        fields = ("guia", "destinatario", "municipio", "operador", "estado", "causal")
+        fields = ("guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal")
         return [
             row
             for row in self.rows

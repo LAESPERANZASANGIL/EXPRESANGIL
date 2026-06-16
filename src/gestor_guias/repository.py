@@ -30,6 +30,7 @@ class GuiaRepository:
                     unid TEXT,
                     tipo_de_servicio TEXT,
                     destinatario TEXT,
+                    direccion TEXT,
                     municipio TEXT,
                     valor TEXT,
                     operador TEXT,
@@ -40,6 +41,9 @@ class GuiaRepository:
                 )
                 """
             )
+            columnas_guias = {row[1] for row in connection.execute("PRAGMA table_info(guias)")}
+            if "direccion" not in columnas_guias:
+                connection.execute("ALTER TABLE guias ADD COLUMN direccion TEXT")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS operadores (
@@ -91,6 +95,7 @@ class GuiaRepository:
                     row.get("UNID", ""),
                     row.get("TIPO DE SERVICIO", ""),
                     row.get("DESTINATARIO", ""),
+                    row.get("DIRECCION", ""),
                     row.get("MUNICIPIO", ""),
                     row.get("VALOR", ""),
                     row.get("OPERADOR", ""),
@@ -106,16 +111,17 @@ class GuiaRepository:
                 """
                 INSERT INTO guias (
                     guia, planilla, servicio, unid, tipo_de_servicio,
-                    destinatario, municipio, valor, operador, estado,
+                    destinatario, direccion, municipio, valor, operador, estado,
                     causal, fecha, ingreso
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(guia) DO UPDATE SET
                     planilla = excluded.planilla,
                     servicio = excluded.servicio,
                     unid = excluded.unid,
                     tipo_de_servicio = excluded.tipo_de_servicio,
                     destinatario = excluded.destinatario,
+                    direccion = excluded.direccion,
                     municipio = excluded.municipio,
                     valor = excluded.valor,
                     operador = CASE
@@ -402,6 +408,7 @@ class GuiaRepository:
             "UNID",
             "TIPO DE SERVICIO",
             "DESTINATARIO",
+            "DIRECCION",
             "MUNICIPIO",
             "VALOR",
             "OPERADOR",
@@ -418,6 +425,7 @@ class GuiaRepository:
                 "UNID": row["unid"],
                 "TIPO DE SERVICIO": row["tipo_de_servicio"],
                 "DESTINATARIO": row["destinatario"],
+                "DIRECCION": row["direccion"],
                 "MUNICIPIO": row["municipio"],
                 "VALOR": row["valor"],
                 "OPERADOR": row["operador"],

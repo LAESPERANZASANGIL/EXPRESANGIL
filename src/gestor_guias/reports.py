@@ -23,6 +23,7 @@ DETAIL_COLUMNS = [
     "UNID",
     "TIPO DE SERVICIO",
     "DESTINATARIO",
+    "DIRECCION",
     "MUNICIPIO",
     "VALOR",
     "OPERADOR",
