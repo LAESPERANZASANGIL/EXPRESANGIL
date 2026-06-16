@@ -17,11 +17,11 @@ def test_display_date_round_trip_with_import() -> None:
 
 
 def test_prepare_for_export_only_changes_fecha() -> None:
-    dataframe = pd.DataFrame([{"GUIA": "100", "FECHA": "2026-06-11 00:00:00"}])
+    dataframe = pd.DataFrame([{"GUIA": "100", "F_INGRESO": "2026-06-11 00:00:00"}])
 
     result = prepare_for_export(dataframe)
 
-    assert result.loc[0, "FECHA"] == "11/06/2026"
+    assert result.loc[0, "F_INGRESO"] == "11/06/2026"
     assert result.loc[0, "GUIA"] == "100"
     # El dataframe original no se modifica.
-    assert dataframe.loc[0, "FECHA"] == "2026-06-11 00:00:00"
+    assert dataframe.loc[0, "F_INGRESO"] == "2026-06-11 00:00:00"

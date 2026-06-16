@@ -28,8 +28,8 @@ def build_dataframe(guia: str, valor: str, fecha: str = "2026-06-09 00:00:00") -
                 "OPERADOR": "",
                 "ESTADO": "",
                 "CAUSAL": "",
-                "FECHA": fecha,
-                "INGRESO": "",
+                "F_INGRESO": fecha,
+                "F_ENTREGA": "",
             }
         ]
     )

@@ -70,7 +70,7 @@ def normalize_column_name(value: object) -> str:
     return str(value).strip().upper().replace("\n", " ")
 
 
-def read_excel_file(path: Path, required_columns: list[str]) -> pd.DataFrame:
+def read_excel_file(path: Path, required_columns: list[str], import_date: str) -> pd.DataFrame:
     dataframe = pd.read_excel(path, dtype=str)
     dataframe.columns = [normalize_column_name(column) for column in dataframe.columns]
     dataframe = apply_column_aliases(dataframe)
@@ -99,13 +99,16 @@ def read_excel_file(path: Path, required_columns: list[str]) -> pd.DataFrame:
         ]
         result = dataframe[required_columns + optional_columns].copy()
         result["GUIA"] = result["GUIA"].map(normalize_header_guide)
-        result["FECHA"] = result["FECHA"].map(normalize_header_date)
+        # Las fechas que ya trae el archivo (consolidado reexportado o formato
+        # inicial) se conservan; solo se normalizan al formato interno.
+        result["F_INGRESO"] = result["F_INGRESO"].map(normalize_header_date)
+        result["F_ENTREGA"] = result["F_ENTREGA"].map(normalize_header_date)
         result["VALOR"] = result["VALOR"].map(format_pesos)
         return result
 
     raw_dataframe = pd.read_excel(path, header=None, dtype=object)
     if is_colvanes_report(raw_dataframe):
-        return read_colvanes_report(raw_dataframe, required_columns)
+        return read_colvanes_report(raw_dataframe, required_columns, import_date)
 
     raise ValueError(f"El archivo {path.name} no contiene estas columnas: {', '.join(missing)}")
 
@@ -145,16 +148,23 @@ def normalize_header_date(value: object) -> str:
     return format_consolidated_date(text)
 
 
-def consolidate_excels(paths: list[Path], required_columns: list[str]) -> pd.DataFrame:
-    return consolidate_excels_with_movements(paths, required_columns).active
+def consolidate_excels(
+    paths: list[Path], required_columns: list[str], import_date: str | None = None
+) -> pd.DataFrame:
+    return consolidate_excels_with_movements(paths, required_columns, import_date).active
 
 
-def consolidate_excels_with_movements(paths: list[Path], required_columns: list[str]) -> ConsolidationResult:
+def consolidate_excels_with_movements(
+    paths: list[Path], required_columns: list[str], import_date: str | None = None
+) -> ConsolidationResult:
+    if import_date is None:
+        import_date = date.today().isoformat()
+
     if not paths:
         empty = pd.DataFrame(columns=required_columns)
         return ConsolidationResult(active=empty, movements_copy=empty)
 
-    frames = [read_excel_file(path, required_columns) for path in paths]
+    frames = [read_excel_file(path, required_columns, import_date) for path in paths]
     consolidated = pd.concat(frames, ignore_index=True)
 
     for column in required_columns:
@@ -210,14 +220,16 @@ def find_report_label(dataframe: pd.DataFrame) -> str | None:
     return None
 
 
-def read_colvanes_report(dataframe: pd.DataFrame, required_columns: list[str]) -> pd.DataFrame:
+def read_colvanes_report(
+    dataframe: pd.DataFrame, required_columns: list[str], import_date: str
+) -> pd.DataFrame:
     label = find_report_label(dataframe)
     columns = REPORT_COLUMNS_REEXPEDIDORES if label == REEXPEDIDORES_LABEL else REPORT_COLUMNS
 
     planilla = clean_value(find_value_after_label(dataframe, "Planilla Reparto"))
-    tipo_servicio = clean_value(find_value_after_label(dataframe, "Tipo Embalaje"))
-    fecha = format_date(find_value_after_label(dataframe, "Fecha Planilla"))
-    ingreso = format_time(find_second_value_after_label(dataframe, "Fecha y Hora"))
+    # F_INGRESO es la fecha en que se importa la planilla; F_ENTREGA queda
+    # vacia para diligenciarla a mano cuando la guia se entrega.
+    f_ingreso = format_consolidated_date(import_date)
 
     records = []
     for _, row in dataframe.iloc[15:].iterrows():
@@ -239,8 +251,8 @@ def read_colvanes_report(dataframe: pd.DataFrame, required_columns: list[str]) -
                 "OPERADOR": "",
                 "ESTADO": "",
                 "CAUSAL": "",
-                "FECHA": format_consolidated_date(fecha),
-                "INGRESO": "",
+                "F_INGRESO": f_ingreso,
+                "F_ENTREGA": "",
                 "ESTADO MOVIMIENTO": "N",
             }
         )

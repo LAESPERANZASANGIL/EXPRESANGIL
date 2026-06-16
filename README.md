@@ -151,7 +151,7 @@ El archivo diario conserva exactamente estas columnas:
 
 ```text
 PLANILLA  SERVICIO  GUIA  UNID  TIPO DE SERVICIO  DESTINATARIO
-DIRECCION  MUNICIPIO  VALOR  OPERADOR  ESTADO  CAUSAL  FECHA  INGRESO
+DIRECCION  MUNICIPIO  VALOR  OPERADOR  ESTADO  CAUSAL  F_INGRESO  F_ENTREGA
 ```
 
 Reglas aplicadas desde los reportes descargados:
@@ -160,7 +160,9 @@ Reglas aplicadas desde los reportes descargados:
 - `TIPO DE SERVICIO`: toma el tipo `PT`, `MT`, `DE`, etc.
 - `GUIA`: se guarda sin guiones y sin cero inicial.
 - `VALOR`: si es cero, se muestra como `$ -`.
-- `OPERADOR`, `ESTADO`, `CAUSAL` e `INGRESO`: quedan vacios al consolidar.
+- `F_INGRESO`: fecha en que se importa la planilla (se toma de `--fecha`, o la fecha de hoy por defecto). Es la fecha con la que se agrupan las guias y los informes.
+- `F_ENTREGA`: queda vacia al consolidar; se diligencia a mano con la fecha de entrega.
+- `OPERADOR`, `ESTADO` y `CAUSAL`: quedan vacios al consolidar.
 - Solo se consolidan las filas con estado de movimiento `N`; las demas se guardan en `movimientos otros estado DD mes.xlsx`.
 
 ## Configuracion

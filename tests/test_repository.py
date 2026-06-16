@@ -20,8 +20,8 @@ def build_dataframe(guia: str, destinatario: str) -> pd.DataFrame:
                 "OPERADOR": "",
                 "ESTADO": "",
                 "CAUSAL": "",
-                "FECHA": "2026-06-09 00:00:00",
-                "INGRESO": "",
+                "F_INGRESO": "2026-06-09 00:00:00",
+                "F_ENTREGA": "",
             }
         ]
     )
@@ -106,7 +106,7 @@ def test_delete_by_fecha(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100", "Persona A"))
 
     other = build_dataframe("200", "Persona B")
-    other["FECHA"] = "2026-06-10 00:00:00"
+    other["F_INGRESO"] = "2026-06-10 00:00:00"
     repository.save_consolidated(other)
 
     deleted = repository.delete_by_fecha("2026-06-09")

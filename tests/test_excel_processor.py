@@ -24,8 +24,8 @@ REQUIRED_COLUMNS = [
     "OPERADOR",
     "ESTADO",
     "CAUSAL",
-    "FECHA",
-    "INGRESO",
+    "F_INGRESO",
+    "F_ENTREGA",
 ]
 
 
@@ -45,8 +45,8 @@ def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_pat
                 "OPERADOR": "Debe limpiarse",
                 "ESTADO": "Debe limpiarse",
                 "CAUSAL": "Debe limpiarse",
-                "FECHA": "2026-06-09",
-                "INGRESO": "08:00",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "08:00",
                 "ESTADO MOVIMIENTO": "N",
             },
             {
@@ -61,8 +61,8 @@ def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_pat
                 "OPERADOR": "Debe limpiarse",
                 "ESTADO": "Debe limpiarse",
                 "CAUSAL": "Debe limpiarse",
-                "FECHA": "2026-06-09",
-                "INGRESO": "09:00",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "09:00",
                 "ESTADO MOVIMIENTO": "N",
             },
         ]
@@ -94,8 +94,8 @@ def test_consolidate_keeps_only_movement_status_n_and_copies_other_statuses(tmp_
                 "OPERADOR": "",
                 "ESTADO": "",
                 "CAUSAL": "",
-                "FECHA": "2026-06-09 00:00:00",
-                "INGRESO": "",
+                "F_INGRESO": "2026-06-09 00:00:00",
+                "F_ENTREGA": "",
                 "ESTADO MOVIMIENTO": "N",
             },
             {
@@ -110,8 +110,8 @@ def test_consolidate_keeps_only_movement_status_n_and_copies_other_statuses(tmp_
                 "OPERADOR": "",
                 "ESTADO": "",
                 "CAUSAL": "",
-                "FECHA": "2026-06-09 00:00:00",
-                "INGRESO": "",
+                "F_INGRESO": "2026-06-09 00:00:00",
+                "F_ENTREGA": "",
                 "ESTADO MOVIMIENTO": "D",
             },
         ]
@@ -151,7 +151,7 @@ def test_consolidate_initial_operations_format_preserves_tracking(tmp_path: Path
                 "OPERADOR": "OMAR",
                 "EST": "D",
                 "CAU": "31",
-                "FECHA": "11/06/2026",
+                "F_INGRESO": "11/06/2026",
             },
             {
                 "PLANILLA": "978411",
@@ -165,7 +165,7 @@ def test_consolidate_initial_operations_format_preserves_tracking(tmp_path: Path
                 "OPERADOR": "MARGARITA",
                 "EST": "E",
                 "CAU": "",
-                "FECHA": "10/06/2026",
+                "F_INGRESO": "10/06/2026",
             },
         ]
     )
@@ -177,8 +177,8 @@ def test_consolidate_initial_operations_format_preserves_tracking(tmp_path: Path
     assert list(result.active["OPERADOR"]) == ["OMAR", "MARGARITA"]
     assert list(result.active["ESTADO"]) == ["D", "E"]
     assert list(result.active["CAUSAL"]) == ["31", ""]
-    assert list(result.active["FECHA"]) == ["2026-06-11 00:00:00", "2026-06-10 00:00:00"]
-    assert list(result.active["INGRESO"]) == ["", ""]
+    assert list(result.active["F_INGRESO"]) == ["2026-06-11 00:00:00", "2026-06-10 00:00:00"]
+    assert list(result.active["F_ENTREGA"]) == ["", ""]
     assert result.movements_copy.empty
 
 
@@ -208,7 +208,7 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
 
     workbook.save(file_path)
 
-    result = consolidate_excels([file_path], REQUIRED_COLUMNS)
+    result = consolidate_excels([file_path], REQUIRED_COLUMNS, import_date="2026-06-13")
 
     assert len(result) == 1
     assert result.loc[0, "PLANILLA"] == "979628"
@@ -220,5 +220,6 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     assert result.loc[0, "DIRECCION"] == "CALLE 5 # 10-20"
     assert result.loc[0, "MUNICIPIO"] == "SAN GIL"
     assert result.loc[0, "VALOR"] == "$ -"
-    assert result.loc[0, "FECHA"] == "2026-06-09 00:00:00"
-    assert result.loc[0, "INGRESO"] == ""
+    # F_INGRESO es la fecha de importacion (no la "Fecha Planilla" del reporte).
+    assert result.loc[0, "F_INGRESO"] == "2026-06-13 00:00:00"
+    assert result.loc[0, "F_ENTREGA"] == ""

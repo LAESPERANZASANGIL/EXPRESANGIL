@@ -26,8 +26,8 @@ columns = [
   "OPERADOR",
   "ESTADO",
   "CAUSAL",
-  "FECHA",
-  "INGRESO"
+  "F_INGRESO",
+  "F_ENTREGA"
 ]
 editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
 

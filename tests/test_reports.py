@@ -24,8 +24,8 @@ def build_dataframe(guia: str, operador: str, estado: str, valor: str, servicio:
                 "OPERADOR": operador,
                 "ESTADO": estado,
                 "CAUSAL": "",
-                "FECHA": "2026-06-10 00:00:00",
-                "INGRESO": "",
+                "F_INGRESO": "2026-06-10 00:00:00",
+                "F_ENTREGA": "",
             }
         ]
     )

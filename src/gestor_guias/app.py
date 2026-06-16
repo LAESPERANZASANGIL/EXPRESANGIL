@@ -43,7 +43,9 @@ def consolidate(target_date: date) -> Path:
         output_dir=daily_attachment_dir,
     )
 
-    result = consolidate_excels_with_movements(attachments, settings.excel.columns)
+    result = consolidate_excels_with_movements(
+        attachments, settings.excel.columns, import_date=target_date.isoformat()
+    )
     repository = GuiaRepository(settings.paths.database_file)
     repository.save_consolidated(result.active)
 
@@ -65,7 +67,9 @@ def process_local_files(paths: list[str], target_date: date) -> Path:
     if missing:
         raise FileNotFoundError(f"No existen estos archivos: {', '.join(missing)}")
 
-    result = consolidate_excels_with_movements(files, settings.excel.columns)
+    result = consolidate_excels_with_movements(
+        files, settings.excel.columns, import_date=target_date.isoformat()
+    )
     repository = GuiaRepository(settings.paths.database_file)
     repository.save_consolidated(result.active)
 

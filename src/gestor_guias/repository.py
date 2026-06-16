@@ -101,8 +101,8 @@ class GuiaRepository:
                     row.get("OPERADOR", ""),
                     row.get("ESTADO", ""),
                     row.get("CAUSAL", ""),
-                    row.get("FECHA", ""),
-                    row.get("INGRESO", ""),
+                    row.get("F_INGRESO", ""),
+                    row.get("F_ENTREGA", ""),
                 )
             )
 
@@ -414,8 +414,8 @@ class GuiaRepository:
             "OPERADOR",
             "ESTADO",
             "CAUSAL",
-            "FECHA",
-            "INGRESO",
+            "F_INGRESO",
+            "F_ENTREGA",
         ]
         data = [
             {
@@ -431,8 +431,8 @@ class GuiaRepository:
                 "OPERADOR": row["operador"],
                 "ESTADO": row["estado"],
                 "CAUSAL": row["causal"],
-                "FECHA": row["fecha"],
-                "INGRESO": row["ingreso"],
+                "F_INGRESO": row["fecha"],
+                "F_ENTREGA": row["ingreso"],
             }
             for row in rows
         ]

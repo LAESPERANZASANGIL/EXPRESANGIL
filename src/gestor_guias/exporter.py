@@ -40,8 +40,9 @@ def display_date(value: object) -> str:
 
 def prepare_for_export(dataframe: pd.DataFrame) -> pd.DataFrame:
     result = dataframe.copy()
-    if "FECHA" in result.columns:
-        result["FECHA"] = result["FECHA"].map(display_date)
+    for column in ("F_INGRESO", "F_ENTREGA"):
+        if column in result.columns:
+            result[column] = result[column].map(display_date)
     return result
 
 

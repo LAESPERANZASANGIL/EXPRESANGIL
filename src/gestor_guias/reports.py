@@ -29,8 +29,8 @@ DETAIL_COLUMNS = [
     "OPERADOR",
     "ESTADO",
     "CAUSAL",
-    "FECHA",
-    "INGRESO",
+    "F_INGRESO",
+    "F_ENTREGA",
 ]
 
 # Estado que indica que la guia fue entregada y su valor recaudado.
@@ -108,11 +108,11 @@ def build_breakdown(dataframe: pd.DataFrame, column: str) -> pd.DataFrame:
 
 
 def filter_by_date(dataframe: pd.DataFrame, target_date: date) -> pd.DataFrame:
-    if "FECHA" not in dataframe.columns:
+    if "F_INGRESO" not in dataframe.columns:
         return dataframe.iloc[0:0]
 
     prefix = target_date.isoformat()
-    return dataframe[dataframe["FECHA"].astype(str).str.startswith(prefix)]
+    return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
 
 
 def generate_operator_report(
