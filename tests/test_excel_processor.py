@@ -4,7 +4,11 @@ from datetime import datetime, time
 import pandas as pd
 from openpyxl import Workbook
 
-from gestor_guias.excel_processor import consolidate_excels, consolidate_excels_with_movements
+from gestor_guias.excel_processor import (
+    consolidate_excels,
+    consolidate_excels_with_movements,
+    format_pesos,
+)
 
 
 REQUIRED_COLUMNS = [
@@ -21,7 +25,6 @@ REQUIRED_COLUMNS = [
     "CAUSAL",
     "FECHA",
     "INGRESO",
-    "DIRECCION",
 ]
 
 
@@ -43,7 +46,6 @@ def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_pat
                 "CAUSAL": "Debe limpiarse",
                 "FECHA": "2026-06-09",
                 "INGRESO": "08:00",
-                "DIRECCION": "Calle 1 # 2-3",
                 "ESTADO MOVIMIENTO": "N",
             },
             {
@@ -60,7 +62,6 @@ def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_pat
                 "CAUSAL": "Debe limpiarse",
                 "FECHA": "2026-06-09",
                 "INGRESO": "09:00",
-                "DIRECCION": "Calle 4 # 5-6",
                 "ESTADO MOVIMIENTO": "N",
             },
         ]
@@ -94,7 +95,6 @@ def test_consolidate_keeps_only_movement_status_n_and_copies_other_statuses(tmp_
                 "CAUSAL": "",
                 "FECHA": "2026-06-09 00:00:00",
                 "INGRESO": "",
-                "DIRECCION": "Calle 1 # 2-3",
                 "ESTADO MOVIMIENTO": "N",
             },
             {
@@ -111,7 +111,6 @@ def test_consolidate_keeps_only_movement_status_n_and_copies_other_statuses(tmp_
                 "CAUSAL": "",
                 "FECHA": "2026-06-09 00:00:00",
                 "INGRESO": "",
-                "DIRECCION": "Calle 4 # 5-6",
                 "ESTADO MOVIMIENTO": "D",
             },
         ]
@@ -123,6 +122,63 @@ def test_consolidate_keeps_only_movement_status_n_and_copies_other_statuses(tmp_
     assert list(result.active["GUIA"]) == ["100"]
     assert list(result.movements_copy["GUIA"]) == ["200"]
     assert list(result.movements_copy["ESTADO MOVIMIENTO"]) == ["D"]
+
+
+def test_format_pesos() -> None:
+    assert format_pesos("142900") == "$ 142.900"
+    assert format_pesos("142900.0") == "$ 142.900"
+    assert format_pesos("$ 142.900") == "$ 142.900"
+    assert format_pesos("1500000") == "$ 1.500.000"
+    assert format_pesos("0") == "$ -"
+    assert format_pesos("") == "$ -"
+    assert format_pesos("$ -") == "$ -"
+
+
+def test_consolidate_initial_operations_format_preserves_tracking(tmp_path: Path) -> None:
+    file_path = tmp_path / "formato_inicial.xlsx"
+    dataframe = pd.DataFrame(
+        [
+            {
+                "PLANILLA": "979628",
+                "S": "RR",
+                "GUIA": "014158816547",
+                "UN": "1",
+                "TI": "DE",
+                "DESTINATARIO": "SERGIO ANDRES CORZO",
+                "MUNICIPIO": "SAN GIL",
+                "VALOR": "$ -",
+                "OPERADOR": "OMAR",
+                "EST": "D",
+                "CAU": "31",
+                "FECHA": "11/06/2026",
+            },
+            {
+                "PLANILLA": "978411",
+                "S": "",
+                "GUIA": "034057184716",
+                "UN": "1",
+                "TI": "MT",
+                "DESTINATARIO": "TECNI MOTOS JOHN",
+                "MUNICIPIO": "SAN GIL",
+                "VALOR": "$ -",
+                "OPERADOR": "MARGARITA",
+                "EST": "E",
+                "CAU": "",
+                "FECHA": "10/06/2026",
+            },
+        ]
+    )
+    dataframe.to_excel(file_path, index=False)
+
+    result = consolidate_excels_with_movements([file_path], REQUIRED_COLUMNS)
+
+    assert list(result.active["GUIA"]) == ["14158816547", "34057184716"]
+    assert list(result.active["OPERADOR"]) == ["OMAR", "MARGARITA"]
+    assert list(result.active["ESTADO"]) == ["D", "E"]
+    assert list(result.active["CAUSAL"]) == ["31", ""]
+    assert list(result.active["FECHA"]) == ["2026-06-11 00:00:00", "2026-06-10 00:00:00"]
+    assert list(result.active["INGRESO"]) == ["", ""]
+    assert result.movements_copy.empty
 
 
 def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
@@ -144,7 +200,6 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     worksheet["G18"] = "01-4-158816547"
     worksheet["N18"] = "DE "
     worksheet["X18"] = "SERGIO ANDRES CORZO"
-    worksheet["AE18"] = "CALLE 10 # 5-20"
     worksheet["AN18"] = "SAN GIL"
     worksheet["AW18"] = 1
     worksheet["BG18"] = 0
@@ -160,7 +215,6 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     assert result.loc[0, "UNID"] == "1"
     assert result.loc[0, "TIPO DE SERVICIO"] == "DE"
     assert result.loc[0, "DESTINATARIO"] == "SERGIO ANDRES CORZO"
-    assert result.loc[0, "DIRECCION"] == "CALLE 10 # 5-20"
     assert result.loc[0, "MUNICIPIO"] == "SAN GIL"
     assert result.loc[0, "VALOR"] == "$ -"
     assert result.loc[0, "FECHA"] == "2026-06-09 00:00:00"

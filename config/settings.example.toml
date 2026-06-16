@@ -26,7 +26,10 @@ columns = [
   "ESTADO",
   "CAUSAL",
   "FECHA",
-  "INGRESO",
-  "DIRECCION"
+  "INGRESO"
 ]
 editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
+
+[oficina]
+nombre = "SAN GIL"
+admin_name = "JOHAN A. ORTIZ"

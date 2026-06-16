@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modulo Usuarios - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="usuarios.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>MODULO USUARIOS</h1>
+      <p class="subtitulo">Administracion de operadores y administradores</p>
+    </header>
+
+    <section id="pantalla-bootstrap" class="pantalla oculto">
+      <div class="opcion">
+        <h3>Crear el primer administrador</h3>
+        <p class="nota">Todavia no existe ningun administrador. Crea el primero para poder gestionar los usuarios del sistema.</p>
+        <label>Usuario</label>
+        <input type="text" id="boot-usuario" autocomplete="off" />
+        <label>Contrasena</label>
+        <input type="password" id="boot-password" autocomplete="new-password" />
+        <label>Nombre completo</label>
+        <input type="text" id="boot-nombre" autocomplete="off" />
+        <button class="boton boton-accion" id="btn-bootstrap">Crear administrador</button>
+      </div>
+      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+    </section>
+
+    <section id="pantalla-login" class="pantalla oculto">
+      <div class="opcion">
+        <h3>Iniciar sesion (solo administradores)</h3>
+        <label>Usuario</label>
+        <input type="text" id="login-usuario" autocomplete="username" />
+        <label>Contrasena</label>
+        <input type="password" id="login-password" autocomplete="current-password" />
+        <button class="boton boton-accion" id="btn-login">Ingresar</button>
+      </div>
+      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+    </section>
+
+    <section id="pantalla-admin" class="pantalla oculto">
+      <div class="opcion barra-admin">
+        <p>Administrador: <strong id="nombre-admin"></strong></p>
+        <button class="boton boton-volver" id="btn-logout">Cerrar sesion</button>
+      </div>
+
+      <div class="opcion">
+        <h3>Crear o actualizar usuario</h3>
+        <label>Usuario de acceso</label>
+        <input type="text" id="nuevo-usuario" autocomplete="off" />
+        <label>Contrasena</label>
+        <input type="password" id="nuevo-password" autocomplete="new-password" />
+        <label>Nombre (como aparece en la columna OPERADOR)</label>
+        <input type="text" id="nuevo-nombre" autocomplete="off" />
+        <label>Rol</label>
+        <select id="nuevo-rol">
+          <option value="operador">Operador</option>
+          <option value="admin">Administrador</option>
+        </select>
+        <button class="boton boton-accion" id="btn-crear">Guardar usuario</button>
+      </div>
+
+      <div class="opcion">
+        <h3>Usuarios registrados</h3>
+        <table class="tabla-usuarios">
+          <thead>
+            <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th></th></tr>
+          </thead>
+          <tbody id="tabla-usuarios-body"></tbody>
+        </table>
+      </div>
+
+      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+    </section>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="usuarios.js"></script>
+</body>
+</html>

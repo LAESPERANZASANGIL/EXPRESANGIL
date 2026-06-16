@@ -30,10 +30,17 @@ class ExcelSettings:
 
 
 @dataclass(frozen=True)
+class OficinaSettings:
+    nombre: str
+    admin_name: str
+
+
+@dataclass(frozen=True)
 class Settings:
     gmail: GmailSettings
     paths: PathSettings
     excel: ExcelSettings
+    oficina: OficinaSettings
 
 
 def _project_path(value: str) -> Path:
@@ -54,6 +61,7 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
     gmail = raw["gmail"]
     paths = raw["paths"]
     excel = raw["excel"]
+    oficina = raw.get("oficina", {})
 
     return Settings(
         gmail=GmailSettings(
@@ -70,5 +78,9 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
         excel=ExcelSettings(
             columns=list(excel["columns"]),
             editable_columns=list(excel["editable_columns"]),
+        ),
+        oficina=OficinaSettings(
+            nombre=str(oficina.get("nombre", "SAN GIL")),
+            admin_name=str(oficina.get("admin_name", "JOHAN A. ORTIZ")),
         ),
     )

@@ -68,13 +68,14 @@ exit /b 0
 cls
 echo IMPORTAR PLANILLA
 echo.
-echo Puedes arrastrar uno o varios archivos .xls o .xlsx a esta ventana y presionar Enter.
-set /p archivo=Ruta de la planilla:
+echo Puedes arrastrar el archivo .xls o .xlsx a esta ventana y presionar Enter.
+set /p archivo=Ruta de la planilla: 
+set archivo=%archivo:"=%
 call :fecha
 if "%fecha%"=="" (
-    ".venv\Scripts\python.exe" -m gestor_guias.app importar %archivo%
+    ".venv\Scripts\python.exe" -m gestor_guias.app importar "%archivo%"
 ) else (
-    ".venv\Scripts\python.exe" -m gestor_guias.app importar %archivo% --fecha %fecha%
+    ".venv\Scripts\python.exe" -m gestor_guias.app importar "%archivo%" --fecha %fecha%
 )
 echo.
 echo Revisa la carpeta data\output para ver el consolidado.

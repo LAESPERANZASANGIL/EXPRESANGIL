@@ -1,0 +1,61 @@
+.barra-operador {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.barra-operador p {
+  margin: 0;
+  color: var(--azul-oscuro);
+}
+
+.barra-operador label {
+  margin: 0;
+}
+
+.barra-operador input {
+  width: 140px;
+}
+
+.barra-operador .boton {
+  margin-left: auto;
+}
+
+#pantalla-operador textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.tabla-resumen {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.tabla-resumen td {
+  border: 1px solid var(--gris-borde);
+  padding: 8px 10px;
+}
+
+.tabla-resumen td:first-child {
+  font-weight: bold;
+  color: var(--azul-oscuro);
+  width: 60%;
+}
+
+.tabla-resumen td:last-child {
+  text-align: right;
+}
+
+.tabla-resumen tr.fila-efectivo td {
+  background: var(--amarillo);
+  color: var(--azul-oscuro);
+  font-weight: bold;
+}

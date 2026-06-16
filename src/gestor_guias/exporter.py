@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+import re
 
 from openpyxl.styles import Font, PatternFill
 import pandas as pd
@@ -27,12 +28,29 @@ def output_filename(target_date: date) -> str:
     return f"{target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
 
 
+def display_date(value: object) -> str:
+    """Convierte la fecha guardada (YYYY-MM-DD [HH:MM:SS]) a DD/MM/YYYY para el Excel."""
+    text = str(value).strip()
+    match = re.match(r"(\d{4})-(\d{2})-(\d{2})", text)
+    if match:
+        year, month, day = match.groups()
+        return f"{day}/{month}/{year}"
+    return text
+
+
+def prepare_for_export(dataframe: pd.DataFrame) -> pd.DataFrame:
+    result = dataframe.copy()
+    if "FECHA" in result.columns:
+        result["FECHA"] = result["FECHA"].map(display_date)
+    return result
+
+
 def export_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / output_filename(target_date)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        dataframe.to_excel(writer, index=False, sheet_name="Hoja1")
+        prepare_for_export(dataframe).to_excel(writer, index=False, sheet_name="Hoja1")
         worksheet = writer.sheets["Hoja1"]
         apply_master_format(worksheet)
 
@@ -47,7 +65,7 @@ def export_movements_copy(dataframe: pd.DataFrame, output_dir: Path, target_date
     output_path = output_dir / f"movimientos otros estado {output_filename(target_date)}"
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        dataframe.to_excel(writer, index=False, sheet_name="Movimientos")
+        prepare_for_export(dataframe).to_excel(writer, index=False, sheet_name="Movimientos")
         worksheet = writer.sheets["Movimientos"]
         apply_master_format(worksheet)
 
@@ -57,7 +75,9 @@ def export_movements_copy(dataframe: pd.DataFrame, output_dir: Path, target_date
 def apply_master_format(worksheet) -> None:
     header_fill = PatternFill(fill_type="solid", fgColor="4472C4")
     data_fill = PatternFill(fill_type="solid", fgColor="D9E1F2")
-    header_font = Font(bold=True)
+    planilla_fill = PatternFill(fill_type="solid", fgColor="FFFF00")
+    header_font = Font(bold=True, color="FFFFFF")
+    planilla_font = Font(bold=True)
 
     widths = {
         "A": 13,
@@ -73,7 +93,6 @@ def apply_master_format(worksheet) -> None:
         "K": 13,
         "L": 20,
         "M": 13,
-        "N": 35,
     }
 
     for column, width in widths.items():
@@ -86,5 +105,9 @@ def apply_master_format(worksheet) -> None:
 
     for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, max_col=worksheet.max_column):
         for cell in row:
-            cell.fill = data_fill
+            if cell.column == 1:
+                cell.fill = planilla_fill
+                cell.font = planilla_font
+            else:
+                cell.fill = data_fill
             cell.alignment = cell.alignment.copy(horizontal="left")

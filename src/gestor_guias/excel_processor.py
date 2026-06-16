@@ -13,27 +13,45 @@ REPORT_COLUMNS = {
     "GUIA": 6,
     "TIPO DE SERVICIO": 13,
     "DESTINATARIO": 23,
-    "DIRECCION": 30,
     "MUNICIPIO": 39,
     "UNID": 48,
     "VALOR": 58,
 }
 
-REEXPEDIDORES_REPORT_COLUMNS = {
+# La planilla "PARA REEXPEDIDORES" trae una columna adicional (CP) que
+# desplaza las posiciones de los datos respecto a la planilla "PARA CONTRATISTAS".
+REPORT_COLUMNS_REEXPEDIDORES = {
     "SERVICIO": 2,
     "GUIA": 5,
     "TIPO DE SERVICIO": 11,
     "DESTINATARIO": 20,
-    "DIRECCION": 27,
     "MUNICIPIO": 35,
     "UNID": 47,
     "VALOR": 57,
 }
 
-COLVANES_REPORT_TITLES = {
-    "PLANILLA DE REPARTO PARA CONTRATISTAS": REPORT_COLUMNS,
-    "PLANILLA DE REPARTO PARA REEXPEDIDORES": REEXPEDIDORES_REPORT_COLUMNS,
+CONTRATISTAS_LABEL = "PLANILLA DE REPARTO PARA CONTRATISTAS"
+REEXPEDIDORES_LABEL = "PLANILLA DE REPARTO PARA REEXPEDIDORES"
+
+# Encabezados abreviados que usa el formato inicial de operaciones.
+COLUMN_ALIASES = {
+    "S": "SERVICIO",
+    "SERV": "SERVICIO",
+    "UN": "UNID",
+    "UNI": "UNID",
+    "UNIDADES": "UNID",
+    "TI": "TIPO DE SERVICIO",
+    "TIPO": "TIPO DE SERVICIO",
+    "TIPO SERVICIO": "TIPO DE SERVICIO",
+    "EST": "ESTADO",
+    "CAU": "CAUSAL",
+    "CAUS": "CAUSAL",
+    "OPER": "OPERADOR",
 }
+
+# Marca interna para no limpiar OPERADOR/ESTADO/CAUSAL al consolidar
+# archivos que ya traen el seguimiento diligenciado (formato inicial).
+PRESERVE_COLUMN = "CONSERVAR SEGUIMIENTO"
 
 
 @dataclass(frozen=True)
@@ -49,6 +67,11 @@ def normalize_column_name(value: object) -> str:
 def read_excel_file(path: Path, required_columns: list[str]) -> pd.DataFrame:
     dataframe = pd.read_excel(path, dtype=str)
     dataframe.columns = [normalize_column_name(column) for column in dataframe.columns]
+    dataframe = apply_column_aliases(dataframe)
+
+    if has_tracking_data(dataframe):
+        dataframe["ESTADO MOVIMIENTO"] = "N"
+        dataframe[PRESERVE_COLUMN] = "SI"
 
     if "ESTADO MOVIMIENTO" not in dataframe.columns and "ESTADO" in dataframe.columns:
         dataframe["ESTADO MOVIMIENTO"] = dataframe["ESTADO"]
@@ -57,16 +80,63 @@ def read_excel_file(path: Path, required_columns: list[str]) -> pd.DataFrame:
         dataframe["ESTADO"] = ""
 
     missing = [column for column in required_columns if column not in dataframe.columns]
+    if missing and is_guide_list_format(dataframe):
+        for column in missing:
+            dataframe[column] = ""
+        missing = []
+
     if not missing:
-        optional_columns = ["ESTADO MOVIMIENTO"] if "ESTADO MOVIMIENTO" in dataframe.columns else []
-        return dataframe[required_columns + optional_columns].copy()
+        optional_columns = [
+            column
+            for column in ("ESTADO MOVIMIENTO", PRESERVE_COLUMN)
+            if column in dataframe.columns
+        ]
+        result = dataframe[required_columns + optional_columns].copy()
+        result["GUIA"] = result["GUIA"].map(normalize_header_guide)
+        result["FECHA"] = result["FECHA"].map(normalize_header_date)
+        result["VALOR"] = result["VALOR"].map(format_pesos)
+        return result
 
     raw_dataframe = pd.read_excel(path, header=None, dtype=object)
-    report_columns = detect_report_columns(raw_dataframe)
-    if report_columns is not None:
-        return read_colvanes_report(raw_dataframe, required_columns, report_columns)
+    if is_colvanes_report(raw_dataframe):
+        return read_colvanes_report(raw_dataframe, required_columns)
 
     raise ValueError(f"El archivo {path.name} no contiene estas columnas: {', '.join(missing)}")
+
+
+def apply_column_aliases(dataframe: pd.DataFrame) -> pd.DataFrame:
+    renames = {
+        column: COLUMN_ALIASES[column]
+        for column in dataframe.columns
+        if column in COLUMN_ALIASES and COLUMN_ALIASES[column] not in dataframe.columns
+    }
+    return dataframe.rename(columns=renames) if renames else dataframe
+
+
+def has_tracking_data(dataframe: pd.DataFrame) -> bool:
+    if "ESTADO MOVIMIENTO" in dataframe.columns or "OPERADOR" not in dataframe.columns:
+        return False
+    return dataframe["OPERADOR"].fillna("").astype(str).str.strip().ne("").any()
+
+
+def is_guide_list_format(dataframe: pd.DataFrame) -> bool:
+    return "GUIA" in dataframe.columns and "DESTINATARIO" in dataframe.columns
+
+
+def normalize_header_guide(value: object) -> str:
+    text = clean_value(value)
+    if re.fullmatch(r"[\d-]+", text):
+        return normalize_guide(text)
+    return text
+
+
+def normalize_header_date(value: object) -> str:
+    text = clean_value(value)
+    match = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{4})", text)
+    if match:
+        day, month, year = match.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d} 00:00:00"
+    return format_consolidated_date(text)
 
 
 def consolidate_excels(paths: list[Path], required_columns: list[str]) -> pd.DataFrame:
@@ -84,6 +154,11 @@ def consolidate_excels_with_movements(paths: list[Path], required_columns: list[
     for column in required_columns:
         consolidated[column] = consolidated[column].fillna("").astype(str).str.strip()
 
+    if PRESERVE_COLUMN in consolidated.columns:
+        preserve_mask = consolidated[PRESERVE_COLUMN].fillna("").eq("SI")
+    else:
+        preserve_mask = pd.Series(False, index=consolidated.index)
+
     movement_status = get_movement_status(consolidated)
     active_mask = movement_status.eq("N") | movement_status.eq("")
     active = consolidated[active_mask].copy()
@@ -91,12 +166,13 @@ def consolidate_excels_with_movements(paths: list[Path], required_columns: list[
 
     for column in ("OPERADOR", "ESTADO", "CAUSAL"):
         if column in active.columns:
-            active[column] = ""
+            active.loc[~preserve_mask.loc[active.index], column] = ""
 
     active = active[active["GUIA"] != ""]
     active = active.drop_duplicates(subset=["GUIA"], keep="first")
     movements_copy = movements_copy[movements_copy["GUIA"] != ""]
     movements_copy = movements_copy.drop_duplicates(subset=["GUIA"], keep="first")
+    movements_copy = movements_copy.drop(columns=[PRESERVE_COLUMN], errors="ignore")
     return ConsolidationResult(
         active=active[required_columns].reset_index(drop=True),
         movements_copy=movements_copy.reset_index(drop=True),
@@ -113,18 +189,25 @@ def get_movement_status(dataframe: pd.DataFrame) -> pd.Series:
     return pd.Series(["N"] * len(dataframe), index=dataframe.index)
 
 
-def detect_report_columns(dataframe: pd.DataFrame) -> dict[str, int] | None:
+def is_colvanes_report(dataframe: pd.DataFrame) -> bool:
+    return find_report_label(dataframe) is not None
+
+
+def find_report_label(dataframe: pd.DataFrame) -> str | None:
     values = dataframe.fillna("").astype(str).to_numpy().ravel()
-    upper_values = {value.strip().upper() for value in values}
-    for title, columns in COLVANES_REPORT_TITLES.items():
-        if title in upper_values:
-            return columns
+    for value in values:
+        upper = value.upper()
+        if CONTRATISTAS_LABEL in upper:
+            return CONTRATISTAS_LABEL
+        if REEXPEDIDORES_LABEL in upper:
+            return REEXPEDIDORES_LABEL
     return None
 
 
-def read_colvanes_report(
-    dataframe: pd.DataFrame, required_columns: list[str], report_columns: dict[str, int]
-) -> pd.DataFrame:
+def read_colvanes_report(dataframe: pd.DataFrame, required_columns: list[str]) -> pd.DataFrame:
+    label = find_report_label(dataframe)
+    columns = REPORT_COLUMNS_REEXPEDIDORES if label == REEXPEDIDORES_LABEL else REPORT_COLUMNS
+
     planilla = clean_value(find_value_after_label(dataframe, "Planilla Reparto"))
     tipo_servicio = clean_value(find_value_after_label(dataframe, "Tipo Embalaje"))
     fecha = format_date(find_value_after_label(dataframe, "Fecha Planilla"))
@@ -132,21 +215,20 @@ def read_colvanes_report(
 
     records = []
     for _, row in dataframe.iloc[15:].iterrows():
-        raw_guia = clean_value(get_position(row, report_columns["GUIA"]))
+        raw_guia = clean_value(get_position(row, columns["GUIA"]))
         if not is_guide_number(raw_guia):
             continue
 
         records.append(
             {
                 "PLANILLA": planilla,
-                "SERVICIO": clean_value(get_position(row, report_columns["SERVICIO"])),
+                "SERVICIO": clean_value(get_position(row, columns["SERVICIO"])),
                 "GUIA": normalize_guide(raw_guia),
-                "UNID": clean_value(get_position(row, report_columns["UNID"])),
-                "TIPO DE SERVICIO": clean_value(get_position(row, report_columns["TIPO DE SERVICIO"])),
-                "DESTINATARIO": clean_value(get_position(row, report_columns["DESTINATARIO"])),
-                "DIRECCION": clean_value(get_position(row, report_columns["DIRECCION"])),
-                "MUNICIPIO": clean_value(get_position(row, report_columns["MUNICIPIO"])),
-                "VALOR": normalize_value(get_position(row, report_columns["VALOR"])),
+                "UNID": clean_value(get_position(row, columns["UNID"])),
+                "TIPO DE SERVICIO": clean_value(get_position(row, columns["TIPO DE SERVICIO"])),
+                "DESTINATARIO": clean_value(get_position(row, columns["DESTINATARIO"])),
+                "MUNICIPIO": clean_value(get_position(row, columns["MUNICIPIO"])),
+                "VALOR": normalize_value(get_position(row, columns["VALOR"])),
                 "OPERADOR": "",
                 "ESTADO": "",
                 "CAUSAL": "",
@@ -233,10 +315,17 @@ def normalize_guide(value: str) -> str:
 
 
 def normalize_value(value: object) -> str:
+    return format_pesos(value)
+
+
+def format_pesos(value: object) -> str:
     text = clean_value(value)
-    if text in {"", "0", "0.0"}:
+    if not text or text == "$ -":
         return "$ -"
-    return text
+    digits = re.sub(r"[^\d]", "", re.sub(r"\.0+$", "", text))
+    if not digits or int(digits) == 0:
+        return "$ -"
+    return "$ " + f"{int(digits):,}".replace(",", ".")
 
 
 def format_consolidated_date(value: str) -> str:

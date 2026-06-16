@@ -9,7 +9,15 @@ from .config import load_settings
 from .editor_gui import run_editor
 from .excel_processor import consolidate_excels_with_movements
 from .exporter import export_dataframe, export_movements_copy
-from .reports import generate_reports
+from .operadores import hash_password
+from .recaudo import generate_recaudo_report
+from .relacion_ce_rr import generate_relacion_ce_rr_report
+from .reports import (
+    generate_daily_report,
+    generate_operator_report,
+    generate_operator_report_pdf,
+    generate_reports,
+)
 from .repository import GuiaRepository
 
 
@@ -97,10 +105,77 @@ def generate_reports_from_file(source_file: str, target_date: date) -> Path:
     return output_path
 
 
+def report_by_operator(target_date: date | None) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_operator_report(repository, settings.paths.output_dir, target_date)
+    print(f"Informe generado: {output_path}")
+
+    pdf_date = target_date or date.today()
+    pdf_path = generate_operator_report_pdf(repository, settings.paths.output_dir, pdf_date)
+    print(f"Informe PDF generado: {pdf_path}")
+    return output_path
+
+
+def report_of_day(target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_daily_report(repository, settings.paths.output_dir, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
+def report_of_recaudo(target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_recaudo_report(repository, settings.paths.output_dir, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
+def report_relacion_ce_rr(target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_relacion_ce_rr_report(
+        repository,
+        settings.paths.output_dir,
+        target_date,
+        admin_name=settings.oficina.admin_name,
+        oficina_nombre=settings.oficina.nombre,
+    )
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
 def open_editor() -> None:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    run_editor(repository)
+    run_editor(repository, settings.paths.output_dir, settings.oficina)
+
+
+def operador_crear(usuario: str, password: str, nombre: str, rol: str = "operador") -> None:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    repository.crear_operador(usuario.strip(), hash_password(password), nombre.strip(), rol)
+    print(f"Usuario '{usuario}' creado/actualizado para '{nombre}' con rol '{rol}'.")
+
+
+def operador_listar() -> None:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    operadores = repository.listar_operadores()
+    if not operadores:
+        print("No hay operadores registrados.")
+        return
+    for operador in operadores:
+        print(f"{operador['usuario']} -> {operador['nombre']} ({operador['rol']})")
+
+
+def operador_eliminar(usuario: str) -> None:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    eliminado = repository.eliminar_operador(usuario.strip())
+    print("Operador eliminado." if eliminado else "Operador no encontrado.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -140,7 +215,63 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clear_parser.add_argument("--confirmar", action="store_true", help="Confirma el borrado total")
 
+    operator_report_parser = subparsers.add_parser(
+        "informe-operador",
+        help="Genera el informe por operador a partir de las guias guardadas",
+    )
+    operator_report_parser.add_argument(
+        "--fecha", help="Filtra por fecha de planilla en formato YYYY-MM-DD (opcional)"
+    )
+
+    daily_report_parser = subparsers.add_parser(
+        "informe-dia",
+        help="Genera el informe del dia a partir de las guias guardadas",
+    )
+    daily_report_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
+    recaudo_report_parser = subparsers.add_parser(
+        "informe-recaudo",
+        help="Genera el informe de recaudo diario a partir de las guias guardadas",
+    )
+    recaudo_report_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
+    relacion_ce_rr_parser = subparsers.add_parser(
+        "informe-relacion-ce-rr",
+        help="Genera la relacion de guias CE y RR entregadas y recaudadas por operador",
+    )
+    relacion_ce_rr_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
     subparsers.add_parser("editar", help="Abre la interfaz para editar operador, estado y causal")
+
+    operador_crear_parser = subparsers.add_parser(
+        "operador-crear",
+        help="Crea o actualiza un usuario de operador para el modulo de operadores",
+    )
+    operador_crear_parser.add_argument("--usuario", required=True, help="Usuario de acceso")
+    operador_crear_parser.add_argument("--password", required=True, help="Contraseña de acceso")
+    operador_crear_parser.add_argument(
+        "--nombre", required=True, help="Nombre del operador como aparece en la columna OPERADOR"
+    )
+    operador_crear_parser.add_argument(
+        "--rol",
+        choices=["operador", "admin"],
+        default="operador",
+        help="Rol del usuario: operador o admin (por defecto operador)",
+    )
+
+    subparsers.add_parser("operador-listar", help="Lista los usuarios de operador registrados")
+
+    operador_eliminar_parser = subparsers.add_parser(
+        "operador-eliminar", help="Elimina un usuario de operador"
+    )
+    operador_eliminar_parser.add_argument("--usuario", required=True, help="Usuario a eliminar")
+
     return parser
 
 
@@ -159,8 +290,23 @@ def main() -> None:
         generate_reports_from_file(args.archivo, parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "borrar-datos":
         clear_data(args.confirmar)
+    elif args.command == "informe-operador":
+        fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else None
+        report_by_operator(fecha)
+    elif args.command == "informe-dia":
+        report_of_day(parse_date(args.fecha, settings.gmail.timezone))
+    elif args.command == "informe-recaudo":
+        report_of_recaudo(parse_date(args.fecha, settings.gmail.timezone))
+    elif args.command == "informe-relacion-ce-rr":
+        report_relacion_ce_rr(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "editar":
         open_editor()
+    elif args.command == "operador-crear":
+        operador_crear(args.usuario, args.password, args.nombre, args.rol)
+    elif args.command == "operador-listar":
+        operador_listar()
+    elif args.command == "operador-eliminar":
+        operador_eliminar(args.usuario)
 
 
 if __name__ == "__main__":

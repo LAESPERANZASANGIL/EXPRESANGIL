@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestor de Guias Envia</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>GESTOR DE GUIAS ENVIA</h1>
+      <p class="subtitulo">Panel de control - Expresangil</p>
+    </header>
+
+    <section id="pantalla-principal" class="pantalla">
+      <button class="boton boton-principal" id="btn-iniciar">INICIAR</button>
+      <button class="boton boton-principal" id="btn-zona-trabajo">ZONA DE TRABAJO</button>
+      <a class="boton boton-principal" href="/operadores">MODULO OPERADORES</a>
+      <a class="boton boton-principal" href="/usuarios">MODULO USUARIOS</a>
+    </section>
+
+    <section id="pantalla-iniciar" class="pantalla oculto">
+      <h2>OPCIONES</h2>
+
+      <div class="opcion">
+        <h3>1. Importar planilla descargada</h3>
+        <label>Ruta del archivo .xls o .xlsx (varias rutas separadas por ;)</label>
+        <div class="fila-archivo">
+          <input type="text" id="importar-archivo" placeholder="C:\ruta\al\archivo.xls" />
+          <button class="boton boton-buscar" id="btn-buscar-archivo">Buscar...</button>
+        </div>
+        <label>Fecha (YYYY-MM-DD, opcional)</label>
+        <input type="text" id="importar-fecha" placeholder="2026-06-10" />
+        <button class="boton boton-accion" id="btn-importar">Importar</button>
+      </div>
+
+      <div class="opcion">
+        <h3>2. Abrir editor de operador, estado y causal</h3>
+        <button class="boton boton-accion" id="btn-editor">Abrir editor</button>
+      </div>
+
+      <div class="opcion">
+        <h3>3. Exportar consolidado</h3>
+        <label>Fecha (YYYY-MM-DD, opcional)</label>
+        <input type="text" id="exportar-fecha" placeholder="2026-06-10" />
+        <button class="boton boton-accion" id="btn-exportar">Exportar</button>
+      </div>
+
+      <div class="opcion">
+        <h3>4. Generar informes</h3>
+        <label>Tipo de informe</label>
+        <select id="informe-tipo">
+          <option value="operador">Informe por operador</option>
+          <option value="dia">Informe del dia</option>
+          <option value="recaudo">Informe de recaudo</option>
+          <option value="relacion">Relacion de guias CE y RR</option>
+        </select>
+        <label>Fecha (YYYY-MM-DD, opcional)</label>
+        <input type="text" id="informe-fecha" placeholder="2026-06-10" />
+        <button class="boton boton-accion" id="btn-informe">Generar informe</button>
+      </div>
+
+      <button class="boton boton-volver" id="btn-volver">VOLVER AL MENU PRINCIPAL</button>
+    </section>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
