@@ -167,6 +167,45 @@ Reglas aplicadas desde los reportes descargados:
 
 `config/settings.toml` (creado a partir de `settings.example.toml`) define remitentes de Gmail, zona horaria, rutas de datos, columnas del consolidado, columnas editables y datos de la oficina (`nombre`, `admin_name`).
 
+## Versionamiento y publicacion de artefactos
+
+El programa se distribuye a las oficinas como un **instalador offline** (`GestorGuiasEnvia_Instalador.zip`): incluye el codigo, Python embebido y las librerias. Para versionarlo se usa **SemVer** (`MAYOR.MENOR.PARCHE`) y **GitHub Releases**; el zip **no** se sube al repositorio (queda en `dist/`, ignorado por git).
+
+### Fuente unica de la version
+
+La version vive solo en `pyproject.toml` (`[project].version`). Para una nueva entrega se sube ahi:
+
+- **PARCHE** (`1.0.0 -> 1.0.1`): correcciones, sin cambios de uso.
+- **MENOR** (`1.0.0 -> 1.1.0`): funciones nuevas compatibles.
+- **MAYOR** (`1.0.0 -> 2.0.0`): cambios que rompen el flujo o el formato de datos.
+
+### Pasos para publicar una version
+
+1. Subir la version en `pyproject.toml` y commitear.
+2. **Correr las pruebas y confirmar que estan en verde** (obligatorio antes de publicar):
+   ```powershell
+   .venv\Scripts\python.exe -m pytest
+   ```
+3. Construir el instalador (lee la version, estampa `VERSION`/`LEEME.txt` y nombra el zip):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+   # La primera vez o al cambiar dependencias, regenera las wheels offline:
+   powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1 -RefreshWheels
+   ```
+   Genera `dist\GestorGuiasEnvia_Instalador_v<version>.zip`.
+4. Etiquetar el commit con la version y subir el tag:
+   ```powershell
+   git tag -a v1.0.0 -m "Version 1.0.0"
+   git push origin v1.0.0
+   ```
+5. Publicar la Release adjuntando el zip (requiere el [GitHub CLI](https://cli.github.com/) `gh`, instalado y autenticado con `gh auth login`):
+   ```powershell
+   gh release create v1.0.0 "dist\GestorGuiasEnvia_Instalador_v1.0.0.zip" --title "v1.0.0" --notes "Notas de la version"
+   ```
+   Alternativa sin CLI: crear la Release desde la web de GitHub y arrastrar el zip.
+
+> Requisito del build: `dist\GestorGuiasEnvia_Instalador\herramientas\` debe tener el instalador offline de Python (`python-*-amd64.exe`, se descarga una vez a mano) y la carpeta `wheels\` (la genera `-RefreshWheels`).
+
 ## Seguridad y control de versiones
 
 - La base de datos local (`data/database/guias.db`) no se borra al importar; solo con `borrar-datos --confirmar`.

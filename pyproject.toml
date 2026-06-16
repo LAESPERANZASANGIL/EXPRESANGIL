@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gestor-guias-envia"
-version = "0.1.0"
-description = "Descarga y consolidacion diaria de guias desde Gmail"
+version = "1.0.0"
+description = "Gestor diario de guias Envia: importacion, consolidacion, panel web y operacion de reparto"
 requires-python = ">=3.12"
 dependencies = [
     "google-api-python-client>=2.130.0",
