@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from http.cookies import SimpleCookie
 import json
+import os
 import secrets
 import subprocess
 import sys
@@ -26,7 +27,8 @@ from .repository import GuiaRepository
 BASE_DIR = Path(__file__).resolve().parents[2]
 LAUNCHER_DIR = BASE_DIR / "launcher"
 PYTHON = sys.executable
-PORT = 8765
+HOST = os.environ.get("GESTOR_GUIAS_HOST", "127.0.0.1")
+PORT = int(os.environ.get("GESTOR_GUIAS_PORT", "8765"))
 
 SETTINGS = load_settings()
 REPOSITORY = GuiaRepository(SETTINGS.paths.database_file)
@@ -373,9 +375,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), LauncherHandler)
-    url = f"http://127.0.0.1:{PORT}/"
-    threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    server = ThreadingHTTPServer((HOST, PORT), LauncherHandler)
+    url = f"http://{HOST}:{PORT}/"
+    if os.environ.get("GESTOR_GUIAS_NO_BROWSER") != "1":
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     print(f"Panel disponible en {url} (Ctrl+C para salir)")
     try:
         server.serve_forever()

@@ -1,0 +1,17 @@
+[Unit]
+Description=Panel web Gestor de Guias EXPRESANGIL
+After=network.target
+
+[Service]
+Type=simple
+User=gestorguias
+WorkingDirectory=/opt/expresangil
+Environment=GESTOR_GUIAS_HOST=127.0.0.1
+Environment=GESTOR_GUIAS_PORT=8765
+Environment=GESTOR_GUIAS_NO_BROWSER=1
+ExecStart=/opt/expresangil/.venv/bin/python -m gestor_guias.launcher_server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
