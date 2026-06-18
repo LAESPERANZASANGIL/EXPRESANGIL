@@ -42,7 +42,7 @@ def test_import_preserves_existing_data_and_tracking_fields(tmp_path: Path) -> N
     assert dataframe.loc[0, "CAUSAL"] == "Sin causal"
 
 
-def test_import_asigna_bodega_y_estado_r_por_defecto(tmp_path: Path) -> None:
+def test_import_asigna_bodega_y_estado_vacio_por_defecto(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "Persona A"))
@@ -51,8 +51,9 @@ def test_import_asigna_bodega_y_estado_r_por_defecto(tmp_path: Path) -> None:
 
     dataframe = repository.to_dataframe().set_index("GUIA")
 
+    # En BODEGA (sin asignar) el ESTADO queda vacio.
     assert dataframe.loc["200", "OPERADOR"] == "BODEGA"
-    assert dataframe.loc["200", "ESTADO"] == "R"
+    assert dataframe.loc["200", "ESTADO"] == ""
     # Las guias con seguimiento existente no se tocan.
     assert dataframe.loc["100", "OPERADOR"] == "KEVIN"
     assert dataframe.loc["100", "ESTADO"] == "E"

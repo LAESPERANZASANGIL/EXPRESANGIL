@@ -8,10 +8,9 @@ import pandas as pd
 
 TABLE_NAME = "guias"
 
-# Valores por defecto para guias importadas que aun no tienen seguimiento:
-# quedan en bodega ("BODEGA") y en reparto pendiente ("R").
+# Operador por defecto para guias importadas que aun no tienen seguimiento:
+# quedan en bodega ("BODEGA") con el ESTADO vacio hasta que salgan a reparto.
 OPERADOR_BODEGA = "BODEGA"
-ESTADO_PENDIENTE = "R"
 
 
 class GuiaRepository:
@@ -145,9 +144,10 @@ class GuiaRepository:
                 "UPDATE guias SET operador = ? WHERE TRIM(COALESCE(operador, '')) = ''",
                 (OPERADOR_BODEGA,),
             )
+            # Regla: si la guia esta en BODEGA (aun no asignada), su ESTADO va vacio.
             connection.execute(
-                "UPDATE guias SET estado = ? WHERE TRIM(COALESCE(estado, '')) = '' AND operador = ?",
-                (ESTADO_PENDIENTE, OPERADOR_BODEGA),
+                "UPDATE guias SET estado = '' WHERE operador = ?",
+                (OPERADOR_BODEGA,),
             )
 
     def list_all(self) -> list[dict]:
