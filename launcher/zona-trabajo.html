@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zona de Trabajo - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="zona-trabajo.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <h1>ZONA DE TRABAJO</h1>
+      <p class="subtitulo">Editor de operador, estado y causal</p>
+    </header>
+
+    <section class="opcion">
+      <div class="fila-archivo">
+        <input type="text" id="buscar" placeholder="Buscar por guia, destinatario, direccion, municipio, operador, estado..." />
+        <button class="boton boton-buscar" id="btn-limpiar-filtro">Limpiar filtro</button>
+        <button class="boton boton-buscar" id="btn-actualizar">Actualizar</button>
+      </div>
+      <p id="contador" class="contador">Cargando...</p>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <table class="tabla-guias">
+        <thead>
+          <tr>
+            <th></th>
+            <th>PLANILLA</th>
+            <th>GUIA</th>
+            <th>DESTINATARIO</th>
+            <th>DIRECCION</th>
+            <th>MUNICIPIO</th>
+            <th>VALOR</th>
+            <th>OPERADOR</th>
+            <th>ESTADO</th>
+            <th>CAUSAL</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body"></tbody>
+      </table>
+    </section>
+
+    <section class="opcion">
+      <h3>Editar guia seleccionada</h3>
+      <label>GUIA</label>
+      <input type="text" id="form-guia" readonly />
+      <label>OPERADOR</label>
+      <input type="text" id="form-operador" />
+      <label>ESTADO</label>
+      <input type="text" id="form-estado" />
+      <label>CAUSAL</label>
+      <input type="text" id="form-causal" />
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-guardar-una">Guardar guia seleccionada</button>
+        <button class="boton boton-accion" id="btn-aplicar-marcadas">Aplicar a marcadas</button>
+        <button class="boton boton-peligro" id="btn-eliminar-marcadas">Eliminar marcadas</button>
+      </div>
+    </section>
+
+    <section class="opcion">
+      <h3>Edicion masiva por lista de guias</h3>
+      <label>Pega una lista de guias (separadas por coma, espacio o salto de linea)</label>
+      <textarea id="bulk-text" rows="4"></textarea>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-marcar-lista">Marcar lista</button>
+        <button class="boton boton-accion" id="btn-aplicar-lista">Aplicar a lista (usa los campos de arriba)</button>
+        <button class="boton boton-peligro" id="btn-eliminar-lista">Eliminar lista</button>
+      </div>
+    </section>
+
+    <section class="opcion">
+      <h3>Eliminar guias por fecha, estado u operador</h3>
+      <div class="fila-eliminar">
+        <div>
+          <label>FECHA (YYYY-MM-DD)</label>
+          <input type="text" id="del-fecha" />
+          <button class="boton boton-peligro" id="btn-eliminar-fecha">Eliminar por fecha</button>
+        </div>
+        <div>
+          <label>ESTADO</label>
+          <input type="text" id="del-estado" />
+          <button class="boton boton-peligro" id="btn-eliminar-estado">Eliminar por estado</button>
+        </div>
+        <div>
+          <label>OPERADOR</label>
+          <input type="text" id="del-operador" />
+          <button class="boton boton-peligro" id="btn-eliminar-operador">Eliminar por operador</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="opcion">
+      <h3>Generar informes</h3>
+      <label>Tipo de informe</label>
+      <select id="informe-tipo">
+        <option value="operador">Informe por operador</option>
+        <option value="dia">Informe del dia</option>
+        <option value="recaudo">Informe de recaudo</option>
+        <option value="relacion">Relacion de guias CE y RR</option>
+      </select>
+      <label>Fecha (YYYY-MM-DD, opcional)</label>
+      <input type="text" id="informe-fecha" placeholder="2026-06-10" />
+      <button class="boton boton-accion" id="btn-informe">Generar informe</button>
+    </section>
+
+    <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="zona-trabajo.js"></script>
+</body>
+</html>

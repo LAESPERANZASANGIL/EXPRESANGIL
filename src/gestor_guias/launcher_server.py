@@ -20,6 +20,7 @@ from .operadores import (
     registrar_salidas,
     verify_password,
 )
+from .excel_processor import normalize_guide
 from .reports import value_to_number
 from .repository import GuiaRepository
 
@@ -77,6 +78,10 @@ STATIC_FILES = {
     "/usuarios.html": ("usuarios.html", "text/html; charset=utf-8"),
     "/usuarios.css": ("usuarios.css", "text/css; charset=utf-8"),
     "/usuarios.js": ("usuarios.js", "application/javascript; charset=utf-8"),
+    "/zona-trabajo": ("zona-trabajo.html", "text/html; charset=utf-8"),
+    "/zona-trabajo.html": ("zona-trabajo.html", "text/html; charset=utf-8"),
+    "/zona-trabajo.css": ("zona-trabajo.css", "text/css; charset=utf-8"),
+    "/zona-trabajo.js": ("zona-trabajo.js", "application/javascript; charset=utf-8"),
 }
 
 
@@ -157,6 +162,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "hay_admin": REPOSITORY.contar_admins() > 0})
             return
 
+        if route == "/api/guias":
+            self._send_json({"ok": True, "guias": REPOSITORY.list_all()})
+            return
+
         if route == "/api/usuarios":
             session = self._get_session()
             if session is None or session.get("rol") != "admin":
@@ -177,9 +186,70 @@ class LauncherHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         data = self._read_json()
 
-        if self.path == "/api/zona-trabajo":
-            subprocess.Popen([PYTHON, "-m", "gestor_guias.app", "editar"], cwd=BASE_DIR)
-            self._send_json({"ok": True, "output": "Abriendo Zona de Trabajo (editor)..."})
+        if self.path == "/api/guias/guardar":
+            guia = str(data.get("guia", "")).strip()
+            if not guia:
+                self._send_json({"ok": False, "output": "Indica la guia a guardar."})
+                return
+            REPOSITORY.update_tracking_fields(
+                guia=guia,
+                operador=str(data.get("operador", "")).strip(),
+                estado=str(data.get("estado", "")).strip(),
+                causal=str(data.get("causal", "")).strip(),
+            )
+            self._send_json({"ok": True, "output": f"Se actualizo la guia {guia}."})
+            return
+
+        if self.path == "/api/guias/guardar-muchas":
+            guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
+            if not guias:
+                self._send_json({"ok": False, "output": "Indica una o varias guias."})
+                return
+            actualizadas = REPOSITORY.update_many_tracking_fields(
+                guias=guias,
+                operador=str(data.get("operador", "")).strip(),
+                estado=str(data.get("estado", "")).strip(),
+                causal=str(data.get("causal", "")).strip(),
+            )
+            self._send_json({"ok": True, "output": f"Se actualizaron {actualizadas} guia(s)."})
+            return
+
+        if self.path == "/api/guias/eliminar":
+            guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
+            if not guias:
+                self._send_json({"ok": False, "output": "Indica una o varias guias."})
+                return
+            eliminadas = REPOSITORY.delete_many(guias)
+            self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s)."})
+            return
+
+        if self.path == "/api/guias/eliminar-fecha":
+            fecha = str(data.get("fecha", "")).strip()
+            if not fecha:
+                self._send_json({"ok": False, "output": "Escribe una fecha en formato YYYY-MM-DD."})
+                return
+            eliminadas = REPOSITORY.delete_by_fecha(fecha)
+            self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) con fecha {fecha}."})
+            return
+
+        if self.path == "/api/guias/eliminar-estado":
+            estado = str(data.get("estado", "")).strip()
+            if not estado:
+                self._send_json({"ok": False, "output": "Escribe un estado."})
+                return
+            eliminadas = REPOSITORY.delete_by_estado(estado)
+            self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) con estado '{estado}'."})
+            return
+
+        if self.path == "/api/guias/eliminar-operador":
+            operador = str(data.get("operador", "")).strip()
+            if not operador:
+                self._send_json({"ok": False, "output": "Escribe un operador."})
+                return
+            eliminadas = REPOSITORY.delete_by_operador(operador)
+            self._send_json(
+                {"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) del operador '{operador}'."}
+            )
             return
 
         if self.path == "/api/elegir-archivo":

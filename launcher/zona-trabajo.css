@@ -1,0 +1,84 @@
+.ancho {
+  max-width: 1100px;
+}
+
+.tabla-contenedor {
+  overflow-x: auto;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.tabla-guias {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tabla-guias th,
+.tabla-guias td {
+  border: 1px solid var(--gris-borde);
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tabla-guias thead th {
+  background: var(--azul-oscuro);
+  color: var(--amarillo);
+  position: sticky;
+  top: 0;
+}
+
+.tabla-guias tbody tr:hover {
+  background: #eef3fb;
+  cursor: pointer;
+}
+
+.tabla-guias tbody tr.marcada {
+  background: #fff3cd;
+}
+
+.tabla-guias tbody tr.seleccionada {
+  outline: 2px solid var(--azul-medio);
+}
+
+.contador {
+  font-size: 0.85rem;
+  color: #444;
+}
+
+.fila-botones {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.fila-botones .boton {
+  flex: 1;
+  margin-top: 0;
+}
+
+.boton-peligro {
+  background: #b71c1c;
+  color: #fff;
+}
+
+.fila-eliminar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.fila-eliminar > div {
+  flex: 1;
+  min-width: 220px;
+}
+
+#bulk-text {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}

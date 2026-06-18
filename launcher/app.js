@@ -59,14 +59,6 @@ document.getElementById("btn-volver").addEventListener("click", () => {
   mostrarLog("Listo.");
 });
 
-document.getElementById("btn-zona-trabajo").addEventListener("click", () => {
-  llamar("/api/zona-trabajo", null, "Zona de trabajo");
-});
-
-document.getElementById("btn-editor").addEventListener("click", () => {
-  llamar("/api/zona-trabajo", null, "Abrir editor");
-});
-
 document.getElementById("btn-buscar-archivo").addEventListener("click", async () => {
   mostrarLog("Abriendo explorador de archivos...");
   try {
