@@ -128,14 +128,21 @@ def test_generate_devoluciones_y_entregadas_filtran_por_fecha_entrega(tmp_path: 
     ent = generate_entregadas_report(repository, tmp_path / "output", hoy)
 
     assert dev.exists() and ent.exists()
-    dev_detalle = pd.read_excel(dev, sheet_name="DETALLE", dtype=str).fillna("")
-    ent_detalle = pd.read_excel(ent, sheet_name="DETALLE", dtype=str).fillna("")
-    # Devoluciones solo trae la guia con estado D; entregadas solo la de estado E.
+    # El nombre del archivo es "DD-MM-YYYY - <Titulo>.xlsx".
+    assert dev.name == f"{hoy.strftime('%d-%m-%Y')} - Devoluciones.xlsx"
+    assert ent.name == f"{hoy.strftime('%d-%m-%Y')} - Entregadas.xlsx"
+    dev_detalle = pd.read_excel(dev, sheet_name="Devoluciones", dtype=str).fillna("")
+    ent_detalle = pd.read_excel(ent, sheet_name="Entregadas", dtype=str).fillna("")
+    # Encabezados de la planilla solicitada y filtrado por estado.
+    assert list(dev_detalle.columns) == [
+        "PLANILLA", "COBRO", "GUIA", "UNID", "TIPO", "DESTINATARIO",
+        "CIUDAD", "VALOR", "ESTADO", "COD", "FECHA", "INGRESO",
+    ]
     assert list(dev_detalle["GUIA"]) == ["200"]
     assert list(ent_detalle["GUIA"]) == ["100"]
     # Una guia en otra fecha de entrega no aparece.
-    assert generate_entregadas_report(repository, tmp_path / "output", date(2000, 1, 1))
-    otro = pd.read_excel(tmp_path / "output" / "entregadas del dia 01 enero.xlsx", sheet_name="DETALLE", dtype=str).fillna("")
+    vacio = generate_entregadas_report(repository, tmp_path / "output", date(2000, 1, 1))
+    otro = pd.read_excel(vacio, sheet_name="Entregadas", dtype=str).fillna("")
     assert otro.empty
 
 

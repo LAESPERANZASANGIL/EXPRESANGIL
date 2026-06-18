@@ -12,7 +12,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .exporter import MONTHS_ES
+from .exporter import MONTHS_ES, display_date
 from .repository import GuiaRepository
 
 
@@ -356,96 +356,63 @@ def _write_resumen_breakdown(worksheet, row: int, title: str, daily: pd.DataFram
     return row
 
 
+# Planilla de Devoluciones/Entregadas: (encabezado de salida, columna origen).
+# FECHA = fecha de entrega (F_ENTREGA); INGRESO = fecha de importacion (F_INGRESO).
+GESTION_DETAIL_COLUMNS = [
+    ("PLANILLA", "PLANILLA"),
+    ("COBRO", "SERVICIO"),
+    ("GUIA", "GUIA"),
+    ("UNID", "UNID"),
+    ("TIPO", "TIPO DE SERVICIO"),
+    ("DESTINATARIO", "DESTINATARIO"),
+    ("CIUDAD", "MUNICIPIO"),
+    ("VALOR", "VALOR"),
+    ("ESTADO", "ESTADO"),
+    ("COD", "CAUSAL"),
+    ("FECHA", "F_ENTREGA"),
+    ("INGRESO", "F_INGRESO"),
+]
+
+
 def generate_estado_report(
     repository: GuiaRepository,
     output_dir: Path,
     target_date: date,
     estado: str,
     titulo: str,
-    nombre_base: str,
 ) -> Path:
-    """Genera un informe de toda la oficina con las guias de un estado, filtrando
-    por la fecha de ENTREGA (F_ENTREGA), que se estampa al marcar la guia E o D."""
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    """Planilla de toda la oficina con las guias de un estado (D o E), filtrando por
+    la fecha de ENTREGA (F_ENTREGA). Una sola hoja con el formato de la operacion."""
+    dataframe = repository.to_dataframe().fillna("").astype(str)
     prefijo = target_date.isoformat()
     seleccion = dataframe[
         (dataframe["ESTADO"].str.upper() == estado.strip().upper())
-        & (dataframe["F_ENTREGA"].astype(str).str.startswith(prefijo))
+        & (dataframe["F_ENTREGA"].str.startswith(prefijo))
     ]
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{nombre_base} {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
+    detalle = pd.DataFrame()
+    for encabezado, origen in GESTION_DETAIL_COLUMNS:
+        columna = seleccion[origen]
+        if origen in ("F_ENTREGA", "F_INGRESO"):
+            columna = columna.map(display_date)
+        detalle[encabezado] = columna.values
 
-    by_operador = build_breakdown(seleccion, "OPERADOR")
-    by_municipio = build_breakdown(seleccion, "MUNICIPIO")
-    detail = seleccion[DETAIL_COLUMNS]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{target_date.strftime('%d-%m-%Y')} - {titulo}.xlsx"
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        by_operador.to_excel(writer, index=False, sheet_name="POR OPERADOR")
-        by_municipio.to_excel(writer, index=False, sheet_name="POR MUNICIPIO")
-        detail.to_excel(writer, index=False, sheet_name="DETALLE")
-
-        for sheet_name in writer.sheets:
-            apply_report_format(writer.sheets[sheet_name])
-
-        resumen_sheet = writer.book.create_sheet("RESUMEN", 0)
-        build_estado_resumen_sheet(resumen_sheet, seleccion, target_date, titulo)
+        detalle.to_excel(writer, index=False, sheet_name=titulo[:31])
+        apply_report_format(writer.sheets[titulo[:31]])
 
     return output_path
 
 
-def build_estado_resumen_sheet(worksheet, seleccion: pd.DataFrame, target_date: date, titulo: str) -> None:
-    fecha_label = f"{MONTHS_ES[target_date.month].upper()} {target_date.day} DE {target_date.year}"
-
-    worksheet.merge_cells("A1:B1")
-    title_cell = worksheet["A1"]
-    title_cell.value = titulo
-    title_cell.fill = RESUMEN_DARK_FILL
-    title_cell.font = RESUMEN_TITLE_FONT
-    title_cell.alignment = Alignment(horizontal="center", vertical="center")
-    worksheet.row_dimensions[1].height = 22
-
-    worksheet.merge_cells("A2:B2")
-    fecha_cell = worksheet["A2"]
-    fecha_cell.value = fecha_label
-    fecha_cell.fill = RESUMEN_DARK_FILL
-    fecha_cell.font = RESUMEN_HEADER_FONT
-    fecha_cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    total_unidades = int(seleccion["UNID_NUMERICA"].sum()) if not seleccion.empty else 0
-    total_valor = int(seleccion["VALOR_NUMERICO"].sum()) if not seleccion.empty else 0
-
-    row = 3
-    for label, value, is_currency in (
-        ("TOTAL GUIAS", len(seleccion), False),
-        ("TOTAL UNIDADES", total_unidades, False),
-        ("TOTAL VALOR", total_valor, True),
-    ):
-        label_cell = worksheet.cell(row=row, column=1, value=label)
-        label_cell.font = RESUMEN_LABEL_FONT
-        value_cell = worksheet.cell(row=row, column=2, value=value)
-        value_cell.alignment = Alignment(horizontal="right")
-        if is_currency:
-            value_cell.number_format = RESUMEN_CURRENCY_FORMAT
-        row += 1
-
-    row += 1
-    _write_resumen_breakdown(worksheet, row, "GUIAS POR OPERADOR", seleccion, "OPERADOR")
-
-    worksheet.column_dimensions["A"].width = 26
-    worksheet.column_dimensions["B"].width = 18
-
-
 def generate_devoluciones_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
-    return generate_estado_report(
-        repository, output_dir, target_date, "D", "DEVOLUCIONES", "devoluciones"
-    )
+    return generate_estado_report(repository, output_dir, target_date, "D", "Devoluciones")
 
 
 def generate_entregadas_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
-    return generate_estado_report(
-        repository, output_dir, target_date, ESTADO_RECAUDO, "ENTREGADAS DEL DIA", "entregadas del dia"
-    )
+    return generate_estado_report(repository, output_dir, target_date, ESTADO_RECAUDO, "Entregadas")
 
 
 def value_to_number(value: object) -> int:
