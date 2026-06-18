@@ -6,7 +6,6 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .config import load_settings
-from .editor_gui import run_editor
 from .excel_processor import consolidate_excels_with_movements
 from .exporter import export_dataframe, export_movements_copy
 from .operadores import hash_password
@@ -152,6 +151,10 @@ def report_relacion_ce_rr(target_date: date) -> Path:
 
 
 def open_editor() -> None:
+    # Import perezoso: tkinter solo esta disponible/es necesario en uso local
+    # de escritorio, no en el servidor donde corre el panel web.
+    from .editor_gui import run_editor
+
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
     run_editor(repository, settings.paths.output_dir, settings.oficina)
