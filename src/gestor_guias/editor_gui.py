@@ -8,7 +8,13 @@ import re
 
 from .config import OficinaSettings
 from .excel_processor import format_pesos, normalize_guide
-from .reports import generate_daily_report, generate_operator_report, generate_operator_report_pdf
+from .reports import (
+    generate_daily_report,
+    generate_devoluciones_report,
+    generate_entregadas_report,
+    generate_operator_report,
+    generate_operator_report_pdf,
+)
 from .recaudo import generate_recaudo_report
 from .relacion_ce_rr import generate_relacion_ce_rr_report
 from .repository import GuiaRepository
@@ -241,6 +247,16 @@ class GuiaEditorApp:
             reports_frame,
             text="Relacion CE y RR",
             command=self._generate_relacion_ce_rr_report,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            reports_frame,
+            text="Devoluciones (D)",
+            command=self._generate_devoluciones_report,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            reports_frame,
+            text="Entregadas del dia (E)",
+            command=self._generate_entregadas_report,
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             reports_frame,
@@ -560,6 +576,24 @@ class GuiaEditorApp:
             return
 
         messagebox.showinfo("Informe generado", f"Relacion de guias CE y RR generada en:\n{output_path}")
+
+    def _generate_devoluciones_report(self) -> None:
+        try:
+            output_path = generate_devoluciones_report(self.repository, self.output_dir, self._get_report_date())
+        except Exception as error:  # noqa: BLE001
+            messagebox.showerror("Error", f"No se pudo generar el informe: {error}")
+            return
+
+        messagebox.showinfo("Informe generado", f"Informe de devoluciones generado en:\n{output_path}")
+
+    def _generate_entregadas_report(self) -> None:
+        try:
+            output_path = generate_entregadas_report(self.repository, self.output_dir, self._get_report_date())
+        except Exception as error:  # noqa: BLE001
+            messagebox.showerror("Error", f"No se pudo generar el informe: {error}")
+            return
+
+        messagebox.showinfo("Informe generado", f"Informe de entregadas del dia generado en:\n{output_path}")
 
     def _select_guides_from_text(self) -> None:
         guides = set(self._guides_from_text())
