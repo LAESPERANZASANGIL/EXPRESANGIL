@@ -75,10 +75,31 @@ def test_estado_entrega_estampa_fecha_entrega(tmp_path: Path) -> None:
     repository.update_tracking_fields("100", "OMAR", "R", "")
     assert repository.to_dataframe().loc[0, "F_ENTREGA"] == ""
 
-    # Cierre del operador (R -> E) estampa la fecha del cierre. El cierre filtra
-    # por F_INGRESO, que en build_dataframe es 2026-06-09.
+    # Cierre del operador (R -> E) estampa la fecha del cierre. El cierre ya NO
+    # filtra por F_INGRESO, asi que aplica aunque la fecha sea distinta a la de
+    # importacion (build_dataframe importa con F_INGRESO 2026-06-09).
     repository.cerrar_dia_operador("OMAR", "2026-06-09", "R", "E")
     assert repository.to_dataframe().loc[0, "F_ENTREGA"] == "2026-06-09 00:00:00"
+
+
+def test_cierre_aplica_a_guias_de_dias_anteriores(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    # Guia importada el 09/06 (F_INGRESO) que sale a reparto y se entrega el 12/06.
+    repository.save_consolidated(build_dataframe("100", "Persona A"))  # F_INGRESO 2026-06-09
+    repository.asignar_salida(["100"], "OMAR", "R")
+
+    cerradas = repository.cerrar_dia_operador("OMAR", "2026-06-12", "R", "E")
+    fila = repository.to_dataframe().set_index("GUIA").loc["100"]
+
+    assert cerradas == 1
+    assert fila["ESTADO"] == "E"
+    # F_INGRESO se conserva (09/06) y F_ENTREGA es la fecha real de entrega (12/06).
+    assert fila["F_INGRESO"] == "2026-06-09 00:00:00"
+    assert fila["F_ENTREGA"] == "2026-06-12 00:00:00"
+    # El resumen del dia 12/06 incluye la guia (se cuenta por F_ENTREGA).
+    assert len(repository.guias_de_operador("OMAR", "2026-06-12")) == 1
+    assert repository.guias_de_operador("OMAR", "2026-06-09") == []
 
 
 def test_clear_all_removes_saved_data(tmp_path: Path) -> None:

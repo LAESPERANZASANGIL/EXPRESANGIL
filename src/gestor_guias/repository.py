@@ -13,14 +13,16 @@ TABLE_NAME = "guias"
 # quedan en bodega ("BODEGA") con el ESTADO vacio hasta que salgan a reparto.
 OPERADOR_BODEGA = "BODEGA"
 
-# Estados que marcan la guia como gestionada y estampan la fecha de entrega
-# (F_ENTREGA): entregada/recaudada ("E") y devolucion ("D").
-ESTADOS_ENTREGA = ("E", "D")
+# Estados de gestion del dia: al alcanzarlos se estampa F_ENTREGA con la fecha
+# real de la operacion (entregada "E", devolucion "D", novedades "RO"/"N").
+# Es la fecha por la que se generan los informes y el resumen del cierre, sin
+# importar en que dia se importo la guia.
+ESTADOS_GESTION = ("E", "D", "RO", "N")
 
 
 def fecha_entrega(nuevo_estado: str, fecha: str | None = None) -> str:
-    """Sello de F_ENTREGA: la fecha (YYYY-MM-DD 00:00:00) si el estado es E/D, si no vacio."""
-    if (nuevo_estado or "").strip().upper() not in ESTADOS_ENTREGA:
+    """Sello de F_ENTREGA: la fecha (YYYY-MM-DD 00:00:00) si el estado es de gestion, si no vacio."""
+    if (nuevo_estado or "").strip().upper() not in ESTADOS_GESTION:
         return ""
     dia = (fecha or "").strip()[:10] or date.today().isoformat()
     return f"{dia} 00:00:00"
@@ -345,13 +347,15 @@ class GuiaRepository:
 
         entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
+            # Sin filtro por F_INGRESO: la novedad aplica a las guias activas del
+            # repartidor aunque se hayan importado dias antes. F_ENTREGA = hoy.
             cursor = connection.executemany(
                 """
                 UPDATE guias SET estado = ?, ingreso = ?
-                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado = ?
+                WHERE guia = ? AND operador = ? AND estado = ?
                 """,
                 [
-                    (nuevo_estado, entrega, guia, operador, f"{fecha}%", estado_actual)
+                    (nuevo_estado, entrega, guia, operador, estado_actual)
                     for guia in clean_guides
                 ],
             )
@@ -361,9 +365,11 @@ class GuiaRepository:
         self.initialize()
         entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
+            # Cierra TODAS las guias del repartidor en reparto, sin importar la
+            # fecha de importacion, y estampa F_ENTREGA con la fecha del cierre.
             cursor = connection.execute(
-                "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
-                (nuevo_estado, entrega, operador, f"{fecha}%", estado_actual),
+                "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND estado = ?",
+                (nuevo_estado, entrega, operador, estado_actual),
             )
             return cursor.rowcount
 
@@ -371,8 +377,10 @@ class GuiaRepository:
         self.initialize()
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
+            # Guias que el repartidor gestiono ESE dia: se filtran por F_ENTREGA
+            # (fecha de gestion), no por la fecha de importacion.
             rows = connection.execute(
-                "SELECT * FROM guias WHERE operador = ? AND fecha LIKE ?",
+                "SELECT * FROM guias WHERE operador = ? AND ingreso LIKE ?",
                 (operador, f"{fecha}%"),
             ).fetchall()
             return [dict(row) for row in rows]
