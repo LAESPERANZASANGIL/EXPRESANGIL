@@ -4,6 +4,7 @@ from datetime import date
 from http.cookies import SimpleCookie
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -46,24 +47,7 @@ INFORME_COMANDOS = {
     "relacion": "informe-relacion-ce-rr",
 }
 
-FILE_DIALOG_SCRIPT = """
-import tkinter as tk
-from tkinter import filedialog
-from pathlib import Path
-
-root = tk.Tk()
-root.withdraw()
-root.attributes("-topmost", True)
-# Sin este update() el dialogo nativo se cierra solo y devuelve vacio.
-root.update()
-descargas = Path.home() / "Downloads"
-rutas = filedialog.askopenfilenames(
-    title="Selecciona una o varias planillas a importar",
-    initialdir=descargas if descargas.exists() else Path.home(),
-    filetypes=[("Archivos de Excel", "*.xls *.xlsx"), ("Todos los archivos", "*.*")],
-)
-print("\\n".join(rutas))
-"""
+UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"
 
 STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -140,6 +124,29 @@ class LauncherHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             return {}
 
+    def _read_multipart_files(self) -> dict[str, bytes]:
+        content_type = self.headers.get("Content-Type", "")
+        match = re.search(r"boundary=(.+)$", content_type)
+        if not match:
+            return {}
+        boundary = match.group(1).strip('"').encode()
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length) if length else b""
+
+        archivos: dict[str, bytes] = {}
+        for part in body.split(b"--" + boundary):
+            part = part.strip(b"\r\n")
+            if not part or part == b"--":
+                continue
+            header_blob, _, content = part.partition(b"\r\n\r\n")
+            header_text = header_blob.decode("utf-8", "ignore")
+            filename_match = re.search(r'filename="([^"]*)"', header_text)
+            if not filename_match or not filename_match.group(1):
+                continue
+            nombre = Path(filename_match.group(1)).name
+            archivos[nombre] = content.rstrip(b"\r\n")
+        return archivos
+
     def do_GET(self) -> None:
         route = self.path.split("?")[0]
 
@@ -184,6 +191,20 @@ class LauncherHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self) -> None:
+        if self.path == "/api/subir-archivo":
+            archivos = self._read_multipart_files()
+            if not archivos:
+                self._send_json({"ok": False, "output": "No se recibio ningun archivo."})
+                return
+            UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            rutas = []
+            for nombre, contenido in archivos.items():
+                destino = UPLOADS_DIR / nombre
+                destino.write_bytes(contenido)
+                rutas.append(str(destino))
+            self._send_json({"ok": True, "rutas": rutas})
+            return
+
         data = self._read_json()
 
         if self.path == "/api/guias/guardar":
@@ -250,16 +271,6 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json(
                 {"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) del operador '{operador}'."}
             )
-            return
-
-        if self.path == "/api/elegir-archivo":
-            result = subprocess.run(
-                [PYTHON, "-c", FILE_DIALOG_SCRIPT],
-                capture_output=True,
-                text=True,
-            )
-            rutas = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-            self._send_json({"ok": bool(rutas), "rutas": rutas})
             return
 
         if self.path == "/api/importar":

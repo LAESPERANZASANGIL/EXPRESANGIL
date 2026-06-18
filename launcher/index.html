@@ -25,11 +25,8 @@
 
       <div class="opcion">
         <h3>1. Importar planilla descargada</h3>
-        <label>Ruta del archivo .xls o .xlsx (varias rutas separadas por ;)</label>
-        <div class="fila-archivo">
-          <input type="text" id="importar-archivo" placeholder="C:\ruta\al\archivo.xls" />
-          <button class="boton boton-buscar" id="btn-buscar-archivo">Buscar...</button>
-        </div>
+        <label>Selecciona uno o varios archivos .xls o .xlsx</label>
+        <input type="file" id="importar-archivo" accept=".xls,.xlsx" multiple />
         <label>Fecha (YYYY-MM-DD, opcional)</label>
         <input type="text" id="importar-fecha" placeholder="2026-06-10" />
         <button class="boton boton-accion" id="btn-importar">Importar</button>

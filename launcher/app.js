@@ -59,38 +59,43 @@ document.getElementById("btn-volver").addEventListener("click", () => {
   mostrarLog("Listo.");
 });
 
-document.getElementById("btn-buscar-archivo").addEventListener("click", async () => {
-  mostrarLog("Abriendo explorador de archivos...");
-  try {
-    const respuesta = await fetch("/api/elegir-archivo", { method: "POST" });
-    const resultado = await respuesta.json();
-    const rutas = resultado.rutas || [];
-    if (rutas.length) {
-      document.getElementById("importar-archivo").value = rutas.join("; ");
-      mostrarLog(
-        rutas.length === 1
-          ? "Archivo seleccionado: " + rutas[0]
-          : "Archivos seleccionados (" + rutas.length + "):\n" + rutas.join("\n")
-      );
-    } else {
-      mostrarLog("No se selecciono ningun archivo.");
-    }
-  } catch (error) {
-    mostrarLog("No se pudo abrir el explorador: " + error);
+async function subirArchivo(archivo) {
+  const formData = new FormData();
+  formData.append("archivo", archivo, archivo.name);
+  const respuesta = await fetch("/api/subir-archivo", {
+    method: "POST",
+    body: formData,
+  });
+  const resultado = await respuesta.json();
+  if (!resultado.ok) {
+    throw new Error(resultado.output || "No se pudo subir el archivo " + archivo.name);
   }
-});
+  return resultado.rutas || [];
+}
 
-document.getElementById("btn-importar").addEventListener("click", () => {
-  const archivos = document.getElementById("importar-archivo").value
-    .split(";")
-    .map((ruta) => ruta.trim())
-    .filter((ruta) => ruta);
+document.getElementById("btn-importar").addEventListener("click", async () => {
+  const archivos = document.getElementById("importar-archivo").files;
   const fecha = document.getElementById("importar-fecha").value.trim();
   if (!archivos.length) {
-    mostrarLog("Indica la ruta del archivo a importar.");
+    mostrarLog("Selecciona uno o varios archivos a importar.");
     return;
   }
-  llamar("/api/importar", { archivos, fecha }, "Importar");
+
+  mostrarLog("Subiendo archivos...");
+  mostrarAviso("Importar: subiendo archivos...", "info");
+  let rutas = [];
+  try {
+    for (const archivo of archivos) {
+      const subidas = await subirArchivo(archivo);
+      rutas = rutas.concat(subidas);
+    }
+  } catch (error) {
+    mostrarLog("No se pudieron subir los archivos: " + error);
+    mostrarAviso("Importar: no se pudieron subir los archivos.", "error");
+    return;
+  }
+
+  llamar("/api/importar", { archivos: rutas, fecha }, "Importar");
 });
 
 document.getElementById("btn-exportar").addEventListener("click", () => {
