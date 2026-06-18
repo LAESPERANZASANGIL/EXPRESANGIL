@@ -59,6 +59,28 @@ def test_import_asigna_bodega_y_estado_vacio_por_defecto(tmp_path: Path) -> None
     assert dataframe.loc["100", "ESTADO"] == "E"
 
 
+def test_estado_entrega_estampa_fecha_entrega(tmp_path: Path) -> None:
+    from datetime import date
+
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    hoy = f"{date.today().isoformat()} 00:00:00"
+
+    # Marcar E estampa F_ENTREGA con hoy.
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+    assert repository.to_dataframe().loc[0, "F_ENTREGA"] == hoy
+
+    # Volver a R limpia F_ENTREGA.
+    repository.update_tracking_fields("100", "OMAR", "R", "")
+    assert repository.to_dataframe().loc[0, "F_ENTREGA"] == ""
+
+    # Cierre del operador (R -> E) estampa la fecha del cierre. El cierre filtra
+    # por F_INGRESO, que en build_dataframe es 2026-06-09.
+    repository.cerrar_dia_operador("OMAR", "2026-06-09", "R", "E")
+    assert repository.to_dataframe().loc[0, "F_ENTREGA"] == "2026-06-09 00:00:00"
+
+
 def test_clear_all_removes_saved_data(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

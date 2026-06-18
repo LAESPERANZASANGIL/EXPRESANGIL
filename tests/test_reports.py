@@ -112,7 +112,9 @@ def test_generate_relacion_ce_rr_report_no_data(tmp_path: Path) -> None:
     assert output_path.exists()
 
 
-def test_generate_devoluciones_y_entregadas_filtran_por_estado(tmp_path: Path) -> None:
+def test_generate_devoluciones_y_entregadas_filtran_por_fecha_entrega(tmp_path: Path) -> None:
+    # Al marcar E/D, update_tracking_fields estampa F_ENTREGA con la fecha de hoy.
+    hoy = date.today()
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "", "", "10000"))
@@ -122,8 +124,8 @@ def test_generate_devoluciones_y_entregadas_filtran_por_estado(tmp_path: Path) -
     repository.save_consolidated(build_dataframe("300", "", "", "5000"))
     repository.update_tracking_fields("300", "OMAR", "R", "")
 
-    dev = generate_devoluciones_report(repository, tmp_path / "output", date(2026, 6, 10))
-    ent = generate_entregadas_report(repository, tmp_path / "output", date(2026, 6, 10))
+    dev = generate_devoluciones_report(repository, tmp_path / "output", hoy)
+    ent = generate_entregadas_report(repository, tmp_path / "output", hoy)
 
     assert dev.exists() and ent.exists()
     dev_detalle = pd.read_excel(dev, sheet_name="DETALLE", dtype=str).fillna("")
@@ -131,6 +133,10 @@ def test_generate_devoluciones_y_entregadas_filtran_por_estado(tmp_path: Path) -
     # Devoluciones solo trae la guia con estado D; entregadas solo la de estado E.
     assert list(dev_detalle["GUIA"]) == ["200"]
     assert list(ent_detalle["GUIA"]) == ["100"]
+    # Una guia en otra fecha de entrega no aparece.
+    assert generate_entregadas_report(repository, tmp_path / "output", date(2000, 1, 1))
+    otro = pd.read_excel(tmp_path / "output" / "entregadas del dia 01 enero.xlsx", sheet_name="DETALLE", dtype=str).fillna("")
+    assert otro.empty
 
 
 def test_generate_devoluciones_report_no_data(tmp_path: Path) -> None:

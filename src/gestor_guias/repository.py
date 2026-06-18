@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 import sqlite3
 
@@ -11,6 +12,18 @@ TABLE_NAME = "guias"
 # Operador por defecto para guias importadas que aun no tienen seguimiento:
 # quedan en bodega ("BODEGA") con el ESTADO vacio hasta que salgan a reparto.
 OPERADOR_BODEGA = "BODEGA"
+
+# Estados que marcan la guia como gestionada y estampan la fecha de entrega
+# (F_ENTREGA): entregada/recaudada ("E") y devolucion ("D").
+ESTADOS_ENTREGA = ("E", "D")
+
+
+def fecha_entrega(nuevo_estado: str, fecha: str | None = None) -> str:
+    """Sello de F_ENTREGA: la fecha (YYYY-MM-DD 00:00:00) si el estado es E/D, si no vacio."""
+    if (nuevo_estado or "").strip().upper() not in ESTADOS_ENTREGA:
+        return ""
+    dia = (fecha or "").strip()[:10] or date.today().isoformat()
+    return f"{dia} 00:00:00"
 
 
 class GuiaRepository:
@@ -159,14 +172,20 @@ class GuiaRepository:
 
     def update_tracking_fields(self, guia: str, operador: str, estado: str, causal: str) -> None:
         self.initialize()
+        entrega = fecha_entrega(estado)
         with self._connect() as connection:
             connection.execute(
                 """
                 UPDATE guias
-                SET operador = ?, estado = ?, causal = ?
+                SET operador = ?, estado = ?, causal = ?,
+                    ingreso = CASE
+                        WHEN ? = '' THEN ''
+                        WHEN TRIM(COALESCE(ingreso, '')) = '' THEN ?
+                        ELSE ingreso
+                    END
                 WHERE guia = ?
                 """,
-                (operador, estado, causal, guia),
+                (operador, estado, causal, entrega, entrega, guia),
             )
 
     def update_many_tracking_fields(
@@ -181,14 +200,20 @@ class GuiaRepository:
         if not clean_guides:
             return 0
 
+        entrega = fecha_entrega(estado)
         with self._connect() as connection:
             cursor = connection.executemany(
                 """
                 UPDATE guias
-                SET operador = ?, estado = ?, causal = ?
+                SET operador = ?, estado = ?, causal = ?,
+                    ingreso = CASE
+                        WHEN ? = '' THEN ''
+                        WHEN TRIM(COALESCE(ingreso, '')) = '' THEN ?
+                        ELSE ingreso
+                    END
                 WHERE guia = ?
                 """,
-                [(operador, estado, causal, guia) for guia in clean_guides],
+                [(operador, estado, causal, entrega, entrega, guia) for guia in clean_guides],
             )
             return cursor.rowcount
 
@@ -318,14 +343,15 @@ class GuiaRepository:
         if not clean_guides:
             return 0
 
+        entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
             cursor = connection.executemany(
                 """
-                UPDATE guias SET estado = ?
+                UPDATE guias SET estado = ?, ingreso = ?
                 WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado = ?
                 """,
                 [
-                    (nuevo_estado, guia, operador, f"{fecha}%", estado_actual)
+                    (nuevo_estado, entrega, guia, operador, f"{fecha}%", estado_actual)
                     for guia in clean_guides
                 ],
             )
@@ -333,10 +359,11 @@ class GuiaRepository:
 
     def cerrar_dia_operador(self, operador: str, fecha: str, estado_actual: str, nuevo_estado: str) -> int:
         self.initialize()
+        entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
             cursor = connection.execute(
-                "UPDATE guias SET estado = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
-                (nuevo_estado, operador, f"{fecha}%", estado_actual),
+                "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
+                (nuevo_estado, entrega, operador, f"{fecha}%", estado_actual),
             )
             return cursor.rowcount
 

@@ -364,10 +364,14 @@ def generate_estado_report(
     titulo: str,
     nombre_base: str,
 ) -> Path:
-    """Genera un informe de toda la oficina con las guias de un estado en la fecha."""
+    """Genera un informe de toda la oficina con las guias de un estado, filtrando
+    por la fecha de ENTREGA (F_ENTREGA), que se estampa al marcar la guia E o D."""
     dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
-    seleccion = daily[daily["ESTADO"].str.upper() == estado.strip().upper()]
+    prefijo = target_date.isoformat()
+    seleccion = dataframe[
+        (dataframe["ESTADO"].str.upper() == estado.strip().upper())
+        & (dataframe["F_ENTREGA"].astype(str).str.startswith(prefijo))
+    ]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{nombre_base} {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
