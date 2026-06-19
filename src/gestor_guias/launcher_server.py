@@ -43,6 +43,8 @@ INFORME_COMANDOS = {
     "dia": "informe-dia",
     "recaudo": "informe-recaudo",
     "relacion": "informe-relacion-ce-rr",
+    "devoluciones": "informe-devoluciones",
+    "entregadas": "informe-entregadas",
 }
 
 FILE_DIALOG_SCRIPT = """
@@ -77,7 +79,24 @@ STATIC_FILES = {
     "/usuarios.html": ("usuarios.html", "text/html; charset=utf-8"),
     "/usuarios.css": ("usuarios.css", "text/css; charset=utf-8"),
     "/usuarios.js": ("usuarios.js", "application/javascript; charset=utf-8"),
+    "/zona": ("zona.html", "text/html; charset=utf-8"),
+    "/zona.html": ("zona.html", "text/html; charset=utf-8"),
+    "/zona.css": ("zona.css", "text/css; charset=utf-8"),
+    "/zona.js": ("zona.js", "application/javascript; charset=utf-8"),
 }
+
+# Campos de cada guia que necesita la Zona de Trabajo web.
+GUIA_FIELDS = (
+    "planilla",
+    "guia",
+    "destinatario",
+    "direccion",
+    "municipio",
+    "valor",
+    "operador",
+    "estado",
+    "causal",
+)
 
 
 def run_command(args: list[str]) -> dict:
@@ -167,6 +186,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "usuarios": REPOSITORY.listar_operadores()})
             return
 
+        if route == "/api/guias":
+            guias = [
+                {campo: (fila.get(campo) or "") for campo in GUIA_FIELDS}
+                for fila in REPOSITORY.list_all()
+            ]
+            self._send_json({"ok": True, "guias": guias})
+            return
+
         if route in STATIC_FILES:
             filename, content_type = STATIC_FILES[route]
             self._send_file(filename, content_type)
@@ -226,6 +253,56 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))
+            return
+
+        if self.path == "/api/guias/actualizar":
+            guias = [str(g).strip() for g in (data.get("guias") or []) if str(g).strip()]
+            if not guias:
+                self._send_json({"ok": False, "output": "No hay guias seleccionadas."})
+                return
+            actualizadas = REPOSITORY.update_many_tracking_fields(
+                guias,
+                str(data.get("operador", "")).strip(),
+                str(data.get("estado", "")).strip(),
+                str(data.get("causal", "")).strip(),
+            )
+            self._send_json({"ok": True, "output": f"Se actualizaron {actualizadas} guia(s)."})
+            return
+
+        if self.path == "/api/guias/eliminar":
+            guias = [str(g).strip() for g in (data.get("guias") or []) if str(g).strip()]
+            if not guias:
+                self._send_json({"ok": False, "output": "No hay guias seleccionadas."})
+                return
+            eliminadas = REPOSITORY.delete_many(guias)
+            self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s)."})
+            return
+
+        if self.path == "/api/guias/eliminar-fecha":
+            fecha = str(data.get("fecha", "")).strip()
+            if not fecha:
+                self._send_json({"ok": False, "output": "Indica una fecha (YYYY-MM-DD)."})
+                return
+            n = REPOSITORY.delete_by_fecha(fecha)
+            self._send_json({"ok": True, "output": f"Se eliminaron {n} guia(s) con fecha {fecha}."})
+            return
+
+        if self.path == "/api/guias/eliminar-estado":
+            estado = str(data.get("estado", "")).strip()
+            if not estado:
+                self._send_json({"ok": False, "output": "Indica un estado."})
+                return
+            n = REPOSITORY.delete_by_estado(estado)
+            self._send_json({"ok": True, "output": f"Se eliminaron {n} guia(s) con estado '{estado}'."})
+            return
+
+        if self.path == "/api/guias/eliminar-operador":
+            operador = str(data.get("operador", "")).strip()
+            if not operador:
+                self._send_json({"ok": False, "output": "Indica un operador."})
+                return
+            n = REPOSITORY.delete_by_operador(operador)
+            self._send_json({"ok": True, "output": f"Se eliminaron {n} guia(s) del operador '{operador}'."})
             return
 
         if self.path == "/api/operador/login":

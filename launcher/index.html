@@ -15,7 +15,7 @@
 
     <section id="pantalla-principal" class="pantalla">
       <button class="boton boton-principal" id="btn-iniciar">INICIAR</button>
-      <button class="boton boton-principal" id="btn-zona-trabajo">ZONA DE TRABAJO</button>
+      <a class="boton boton-principal" href="/zona">ZONA DE TRABAJO</a>
       <a class="boton boton-principal" href="/operadores">MODULO OPERADORES</a>
       <a class="boton boton-principal" href="/usuarios">MODULO USUARIOS</a>
     </section>
@@ -36,8 +36,8 @@
       </div>
 
       <div class="opcion">
-        <h3>2. Abrir editor de operador, estado y causal</h3>
-        <button class="boton boton-accion" id="btn-editor">Abrir editor</button>
+        <h3>2. Abrir Zona de Trabajo (editor web)</h3>
+        <a class="boton boton-accion" href="/zona">Abrir Zona de Trabajo</a>
       </div>
 
       <div class="opcion">
@@ -55,6 +55,8 @@
           <option value="dia">Informe del dia</option>
           <option value="recaudo">Informe de recaudo</option>
           <option value="relacion">Relacion de guias CE y RR</option>
+          <option value="devoluciones">Devoluciones (D)</option>
+          <option value="entregadas">Entregadas del dia (E)</option>
         </select>
         <label>Fecha (YYYY-MM-DD, opcional)</label>
         <input type="text" id="informe-fecha" placeholder="2026-06-10" />
