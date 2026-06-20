@@ -66,16 +66,25 @@ header .subtitulo {
   color: #b71c1c;
 }
 
-.acceso-personal {
-  display: block;
-  text-align: center;
+#btn-ingresar-panel {
   margin-top: 28px;
-  font-size: 0.85rem;
-  color: #6b7280;
-  text-decoration: none;
+  font-size: 0.9rem;
 }
 
-.acceso-personal:hover {
-  color: var(--azul-medio);
-  text-decoration: underline;
+#panel-acceso {
+  margin-top: 12px;
+}
+
+#panel-acceso.oculto {
+  display: none;
+}
+
+.panel-error {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: #b71c1c;
+}
+
+.panel-error.oculto {
+  display: none;
 }

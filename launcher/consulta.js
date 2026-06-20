@@ -47,3 +47,66 @@ input.addEventListener("keydown", (evento) => {
     consultar();
   }
 });
+
+const btnIngresarPanel = document.getElementById("btn-ingresar-panel");
+const panelAcceso = document.getElementById("panel-acceso");
+const panelUsuario = document.getElementById("panel-usuario");
+const panelPassword = document.getElementById("panel-password");
+const btnPanelIngresar = document.getElementById("btn-panel-ingresar");
+const panelError = document.getElementById("panel-error");
+
+btnIngresarPanel.addEventListener("click", () => {
+  panelAcceso.classList.toggle("oculto");
+  if (!panelAcceso.classList.contains("oculto")) {
+    panelUsuario.focus();
+  }
+});
+
+function mostrarErrorPanel(texto) {
+  panelError.textContent = texto;
+  panelError.classList.remove("oculto");
+}
+
+async function ingresarPanel() {
+  const usuario = panelUsuario.value.trim();
+  const password = panelPassword.value;
+  if (!usuario || !password) {
+    mostrarErrorPanel("Escribe usuario y contrasena.");
+    return;
+  }
+
+  panelError.classList.add("oculto");
+  btnPanelIngresar.disabled = true;
+  try {
+    const respuesta = await fetch("/api/operador/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, password }),
+      credentials: "same-origin",
+    });
+    const resultado = await respuesta.json();
+    panelPassword.value = "";
+
+    if (!resultado.ok) {
+      mostrarErrorPanel(resultado.output || "Usuario o contrasena incorrectos.");
+      return;
+    }
+    if (resultado.rol !== "admin") {
+      await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+      mostrarErrorPanel("Esta opcion es solo para el administrador.");
+      return;
+    }
+    window.location.href = "/panel";
+  } catch (error) {
+    mostrarErrorPanel("No se pudo conectar con el servidor. Intenta de nuevo.");
+  } finally {
+    btnPanelIngresar.disabled = false;
+  }
+}
+
+btnPanelIngresar.addEventListener("click", ingresarPanel);
+panelPassword.addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") {
+    ingresarPanel();
+  }
+});

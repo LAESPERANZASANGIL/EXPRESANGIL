@@ -25,7 +25,17 @@
       <p id="resultado-mensaje"></p>
     </section>
 
-    <a class="acceso-personal" href="/panel">Acceso para personal de la empresa</a>
+    <button class="boton boton-volver" id="btn-ingresar-panel">Ingresar al panel</button>
+
+    <section class="opcion oculto" id="panel-acceso">
+      <h3>Ingresar al panel</h3>
+      <label>Usuario</label>
+      <input type="text" id="panel-usuario" autocomplete="username" />
+      <label>Contrasena del administrador</label>
+      <input type="password" id="panel-password" autocomplete="current-password" />
+      <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
+      <p id="panel-error" class="panel-error oculto"></p>
+    </section>
   </div>
 
   <script src="consulta.js"></script>
