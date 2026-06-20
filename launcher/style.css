@@ -4,6 +4,9 @@
   --amarillo: #ffffff;
   --gris-claro: #f2f2f2;
   --gris-borde: #c9c9c9;
+  --texto-titulo: #1f2937;
+  --azul-info: #1565c0;
+  --verde-info: #2e7d32;
 }
 
 * {
@@ -75,7 +78,7 @@ header .subtitulo {
 .pantalla {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 40px;
 }
 
 .pantalla.oculto {
@@ -86,13 +89,13 @@ header .subtitulo {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   box-sizing: border-box;
-  min-height: 55px;
+  min-height: 58px;
   border: none;
   border-radius: 10px;
-  padding: 16px 26px;
-  font-size: 1.1rem;
+  padding: 16px 28px;
+  font-size: 1.18rem;
   font-weight: bold;
   text-align: center;
   text-decoration: none;
@@ -102,7 +105,7 @@ header .subtitulo {
 }
 
 .boton .icono {
-  font-size: 1.5em;
+  font-size: 1.6em;
   line-height: 1;
 }
 
@@ -120,9 +123,9 @@ header .subtitulo {
 
 #pantalla-principal {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 360px));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 380px));
   justify-content: center;
-  gap: 28px;
+  gap: 32px;
 }
 
 #pantalla-principal .barra-sesion {
@@ -135,12 +138,12 @@ header .subtitulo {
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 6px;
-  min-height: 180px;
+  gap: 8px;
+  min-height: 170px;
   background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-medio));
   color: var(--amarillo);
   letter-spacing: 0.5px;
-  padding: 32px 24px;
+  padding: 34px 26px;
   border-left: 8px solid rgba(255, 255, 255, 0.35);
   border-radius: 14px;
 }
@@ -162,28 +165,28 @@ header .subtitulo {
 }
 
 #pantalla-iniciar h2 {
-  background: var(--azul-oscuro);
+  background: var(--texto-titulo);
   color: var(--amarillo);
   text-align: center;
   font-size: 1.6rem;
-  padding: 20px;
+  padding: 22px;
   border-radius: 10px;
   margin-top: 0;
-  margin-bottom: 30px;
+  margin-bottom: 36px;
 }
 
 .opcion {
   background: #fff;
   border: 1px solid var(--gris-borde);
   border-radius: 12px;
-  padding: 36px 40px;
-  margin-bottom: 28px;
+  padding: 40px 44px;
+  margin-bottom: 32px;
   box-shadow: 0 4px 14px rgba(31, 56, 100, 0.09);
 }
 
 .opcion h3 {
-  margin: 0 0 22px;
-  color: var(--azul-oscuro);
+  margin: 0 0 26px;
+  color: var(--texto-titulo);
   font-size: 1.55rem;
 }
 
@@ -191,7 +194,7 @@ header .subtitulo {
   display: block;
   font-size: 1.05rem;
   font-weight: 600;
-  margin: 18px 0 8px;
+  margin: 20px 0 10px;
   color: #444;
 }
 
@@ -200,35 +203,36 @@ header .subtitulo {
 .opcion input[type="date"],
 .opcion select {
   width: 100%;
-  min-height: 50px;
-  padding: 12px 16px;
+  min-height: 55px;
+  padding: 14px 16px;
   border: 1px solid var(--gris-borde);
   border-radius: 8px;
   font-size: 1.1rem;
+  margin-bottom: 20px;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 .grid-opciones {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 28px;
+  gap: 32px;
   align-items: start;
 }
 
 .opcion-compacta {
-  padding: 24px 28px;
+  padding: 32px 36px;
   margin-bottom: 0;
   display: flex;
   flex-direction: column;
 }
 
 .opcion-compacta h3 {
-  font-size: 1.3rem;
-  margin-bottom: 8px;
+  font-size: 1.35rem;
+  margin-bottom: 12px;
 }
 
 .desc-opcion {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
   font-size: 1rem;
   line-height: 1.45;
   color: #555;
@@ -236,26 +240,27 @@ header .subtitulo {
 
 .opcion-compacta label {
   font-size: 1rem;
-  margin: 14px 0 6px;
+  margin: 20px 0 10px;
 }
 
 .opcion-compacta input[type="date"] {
-  min-height: 48px;
+  min-height: 55px;
 }
 
 .opcion-compacta input[type="file"] {
   width: 100%;
-  min-height: 52px;
+  min-height: 55px;
   padding: 12px 14px;
   border: 1px dashed var(--gris-borde);
   border-radius: 8px;
   font-size: 1rem;
   background: var(--gris-claro);
+  margin-bottom: 20px;
 }
 
 .opcion-compacta .boton {
   margin-top: auto;
-  padding-top: 22px;
+  padding-top: 24px;
 }
 
 .boton-importar {
@@ -291,8 +296,8 @@ header .subtitulo {
 .opcion input[type="date"]:focus,
 .opcion select:focus {
   outline: none;
-  border-color: var(--azul-medio);
-  box-shadow: 0 0 0 3px rgba(46, 83, 149, 0.18);
+  border-color: var(--azul-info);
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.18);
 }
 
 .fila-archivo {
@@ -306,7 +311,7 @@ header .subtitulo {
 }
 
 .boton-buscar {
-  background: var(--azul-oscuro);
+  background: var(--azul-info);
   color: var(--amarillo);
   min-height: 50px;
   padding: 12px 22px;
@@ -347,13 +352,26 @@ header .subtitulo {
 }
 
 .log-seccion {
-  margin-top: 36px;
+  margin-top: 40px;
+  background: #fff;
+  border: 1px solid var(--gris-borde);
+  border-radius: 12px;
+  padding: 32px 36px;
+  box-shadow: 0 4px 14px rgba(31, 56, 100, 0.09);
 }
 
 .log-seccion h3 {
-  color: var(--azul-oscuro);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--texto-titulo);
   font-size: 1.4rem;
-  margin-bottom: 14px;
+  margin: 0 0 18px;
+}
+
+.log-seccion h3::before {
+  content: "📋";
+  font-size: 1.4rem;
 }
 
 #avisos {
@@ -418,8 +436,8 @@ header .subtitulo {
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  padding: 18px 28px;
-  border-left: 6px solid var(--azul-medio);
+  padding: 22px 32px;
+  border-left: 6px solid var(--azul-info);
 }
 
 .avatar-usuario {
@@ -430,7 +448,7 @@ header .subtitulo {
   height: 52px;
   min-width: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-medio));
+  background: linear-gradient(135deg, var(--azul-info), #1976d2);
   color: #fff;
   font-size: 1.6rem;
 }
@@ -444,7 +462,7 @@ header .subtitulo {
 .info-usuario .nombre-completo {
   font-size: 1.15rem;
   font-weight: bold;
-  color: var(--azul-oscuro);
+  color: var(--texto-titulo);
 }
 
 .info-usuario .estado-conexion {
@@ -483,7 +501,7 @@ header .subtitulo {
 }
 
 .nota-login a {
-  color: var(--azul-medio);
+  color: var(--azul-info);
   font-weight: bold;
 }
 

@@ -3,7 +3,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
-  border-left: 5px solid var(--azul-medio);
+  border-left: 5px solid var(--azul-info);
 }
 
 .barra-admin p {
@@ -54,7 +54,7 @@
 }
 
 .tabla-usuarios thead th {
-  background: var(--azul-oscuro);
+  background: var(--texto-titulo);
   color: #fff;
   font-size: 0.95rem;
   text-transform: uppercase;

@@ -3,7 +3,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
-  border-left: 5px solid var(--azul-medio);
+  border-left: 5px solid var(--azul-info);
 }
 
 .barra-operador p {
