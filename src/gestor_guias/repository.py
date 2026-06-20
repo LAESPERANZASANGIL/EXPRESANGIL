@@ -321,11 +321,11 @@ class GuiaRepository:
         with self._connect() as connection:
             cursor = connection.executemany(
                 """
-                UPDATE guias SET estado = ?
+                UPDATE guias SET estado = ?, ingreso = ?
                 WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado = ?
                 """,
                 [
-                    (nuevo_estado, guia, operador, f"{fecha}%", estado_actual)
+                    (nuevo_estado, fecha, guia, operador, f"{fecha}%", estado_actual)
                     for guia in clean_guides
                 ],
             )
@@ -335,8 +335,8 @@ class GuiaRepository:
         self.initialize()
         with self._connect() as connection:
             cursor = connection.execute(
-                "UPDATE guias SET estado = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
-                (nuevo_estado, operador, f"{fecha}%", estado_actual),
+                "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
+                (nuevo_estado, fecha, operador, f"{fecha}%", estado_actual),
             )
             return cursor.rowcount
 
