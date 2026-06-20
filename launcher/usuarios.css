@@ -19,8 +19,10 @@
 
 .barra-admin .boton {
   margin-top: 0;
+  margin-left: auto;
   width: auto;
-  padding: 12px 22px;
+  padding: 14px 26px;
+  font-size: 1.05rem;
 }
 
 .nota {

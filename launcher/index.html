@@ -21,21 +21,41 @@
         <input type="text" id="login-usuario" autocomplete="username" />
         <label>Contrasena</label>
         <input type="password" id="login-password" autocomplete="current-password" />
-        <button class="boton boton-accion" id="btn-login">Ingresar</button>
+        <button class="boton boton-accion" id="btn-login"><span class="icono">🔑</span>Ingresar</button>
         <p class="nota-login">Acceso exclusivo para el administrador. Si eres operador, ingresa desde el <a href="/operadores">Modulo Operadores</a>.</p>
       </div>
-      <a class="boton boton-volver" href="/">VOLVER A CONSULTAR GUIA</a>
+      <a class="boton boton-volver" href="/"><span class="icono">⬅️</span>VOLVER A CONSULTAR GUIA</a>
     </section>
 
     <section id="pantalla-principal" class="pantalla oculto">
       <div class="opcion barra-sesion">
-        <p>Sesion: <strong id="nombre-usuario"></strong></p>
-        <button class="boton boton-volver" id="btn-logout">Cerrar sesion</button>
+        <span class="avatar-usuario">👤</span>
+        <div class="info-usuario">
+          <span class="nombre-completo">Sesion: <strong id="nombre-usuario"></strong></span>
+          <span class="estado-conexion"><span class="punto-conectado"></span>Conectado</span>
+        </div>
+        <button class="boton boton-volver" id="btn-logout"><span class="icono">🚪</span>Cerrar sesion</button>
       </div>
-      <button class="boton boton-principal solo-admin" id="btn-iniciar">INICIAR</button>
-      <a class="boton boton-principal solo-admin" href="/zona-trabajo">ZONA DE TRABAJO</a>
-      <a class="boton boton-principal" href="/operadores">MODULO OPERADORES</a>
-      <a class="boton boton-principal solo-admin" href="/usuarios">MODULO USUARIOS</a>
+      <button class="boton boton-principal solo-admin" id="btn-iniciar">
+        <span class="icono">🏠</span>
+        <span class="titulo-modulo">INICIO</span>
+        <span class="desc-modulo">Importar, exportar e informes</span>
+      </button>
+      <a class="boton boton-principal solo-admin" href="/zona-trabajo">
+        <span class="icono">🗂️</span>
+        <span class="titulo-modulo">ZONA DE TRABAJO</span>
+        <span class="desc-modulo">Editor de operador, estado y causal</span>
+      </a>
+      <a class="boton boton-principal" href="/operadores">
+        <span class="icono">🚚</span>
+        <span class="titulo-modulo">MODULO OPERADORES</span>
+        <span class="desc-modulo">Salidas, novedades y cierre</span>
+      </a>
+      <a class="boton boton-principal solo-admin" href="/usuarios">
+        <span class="icono">👥</span>
+        <span class="titulo-modulo">MODULO USUARIOS</span>
+        <span class="desc-modulo">Administracion de usuarios</span>
+      </a>
     </section>
 
     <section id="pantalla-iniciar" class="pantalla oculto">
@@ -47,19 +67,19 @@
         <input type="file" id="importar-archivo" accept=".xls,.xlsx" multiple />
         <label>Fecha (opcional, vacio = hoy)</label>
         <input type="date" id="importar-fecha" />
-        <button class="boton boton-accion" id="btn-importar">Importar</button>
+        <button class="boton boton-accion" id="btn-importar"><span class="icono">📥</span>Importar</button>
       </div>
 
       <div class="opcion">
         <h3>2. Abrir editor de operador, estado y causal</h3>
-        <a class="boton boton-accion" href="/zona-trabajo">Abrir editor</a>
+        <a class="boton boton-accion" href="/zona-trabajo"><span class="icono">🗂️</span>Abrir editor</a>
       </div>
 
       <div class="opcion">
         <h3>3. Exportar consolidado</h3>
         <label>Fecha (opcional, vacio = hoy)</label>
         <input type="date" id="exportar-fecha" />
-        <button class="boton boton-accion" id="btn-exportar">Exportar</button>
+        <button class="boton boton-accion" id="btn-exportar"><span class="icono">📤</span>Exportar</button>
       </div>
 
       <div class="opcion">
@@ -74,10 +94,10 @@
         </select>
         <label>Fecha (opcional, vacio = hoy)</label>
         <input type="date" id="informe-fecha" />
-        <button class="boton boton-accion" id="btn-informe">Generar informe</button>
+        <button class="boton boton-accion" id="btn-informe"><span class="icono">📊</span>Generar informe</button>
       </div>
 
-      <button class="boton boton-volver" id="btn-volver">VOLVER AL MENU PRINCIPAL</button>
+      <button class="boton boton-volver" id="btn-volver"><span class="icono">🏠</span>VOLVER AL MENU PRINCIPAL</button>
     </section>
 
     <section class="log-seccion">
