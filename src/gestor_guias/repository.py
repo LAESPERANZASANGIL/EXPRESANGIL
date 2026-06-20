@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+import shutil
 import sqlite3
 
 import pandas as pd
@@ -207,6 +208,7 @@ class GuiaRepository:
 
     def clear_all(self) -> None:
         self.initialize()
+        self._backup_antes_de_borrar()
         with self._connect() as connection:
             connection.execute("DELETE FROM guias")
 
@@ -216,6 +218,7 @@ class GuiaRepository:
         if not clean_guides:
             return 0
 
+        self._backup_antes_de_borrar()
         with self._connect() as connection:
             cursor = connection.executemany(
                 "DELETE FROM guias WHERE guia = ?",
@@ -229,6 +232,7 @@ class GuiaRepository:
         if not fecha:
             return 0
 
+        self._backup_antes_de_borrar()
         with self._connect() as connection:
             cursor = connection.execute("DELETE FROM guias WHERE fecha LIKE ?", (f"{fecha}%",))
             return cursor.rowcount
@@ -239,6 +243,7 @@ class GuiaRepository:
         if not operador:
             return 0
 
+        self._backup_antes_de_borrar()
         with self._connect() as connection:
             cursor = connection.execute(
                 "DELETE FROM guias WHERE UPPER(TRIM(operador)) = UPPER(?)",
@@ -252,6 +257,7 @@ class GuiaRepository:
         if not estado:
             return 0
 
+        self._backup_antes_de_borrar()
         with self._connect() as connection:
             cursor = connection.execute("DELETE FROM guias WHERE estado = ?", (estado,))
             return cursor.rowcount
@@ -452,4 +458,17 @@ class GuiaRepository:
         return pd.DataFrame(data, columns=columns)
 
     def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.database_file)
+        connection = sqlite3.connect(self.database_file)
+        connection.execute("PRAGMA journal_mode=WAL")
+        return connection
+
+    def _backup_antes_de_borrar(self) -> None:
+        # Copia de seguridad de la base completa antes de un borrado masivo,
+        # para poder recuperar la informacion si el borrado fue un error.
+        if not self.database_file.exists():
+            return
+        carpeta_backup = self.database_file.parent / "backups"
+        carpeta_backup.mkdir(parents=True, exist_ok=True)
+        marca = datetime.now().strftime("%Y%m%d_%H%M%S")
+        destino = carpeta_backup / f"{self.database_file.stem}_{marca}.db"
+        shutil.copy2(self.database_file, destino)

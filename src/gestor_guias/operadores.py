@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import secrets
 
 from .excel_processor import normalize_guide
 from .reports import ESTADO_RECAUDO, value_to_number
@@ -30,7 +31,7 @@ def verify_password(password: str, stored: str) -> bool:
 
     salt = bytes.fromhex(salt_hex)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
-    return digest.hex() == digest_hex
+    return secrets.compare_digest(digest.hex(), digest_hex)
 
 
 def parse_guides(text: str) -> list[str]:

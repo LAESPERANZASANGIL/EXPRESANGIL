@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from http.cookies import SimpleCookie
 import json
 import os
@@ -9,6 +9,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -50,6 +51,8 @@ INFORME_COMANDOS = {
 }
 
 UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+SESSION_MAX_EDAD_SEGUNDOS = 12 * 60 * 60
 
 STATIC_FILES = {
     "/logo.png": ("logo.png", "image/png"),
@@ -117,7 +120,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
         token = self._session_token()
         if token is None:
             return None
-        return SESSIONS.get(token)
+        session = SESSIONS.get(token)
+        if session is None:
+            return None
+        if time.monotonic() - session["creada"] > SESSION_MAX_EDAD_SEGUNDOS:
+            SESSIONS.pop(token, None)
+            return None
+        return session
 
     def _require_admin(self) -> bool:
         """Responde 401 y devuelve False si la sesion actual no es de administrador."""
@@ -240,6 +249,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if route == "/api/descargar":
+            if not self._require_admin():
+                return
             from urllib.parse import parse_qs, urlsplit
 
             query = parse_qs(urlsplit(self.path).query)
@@ -270,6 +281,15 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if self.path == "/api/subir-archivo":
+            if not self._require_admin():
+                return
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > MAX_UPLOAD_BYTES:
+                self._send_json(
+                    {"ok": False, "output": "El archivo supera el tamano maximo permitido."},
+                    status=413,
+                )
+                return
             archivos = self._read_multipart_files()
             if not archivos:
                 self._send_json({"ok": False, "output": "No se recibio ningun archivo."})
@@ -278,6 +298,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
             rutas = []
             for nombre, contenido in archivos.items():
                 destino = UPLOADS_DIR / nombre
+                if destino.exists():
+                    sufijo = datetime.now().strftime("%Y%m%d%H%M%S")
+                    destino = UPLOADS_DIR / f"{destino.stem}_{sufijo}{destino.suffix}"
                 destino.write_bytes(contenido)
                 rutas.append(str(destino))
             self._send_json({"ok": True, "rutas": rutas})
@@ -413,9 +436,18 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Usuario o contrasena incorrectos."}, status=401)
                 return
 
+            for token_previo, sesion_previa in list(SESSIONS.items()):
+                if sesion_previa.get("usuario") == usuario:
+                    SESSIONS.pop(token_previo, None)
+
             token = secrets.token_hex(16)
             rol = operador.get("rol", "operador")
-            SESSIONS[token] = {"usuario": usuario, "nombre": operador["nombre"], "rol": rol}
+            SESSIONS[token] = {
+                "usuario": usuario,
+                "nombre": operador["nombre"],
+                "rol": rol,
+                "creada": time.monotonic(),
+            }
             self._send_json(
                 {
                     "ok": True,
@@ -423,7 +455,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "nombre": operador["nombre"],
                     "rol": rol,
                 },
-                headers={"Set-Cookie": f"session={token}; Path=/; HttpOnly"},
+                headers={"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Lax"},
             )
             return
 
@@ -486,7 +518,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             SESSIONS.pop(token, None)
             self._send_json(
                 {"ok": True, "output": "Sesion cerrada."},
-                headers={"Set-Cookie": "session=; Path=/; HttpOnly; Max-Age=0"},
+                headers={"Set-Cookie": "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"},
             )
             return
 
