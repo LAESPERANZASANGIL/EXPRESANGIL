@@ -99,9 +99,11 @@ def read_excel_file(path: Path, required_columns: list[str], import_date: str) -
         ]
         result = dataframe[required_columns + optional_columns].copy()
         result["GUIA"] = result["GUIA"].map(normalize_header_guide)
-        # Las fechas que ya trae el archivo (consolidado reexportado o formato
-        # inicial) se conservan; solo se normalizan al formato interno.
+        # Las fechas que ya trae el archivo (consolidado reexportado) se
+        # conservan; si vienen vacias, se estampa la fecha de importacion.
+        f_ingreso_defecto = format_consolidated_date(import_date)
         result["F_INGRESO"] = result["F_INGRESO"].map(normalize_header_date)
+        result["F_INGRESO"] = result["F_INGRESO"].replace("", f_ingreso_defecto)
         result["F_ENTREGA"] = result["F_ENTREGA"].map(normalize_header_date)
         result["VALOR"] = result["VALOR"].map(format_pesos)
         return result
