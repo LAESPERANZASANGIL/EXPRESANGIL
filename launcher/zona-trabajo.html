@@ -77,8 +77,8 @@
       <h3>Eliminar guias por fecha, estado u operador</h3>
       <div class="fila-eliminar">
         <div>
-          <label>FECHA (YYYY-MM-DD)</label>
-          <input type="text" id="del-fecha" />
+          <label>FECHA</label>
+          <input type="date" id="del-fecha" />
           <button class="boton boton-peligro" id="btn-eliminar-fecha">Eliminar por fecha</button>
         </div>
         <div>
@@ -103,8 +103,8 @@
         <option value="recaudo">Informe de recaudo</option>
         <option value="relacion">Relacion de guias CE y RR</option>
       </select>
-      <label>Fecha (YYYY-MM-DD, opcional)</label>
-      <input type="text" id="informe-fecha" placeholder="2026-06-10" />
+      <label>Fecha (opcional, vacio = hoy)</label>
+      <input type="date" id="informe-fecha" />
       <button class="boton boton-accion" id="btn-informe">Generar informe</button>
     </section>
 

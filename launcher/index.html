@@ -27,8 +27,8 @@
         <h3>1. Importar planilla descargada</h3>
         <label>Selecciona uno o varios archivos .xls o .xlsx</label>
         <input type="file" id="importar-archivo" accept=".xls,.xlsx" multiple />
-        <label>Fecha (YYYY-MM-DD, opcional)</label>
-        <input type="text" id="importar-fecha" placeholder="2026-06-10" />
+        <label>Fecha (opcional, vacio = hoy)</label>
+        <input type="date" id="importar-fecha" />
         <button class="boton boton-accion" id="btn-importar">Importar</button>
       </div>
 
@@ -39,8 +39,8 @@
 
       <div class="opcion">
         <h3>3. Exportar consolidado</h3>
-        <label>Fecha (YYYY-MM-DD, opcional)</label>
-        <input type="text" id="exportar-fecha" placeholder="2026-06-10" />
+        <label>Fecha (opcional, vacio = hoy)</label>
+        <input type="date" id="exportar-fecha" />
         <button class="boton boton-accion" id="btn-exportar">Exportar</button>
       </div>
 
@@ -53,8 +53,8 @@
           <option value="recaudo">Informe de recaudo</option>
           <option value="relacion">Relacion de guias CE y RR</option>
         </select>
-        <label>Fecha (YYYY-MM-DD, opcional)</label>
-        <input type="text" id="informe-fecha" placeholder="2026-06-10" />
+        <label>Fecha (opcional, vacio = hoy)</label>
+        <input type="date" id="informe-fecha" />
         <button class="boton boton-accion" id="btn-informe">Generar informe</button>
       </div>
 
