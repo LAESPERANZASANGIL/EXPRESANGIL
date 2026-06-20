@@ -85,11 +85,20 @@ function mostrarPantallaLogin() {
   pantallaLogin.classList.remove("oculto");
 }
 
+const MENSAJE_SOLO_ADMIN =
+  "Esta pagina es solo para el administrador. Los operadores deben ingresar desde Modulo Operadores.";
+
 async function verificarSesion() {
   try {
     const respuesta = await fetch("/api/operador/sesion", { credentials: "same-origin" });
     const resultado = await respuesta.json();
     if (respuesta.ok && resultado.ok) {
+      if (resultado.rol !== "admin") {
+        await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+        mostrarPantallaLogin();
+        mostrarLog(MENSAJE_SOLO_ADMIN);
+        return;
+      }
       mostrarPantallaPrincipal(resultado.nombre, resultado.rol);
       return;
     }
@@ -116,6 +125,11 @@ document.getElementById("btn-login").addEventListener("click", async () => {
     const resultado = await respuesta.json();
     if (resultado.ok) {
       document.getElementById("login-password").value = "";
+      if (resultado.rol !== "admin") {
+        await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+        mostrarLog(MENSAJE_SOLO_ADMIN);
+        return;
+      }
       mostrarPantallaPrincipal(resultado.nombre, resultado.rol);
     } else {
       mostrarLog(resultado.output || "Usuario o contrasena incorrectos.");
