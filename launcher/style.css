@@ -1,7 +1,7 @@
 :root {
-  --azul-oscuro: #1f3864;
-  --azul-medio: #2e5395;
-  --amarillo: #ffc000;
+  --azul-oscuro: #7a1010;
+  --azul-medio: #a31515;
+  --amarillo: #ffffff;
   --gris-claro: #f2f2f2;
   --gris-borde: #c9c9c9;
 }
@@ -31,7 +31,18 @@ header {
   padding: 22px 12px;
   border-radius: 10px;
   margin-bottom: 24px;
-  box-shadow: 0 6px 16px rgba(31, 56, 100, 0.25);
+  box-shadow: 0 6px 16px rgba(122, 16, 16, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-marca {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
 
 header h1 {

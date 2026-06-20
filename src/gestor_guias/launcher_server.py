@@ -52,6 +52,7 @@ INFORME_COMANDOS = {
 UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"
 
 STATIC_FILES = {
+    "/logo.svg": ("logo.svg", "image/svg+xml"),
     # La raiz del dominio es publica: pagina de consulta para el cliente final.
     "/": ("consulta.html", "text/html; charset=utf-8"),
     "/consultar": ("consulta.html", "text/html; charset=utf-8"),
