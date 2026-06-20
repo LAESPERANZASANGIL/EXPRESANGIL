@@ -13,8 +13,9 @@
 body {
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
-  background: var(--gris-claro);
+  background: linear-gradient(180deg, var(--gris-claro) 0%, #e7ecf3 100%);
   color: #1a1a1a;
+  min-height: 100vh;
 }
 
 .container {
@@ -24,12 +25,13 @@ body {
 }
 
 header {
-  background: var(--azul-oscuro);
+  background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-medio));
   color: #fff;
   text-align: center;
-  padding: 18px 12px;
-  border-radius: 8px;
+  padding: 22px 12px;
+  border-radius: 10px;
   margin-bottom: 24px;
+  box-shadow: 0 6px 16px rgba(31, 56, 100, 0.25);
 }
 
 header h1 {
@@ -66,19 +68,23 @@ header .subtitulo {
   text-align: center;
   text-decoration: none;
   cursor: pointer;
-  transition: filter 0.15s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: filter 0.15s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 .boton:hover {
   filter: brightness(1.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
 }
 
 .boton:active {
   filter: brightness(0.95);
+  transform: translateY(1px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .boton-principal {
-  background: var(--azul-oscuro);
+  background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-medio));
   color: var(--amarillo);
   font-size: 1.3rem;
   padding: 24px;
@@ -99,6 +105,7 @@ header .subtitulo {
   border-radius: 8px;
   padding: 14px 16px;
   margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(31, 56, 100, 0.08);
 }
 
 .opcion h3 {
@@ -115,12 +122,24 @@ header .subtitulo {
 }
 
 .opcion input[type="text"],
+.opcion input[type="password"],
+.opcion input[type="date"],
 .opcion select {
   width: 100%;
   padding: 8px;
   border: 1px solid var(--gris-borde);
   border-radius: 4px;
   font-size: 0.95rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.opcion input[type="text"]:focus,
+.opcion input[type="password"]:focus,
+.opcion input[type="date"]:focus,
+.opcion select:focus {
+  outline: none;
+  border-color: var(--azul-medio);
+  box-shadow: 0 0 0 3px rgba(46, 83, 149, 0.18);
 }
 
 .fila-archivo {
@@ -209,4 +228,24 @@ header .subtitulo {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 0.85rem;
+}
+
+.barra-sesion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.barra-sesion p {
+  margin: 0;
+  color: var(--azul-oscuro);
+}
+
+.barra-sesion .boton {
+  margin-left: auto;
+}
+
+.solo-admin.oculto {
+  display: none;
 }

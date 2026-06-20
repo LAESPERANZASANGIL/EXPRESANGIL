@@ -118,6 +118,16 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return None
         return SESSIONS.get(token)
 
+    def _require_admin(self) -> bool:
+        """Responde 401 y devuelve False si la sesion actual no es de administrador."""
+        session = self._get_session()
+        if session is None or session.get("rol") != "admin":
+            self._send_json(
+                {"ok": False, "output": "Requiere sesion de administrador."}, status=401
+            )
+            return False
+        return True
+
     def _send_file(self, filename: str, content_type: str) -> None:
         path = LAUNCHER_DIR / filename
         data = path.read_bytes()
@@ -182,6 +192,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if route == "/api/guias":
+            if not self._require_admin():
+                return
             self._send_json({"ok": True, "guias": REPOSITORY.list_all()})
             return
 
@@ -273,6 +285,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
         data = self._read_json()
 
         if self.path == "/api/guias/guardar":
+            if not self._require_admin():
+                return
             guia = str(data.get("guia", "")).strip()
             if not guia:
                 self._send_json({"ok": False, "output": "Indica la guia a guardar."})
@@ -287,6 +301,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/guias/guardar-muchas":
+            if not self._require_admin():
+                return
             guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
             if not guias:
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
@@ -301,6 +317,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/guias/eliminar":
+            if not self._require_admin():
+                return
             guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
             if not guias:
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
@@ -310,6 +328,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/guias/eliminar-fecha":
+            if not self._require_admin():
+                return
             fecha = str(data.get("fecha", "")).strip()
             if not fecha:
                 self._send_json({"ok": False, "output": "Escribe una fecha en formato YYYY-MM-DD."})
@@ -319,6 +339,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/guias/eliminar-estado":
+            if not self._require_admin():
+                return
             estado = str(data.get("estado", "")).strip()
             if not estado:
                 self._send_json({"ok": False, "output": "Escribe un estado."})
@@ -328,6 +350,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/guias/eliminar-operador":
+            if not self._require_admin():
+                return
             operador = str(data.get("operador", "")).strip()
             if not operador:
                 self._send_json({"ok": False, "output": "Escribe un operador."})
@@ -339,6 +363,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/importar":
+            if not self._require_admin():
+                return
             archivos = data.get("archivos")
             if not isinstance(archivos, list):
                 archivos = str(data.get("archivo", "")).split(";")
@@ -354,6 +380,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/exportar":
+            if not self._require_admin():
+                return
             fecha = str(data.get("fecha", "")).strip()
             args = ["exportar"]
             if fecha:
@@ -362,6 +390,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/informe":
+            if not self._require_admin():
+                return
             tipo = str(data.get("tipo", ""))
             fecha = str(data.get("fecha", "")).strip()
             comando = INFORME_COMANDOS.get(tipo)

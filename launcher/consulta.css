@@ -1,9 +1,45 @@
+body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.container {
+  max-width: 480px;
+  margin-top: 6vh;
+}
+
+header h1 {
+  font-size: 1.8rem;
+}
+
+header .subtitulo {
+  font-size: 1rem;
+}
+
+#guia {
+  font-size: 1.1rem;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+#btn-consultar {
+  margin-top: 12px;
+  font-size: 1.1rem;
+}
+
+#resultado {
+  border-width: 2px;
+  text-align: center;
+}
+
 #resultado.oculto {
   display: none;
 }
 
 #resultado-titulo {
   margin: 0 0 8px;
+  font-size: 1.2rem;
 }
 
 #resultado-mensaje {
@@ -14,8 +50,18 @@
 
 #resultado.encontrada {
   border-color: #2e7d32;
+  background: #eef7ee;
+}
+
+#resultado.encontrada #resultado-titulo {
+  color: #2e7d32;
 }
 
 #resultado.no-encontrada {
   border-color: #b71c1c;
+  background: #fbeaea;
+}
+
+#resultado.no-encontrada #resultado-titulo {
+  color: #b71c1c;
 }

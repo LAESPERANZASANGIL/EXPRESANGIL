@@ -1,5 +1,7 @@
+const pantallaLogin = document.getElementById("pantalla-login");
 const pantallaPrincipal = document.getElementById("pantalla-principal");
 const pantallaIniciar = document.getElementById("pantalla-iniciar");
+const nombreUsuario = document.getElementById("nombre-usuario");
 const log = document.getElementById("log");
 
 function mostrarLog(texto) {
@@ -65,6 +67,70 @@ async function llamar(ruta, datos, accion) {
     mostrarAviso(nombre + ": no se pudo conectar con el panel.", "error");
   }
 }
+
+function mostrarPantallaPrincipal(nombre, rol) {
+  nombreUsuario.textContent = nombre + (rol === "admin" ? " (administrador)" : " (operador)");
+  pantallaLogin.classList.add("oculto");
+  pantallaIniciar.classList.add("oculto");
+  pantallaPrincipal.classList.remove("oculto");
+
+  for (const elemento of document.querySelectorAll(".solo-admin")) {
+    elemento.classList.toggle("oculto", rol !== "admin");
+  }
+}
+
+function mostrarPantallaLogin() {
+  pantallaPrincipal.classList.add("oculto");
+  pantallaIniciar.classList.add("oculto");
+  pantallaLogin.classList.remove("oculto");
+}
+
+async function verificarSesion() {
+  try {
+    const respuesta = await fetch("/api/operador/sesion", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (respuesta.ok && resultado.ok) {
+      mostrarPantallaPrincipal(resultado.nombre, resultado.rol);
+      return;
+    }
+  } catch (error) {
+    // sin sesion activa, se muestra el login
+  }
+  mostrarPantallaLogin();
+}
+
+document.getElementById("btn-login").addEventListener("click", async () => {
+  const usuario = document.getElementById("login-usuario").value.trim();
+  const password = document.getElementById("login-password").value;
+  if (!usuario || !password) {
+    mostrarLog("Escribe usuario y contrasena.");
+    return;
+  }
+  try {
+    const respuesta = await fetch("/api/operador/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, password }),
+      credentials: "same-origin",
+    });
+    const resultado = await respuesta.json();
+    if (resultado.ok) {
+      document.getElementById("login-password").value = "";
+      mostrarPantallaPrincipal(resultado.nombre, resultado.rol);
+    } else {
+      mostrarLog(resultado.output || "Usuario o contrasena incorrectos.");
+    }
+  } catch (error) {
+    mostrarLog("No se pudo conectar con el panel: " + error);
+  }
+});
+
+document.getElementById("btn-logout").addEventListener("click", async () => {
+  await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+  mostrarPantallaLogin();
+});
+
+verificarSesion();
 
 document.getElementById("btn-iniciar").addEventListener("click", () => {
   pantallaPrincipal.classList.add("oculto");
