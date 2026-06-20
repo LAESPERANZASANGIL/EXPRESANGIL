@@ -65,3 +65,17 @@ header .subtitulo {
 #resultado.no-encontrada #resultado-titulo {
   color: #b71c1c;
 }
+
+.acceso-personal {
+  display: block;
+  text-align: center;
+  margin-top: 28px;
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.acceso-personal:hover {
+  color: var(--azul-medio);
+  text-decoration: underline;
+}
