@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultar guia - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="consulta.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>EXPRESANGIL</h1>
+      <p class="subtitulo">Consulta el estado de tu guia</p>
+    </header>
+
+    <section class="opcion">
+      <label>Numero de guia</label>
+      <input type="text" id="guia" placeholder="Ej: 980941" autofocus />
+      <button class="boton boton-accion" id="btn-consultar">Consultar</button>
+    </section>
+
+    <section class="opcion oculto" id="resultado">
+      <h3 id="resultado-titulo"></h3>
+      <p id="resultado-mensaje"></p>
+    </section>
+  </div>
+
+  <script src="consulta.js"></script>
+</body>
+</html>

@@ -158,6 +158,15 @@ class GuiaRepository:
             rows = connection.execute("SELECT * FROM guias ORDER BY rowid").fetchall()
             return [dict(row) for row in rows]
 
+    def obtener_guia(self, guia: str) -> dict | None:
+        self.initialize()
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                "SELECT * FROM guias WHERE guia = ?", (guia,)
+            ).fetchone()
+            return dict(row) if row else None
+
     def update_tracking_fields(self, guia: str, operador: str, estado: str, causal: str) -> None:
         self.initialize()
         with self._connect() as connection:

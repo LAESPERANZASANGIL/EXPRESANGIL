@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from .config import load_settings
+from .consulta_publica import describir_estado
 from .operadores import (
     cerrar_dia,
     hash_password,
@@ -67,6 +68,10 @@ STATIC_FILES = {
     "/zona-trabajo.html": ("zona-trabajo.html", "text/html; charset=utf-8"),
     "/zona-trabajo.css": ("zona-trabajo.css", "text/css; charset=utf-8"),
     "/zona-trabajo.js": ("zona-trabajo.js", "application/javascript; charset=utf-8"),
+    "/consultar": ("consulta.html", "text/html; charset=utf-8"),
+    "/consultar.html": ("consulta.html", "text/html; charset=utf-8"),
+    "/consulta.css": ("consulta.css", "text/css; charset=utf-8"),
+    "/consulta.js": ("consulta.js", "application/javascript; charset=utf-8"),
 }
 
 
@@ -174,6 +179,37 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
         if route == "/api/guias":
             self._send_json({"ok": True, "guias": REPOSITORY.list_all()})
+            return
+
+        if route == "/api/consultar-guia":
+            from urllib.parse import parse_qs, urlsplit
+
+            query = parse_qs(urlsplit(self.path).query)
+            guia_texto = (query.get("guia") or [""])[0].strip()
+            guia = normalize_guide(guia_texto)
+            if not guia:
+                self._send_json({"ok": False, "output": "Escribe el numero de guia."})
+                return
+
+            registro = REPOSITORY.obtener_guia(guia)
+            if registro is None:
+                self._send_json(
+                    {
+                        "ok": True,
+                        "encontrada": False,
+                        "mensaje": "Esta guia no ha llegado a nuestras oficinas.",
+                    }
+                )
+                return
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "encontrada": True,
+                    "guia": registro["guia"],
+                    "mensaje": describir_estado(registro),
+                }
+            )
             return
 
         if route == "/api/usuarios":

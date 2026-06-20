@@ -1,0 +1,21 @@
+#resultado.oculto {
+  display: none;
+}
+
+#resultado-titulo {
+  margin: 0 0 8px;
+}
+
+#resultado-mensaje {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+#resultado.encontrada {
+  border-color: #2e7d32;
+}
+
+#resultado.no-encontrada {
+  border-color: #b71c1c;
+}

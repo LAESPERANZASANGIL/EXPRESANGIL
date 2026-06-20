@@ -227,3 +227,15 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["gestionadas"] == 2
     assert cierre["e"] == 2
+
+
+def test_obtener_guia(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    encontrada = repository.obtener_guia("100")
+    assert encontrada is not None
+    assert encontrada["guia"] == "100"
+
+    assert repository.obtener_guia("999") is None
