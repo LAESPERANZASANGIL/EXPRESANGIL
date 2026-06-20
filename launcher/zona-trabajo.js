@@ -122,6 +122,12 @@ function renderizarTabla() {
       tr.appendChild(td);
     }
 
+    for (const campo of ["fecha", "ingreso"]) {
+      const td = document.createElement("td");
+      td.textContent = fila[campo] || "";
+      tr.appendChild(td);
+    }
+
     tr.addEventListener("click", () => seleccionarFila(fila));
     tablaBody.appendChild(tr);
   }
