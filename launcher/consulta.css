@@ -5,10 +5,9 @@ body {
 }
 
 .pagina {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
   gap: 24px;
   max-width: 980px;
   margin: 6vh auto;
@@ -16,9 +15,8 @@ body {
 }
 
 .container {
-  max-width: 480px;
+  max-width: none;
   margin: 0;
-  flex: 1 1 380px;
   order: 2;
 }
 
@@ -108,8 +106,8 @@ header .subtitulo {
 }
 
 .info-empresa {
-  flex: 1 1 320px;
-  max-width: 380px;
+  order: 1;
+  max-width: none;
   background: #fff;
   border: 1px solid var(--gris-borde);
   border-left: 5px solid var(--azul-medio);
@@ -129,10 +127,6 @@ header .subtitulo {
   font-size: 0.92rem;
   line-height: 1.5;
   color: #333;
-}
-
-.info-empresa {
-  order: 1;
 }
 
 .info-ubicacion,
@@ -161,10 +155,10 @@ header .subtitulo {
   list-style: none;
   margin: 0 0 14px;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  font-size: 0.85rem;
 }
 
 .regla-ok {
@@ -186,6 +180,21 @@ header .subtitulo {
 
 @media (max-width: 760px) {
   .pagina {
+    grid-template-columns: 1fr;
     margin-top: 3vh;
+  }
+
+  .container {
+    order: 1;
+  }
+
+  .info-empresa {
+    order: 2;
+  }
+}
+
+@media (max-width: 420px) {
+  .lista-reglas {
+    grid-template-columns: 1fr;
   }
 }
