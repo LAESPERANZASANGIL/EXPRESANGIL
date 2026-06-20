@@ -10,12 +10,17 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 17px;
+}
+
 body {
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
   background: linear-gradient(180deg, var(--gris-claro) 0%, #e7ecf3 100%);
   color: #1a1a1a;
   min-height: 100vh;
+  line-height: 1.5;
 }
 
 .container {
@@ -159,18 +164,19 @@ header .subtitulo {
 
 .fila-archivo {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .fila-archivo input[type="text"] {
-  flex: 1;
+  flex: 1 1 240px;
 }
 
 .boton-buscar {
   background: var(--azul-oscuro);
   color: var(--amarillo);
-  padding: 8px 14px;
-  font-size: 0.9rem;
+  padding: 12px 18px;
+  font-size: 0.95rem;
   white-space: nowrap;
 }
 
@@ -182,10 +188,16 @@ header .subtitulo {
 }
 
 .boton-volver {
-  background: var(--amarillo);
+  background: #fff;
   color: var(--azul-oscuro);
   border: 2px solid var(--azul-medio);
   margin-top: 10px;
+}
+
+.boton-peligro {
+  background: #b71c1c;
+  color: #fff;
+  border: 2px solid #7a1010;
 }
 
 .log-seccion {
@@ -200,24 +212,26 @@ header .subtitulo {
 
 #avisos {
   position: fixed;
-  top: 18px;
-  right: 18px;
+  top: 22px;
+  right: 22px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-end;
 }
 
 .aviso {
-  max-width: 340px;
-  padding: 12px 16px;
-  border-radius: 6px;
+  max-width: 380px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  border-left: 5px solid rgba(255, 255, 255, 0.5);
   font-weight: bold;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  line-height: 1.4;
   color: #fff;
   background: var(--azul-medio);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
   opacity: 0;
   transform: translateY(-8px);
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -234,6 +248,11 @@ header .subtitulo {
 
 .aviso.error {
   background: #b71c1c;
+}
+
+.aviso.advertencia {
+  background: #b8860b;
+  color: #fff;
 }
 
 #log {
@@ -254,11 +273,16 @@ header .subtitulo {
   align-items: center;
   gap: 14px;
   padding: 18px 22px;
+  border-left: 5px solid var(--azul-medio);
 }
 
 .barra-sesion p {
   margin: 0;
   font-size: 1.1rem;
+  color: #444;
+}
+
+.barra-sesion p strong {
   color: var(--azul-oscuro);
 }
 
@@ -266,6 +290,7 @@ header .subtitulo {
   margin-left: auto;
   padding: 12px 22px;
   font-size: 1rem;
+  width: auto;
 }
 
 .solo-admin.oculto {
@@ -273,12 +298,46 @@ header .subtitulo {
 }
 
 .nota-login {
-  margin: 10px 0 0;
-  font-size: 0.85rem;
+  margin: 14px 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
   color: #666;
 }
 
 .nota-login a {
   color: var(--azul-medio);
   font-weight: bold;
+}
+
+@media (max-width: 720px) {
+  html {
+    font-size: 16px;
+  }
+
+  .container {
+    padding: 24px 16px 40px;
+  }
+
+  header {
+    padding: 26px 16px;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+  }
+
+  .opcion {
+    padding: 18px 18px;
+  }
+
+  .barra-sesion .boton,
+  .barra-admin .boton,
+  .barra-operador .boton {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .fila-eliminar > div {
+    min-width: 100%;
+  }
 }
