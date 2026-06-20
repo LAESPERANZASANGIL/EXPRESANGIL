@@ -52,7 +52,15 @@ INFORME_COMANDOS = {
 UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"
 
 STATIC_FILES = {
-    "/": ("index.html", "text/html; charset=utf-8"),
+    # La raiz del dominio es publica: pagina de consulta para el cliente final.
+    "/": ("consulta.html", "text/html; charset=utf-8"),
+    "/consultar": ("consulta.html", "text/html; charset=utf-8"),
+    "/consultar.html": ("consulta.html", "text/html; charset=utf-8"),
+    "/consulta.css": ("consulta.css", "text/css; charset=utf-8"),
+    "/consulta.js": ("consulta.js", "application/javascript; charset=utf-8"),
+    # El panel interno de la empresa vive en /panel, no se enlaza desde la pagina publica.
+    "/panel": ("index.html", "text/html; charset=utf-8"),
+    "/panel.html": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
@@ -68,10 +76,6 @@ STATIC_FILES = {
     "/zona-trabajo.html": ("zona-trabajo.html", "text/html; charset=utf-8"),
     "/zona-trabajo.css": ("zona-trabajo.css", "text/css; charset=utf-8"),
     "/zona-trabajo.js": ("zona-trabajo.js", "application/javascript; charset=utf-8"),
-    "/consultar": ("consulta.html", "text/html; charset=utf-8"),
-    "/consultar.html": ("consulta.html", "text/html; charset=utf-8"),
-    "/consulta.css": ("consulta.css", "text/css; charset=utf-8"),
-    "/consulta.js": ("consulta.js", "application/javascript; charset=utf-8"),
 }
 
 

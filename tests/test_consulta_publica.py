@@ -1,27 +1,26 @@
 from gestor_guias.consulta_publica import describir_estado
 
 
-def test_describir_estado_en_bodega() -> None:
-    mensaje = describir_estado({"operador": "BODEGA", "estado": "R"})
-    assert "San Gil" in mensaje
-    assert "pendiente de reparto" in mensaje
+def test_describir_estado_en_oficina() -> None:
+    mensaje = describir_estado({"estado": "RO"})
+    assert mensaje == "Se encuentra en la oficina."
 
 
 def test_describir_estado_en_reparto() -> None:
-    mensaje = describir_estado({"operador": "KEVIN", "estado": "R"})
-    assert "reparto" in mensaje
+    mensaje = describir_estado({"estado": "R"})
+    assert mensaje == "Se encuentra en reparto."
 
 
 def test_describir_estado_entregada() -> None:
-    mensaje = describir_estado({"operador": "KEVIN", "estado": "E"})
-    assert "entregada" in mensaje
+    mensaje = describir_estado({"estado": "E"})
+    assert mensaje == "Ya fue entregada."
 
 
 def test_describir_estado_devuelta() -> None:
-    mensaje = describir_estado({"operador": "KEVIN", "estado": "D"})
+    mensaje = describir_estado({"estado": "D"})
     assert "devuelta" in mensaje
 
 
-def test_describir_estado_reclamar_oficina() -> None:
-    mensaje = describir_estado({"operador": "KEVIN", "estado": "RO"})
-    assert "reclamarla" in mensaje
+def test_describir_estado_sin_estado() -> None:
+    mensaje = describir_estado({"estado": ""})
+    assert mensaje == "Se encuentra en la oficina."
