@@ -61,40 +61,46 @@
     <section id="pantalla-iniciar" class="pantalla oculto">
       <h2>OPCIONES</h2>
 
-      <div class="opcion">
-        <h3>1. Importar planilla descargada</h3>
-        <label>Selecciona uno o varios archivos .xls o .xlsx</label>
-        <input type="file" id="importar-archivo" accept=".xls,.xlsx" multiple />
-        <label>Fecha (opcional, vacio = hoy)</label>
-        <input type="date" id="importar-fecha" />
-        <button class="boton boton-accion" id="btn-importar"><span class="icono">📥</span>Importar</button>
-      </div>
+      <div class="grid-opciones">
+        <div class="opcion opcion-compacta">
+          <h3>1. Importar planilla descargada</h3>
+          <p class="desc-opcion">Sube las planillas .xls/.xlsx descargadas y agregalas al consolidado del dia.</p>
+          <label>Selecciona uno o varios archivos .xls o .xlsx</label>
+          <input type="file" id="importar-archivo" accept=".xls,.xlsx" multiple />
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="importar-fecha" />
+          <button class="boton boton-accion boton-importar" id="btn-importar"><span class="icono">📥</span>Importar</button>
+        </div>
 
-      <div class="opcion">
-        <h3>2. Abrir editor de operador, estado y causal</h3>
-        <a class="boton boton-accion" href="/zona-trabajo"><span class="icono">🗂️</span>Abrir editor</a>
-      </div>
+        <div class="opcion opcion-compacta">
+          <h3>2. Abrir editor de operador, estado y causal</h3>
+          <p class="desc-opcion">Asigna operador, cambia estado y registra la causal de cada guia.</p>
+          <a class="boton boton-accion boton-editor" href="/zona-trabajo"><span class="icono">🗂️</span>Abrir editor</a>
+        </div>
 
-      <div class="opcion">
-        <h3>3. Exportar consolidado</h3>
-        <label>Fecha (opcional, vacio = hoy)</label>
-        <input type="date" id="exportar-fecha" />
-        <button class="boton boton-accion" id="btn-exportar"><span class="icono">📤</span>Exportar</button>
-      </div>
+        <div class="opcion opcion-compacta">
+          <h3>3. Exportar consolidado</h3>
+          <p class="desc-opcion">Genera el archivo Excel con el consolidado de guias de la fecha indicada.</p>
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="exportar-fecha" />
+          <button class="boton boton-accion boton-exportar" id="btn-exportar"><span class="icono">📤</span>Exportar</button>
+        </div>
 
-      <div class="opcion">
-        <h3>4. Generar informes</h3>
-        <label>Tipo de informe</label>
-        <select id="informe-tipo">
-          <option value="operador">Informe por operador</option>
-          <option value="dia">Informe del dia</option>
-          <option value="recaudo">Informe de recaudo</option>
-          <option value="relacion">Relacion de guias CE y RR</option>
-          <option value="devoluciones">Informe de devoluciones</option>
-        </select>
-        <label>Fecha (opcional, vacio = hoy)</label>
-        <input type="date" id="informe-fecha" />
-        <button class="boton boton-accion" id="btn-informe"><span class="icono">📊</span>Generar informe</button>
+        <div class="opcion opcion-compacta">
+          <h3>4. Generar informes</h3>
+          <p class="desc-opcion">Crea informes por operador, del dia, de recaudo, relacion CE/RR o devoluciones.</p>
+          <label>Tipo de informe</label>
+          <select id="informe-tipo">
+            <option value="operador">Informe por operador</option>
+            <option value="dia">Informe del dia</option>
+            <option value="recaudo">Informe de recaudo</option>
+            <option value="relacion">Relacion de guias CE y RR</option>
+            <option value="devoluciones">Informe de devoluciones</option>
+          </select>
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="informe-fecha" />
+          <button class="boton boton-accion boton-informe" id="btn-informe"><span class="icono">📊</span>Generar informe</button>
+        </div>
       </div>
 
       <button class="boton boton-volver" id="btn-volver"><span class="icono">🏠</span>VOLVER AL MENU PRINCIPAL</button>
