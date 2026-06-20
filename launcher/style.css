@@ -19,49 +19,49 @@ body {
 }
 
 .container {
-  max-width: 720px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 36px 24px 56px;
 }
 
 header {
   background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-medio));
   color: #fff;
   text-align: center;
-  padding: 22px 12px;
-  border-radius: 10px;
-  margin-bottom: 24px;
-  box-shadow: 0 6px 16px rgba(122, 16, 16, 0.3);
+  padding: 34px 20px;
+  border-radius: 12px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 20px rgba(122, 16, 16, 0.3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .logo-marca {
-  width: 72px;
+  width: 92px;
   height: auto;
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
 
 header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 2.1rem;
   letter-spacing: 1px;
   color: var(--amarillo);
 }
 
 header .subtitulo {
   margin: 6px 0 0;
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   color: #fff;
 }
 
 .pantalla {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 22px;
 }
 
 .pantalla.oculto {
@@ -72,9 +72,9 @@ header .subtitulo {
   display: block;
   box-sizing: border-box;
   border: none;
-  border-radius: 6px;
-  padding: 16px;
-  font-size: 1.05rem;
+  border-radius: 8px;
+  padding: 18px;
+  font-size: 1.15rem;
   font-weight: bold;
   text-align: center;
   text-decoration: none;
@@ -97,38 +97,42 @@ header .subtitulo {
 .boton-principal {
   background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-medio));
   color: var(--amarillo);
-  font-size: 1.3rem;
-  padding: 24px;
+  font-size: 1.5rem;
+  letter-spacing: 0.5px;
+  padding: 30px;
+  border-left: 6px solid rgba(255, 255, 255, 0.35);
 }
 
 #pantalla-iniciar h2 {
   background: var(--azul-oscuro);
   color: var(--amarillo);
   text-align: center;
-  padding: 10px;
-  border-radius: 6px;
+  font-size: 1.3rem;
+  padding: 16px;
+  border-radius: 8px;
   margin-top: 0;
+  margin-bottom: 22px;
 }
 
 .opcion {
   background: #fff;
   border: 1px solid var(--gris-borde);
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 8px rgba(31, 56, 100, 0.08);
+  border-radius: 10px;
+  padding: 24px 26px;
+  margin-bottom: 22px;
+  box-shadow: 0 3px 10px rgba(31, 56, 100, 0.09);
 }
 
 .opcion h3 {
-  margin: 0 0 10px;
+  margin: 0 0 16px;
   color: var(--azul-oscuro);
-  font-size: 1rem;
+  font-size: 1.25rem;
 }
 
 .opcion label {
   display: block;
-  font-size: 0.85rem;
-  margin: 8px 0 4px;
+  font-size: 1rem;
+  margin: 12px 0 6px;
   color: #444;
 }
 
@@ -137,10 +141,10 @@ header .subtitulo {
 .opcion input[type="date"],
 .opcion select {
   width: 100%;
-  padding: 8px;
+  padding: 12px;
   border: 1px solid var(--gris-borde);
-  border-radius: 4px;
-  font-size: 0.95rem;
+  border-radius: 6px;
+  font-size: 1.05rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
@@ -173,23 +177,25 @@ header .subtitulo {
 .boton-accion {
   background: var(--azul-medio);
   color: #fff;
-  margin-top: 12px;
+  margin-top: 16px;
   width: 100%;
 }
 
 .boton-volver {
   background: var(--amarillo);
   color: var(--azul-oscuro);
-  margin-top: 8px;
+  border: 2px solid var(--azul-medio);
+  margin-top: 10px;
 }
 
 .log-seccion {
-  margin-top: 20px;
+  margin-top: 28px;
 }
 
 .log-seccion h3 {
   color: var(--azul-oscuro);
-  margin-bottom: 6px;
+  font-size: 1.15rem;
+  margin-bottom: 10px;
 }
 
 #avisos {
@@ -233,28 +239,33 @@ header .subtitulo {
 #log {
   background: #1a1a1a;
   color: #d4f7d4;
-  padding: 12px;
-  border-radius: 6px;
-  min-height: 80px;
+  padding: 16px;
+  border-radius: 8px;
+  min-height: 90px;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 0.85rem;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .barra-sesion {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  padding: 18px 22px;
 }
 
 .barra-sesion p {
   margin: 0;
+  font-size: 1.1rem;
   color: var(--azul-oscuro);
 }
 
 .barra-sesion .boton {
   margin-left: auto;
+  padding: 12px 22px;
+  font-size: 1rem;
 }
 
 .solo-admin.oculto {
