@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 import sqlite3
 
@@ -163,10 +164,10 @@ class GuiaRepository:
             connection.execute(
                 """
                 UPDATE guias
-                SET operador = ?, estado = ?, causal = ?
+                SET operador = ?, estado = ?, causal = ?, ingreso = ?
                 WHERE guia = ?
                 """,
-                (operador, estado, causal, guia),
+                (operador, estado, causal, date.today().isoformat(), guia),
             )
 
     def update_many_tracking_fields(
@@ -185,10 +186,13 @@ class GuiaRepository:
             cursor = connection.executemany(
                 """
                 UPDATE guias
-                SET operador = ?, estado = ?, causal = ?
+                SET operador = ?, estado = ?, causal = ?, ingreso = ?
                 WHERE guia = ?
                 """,
-                [(operador, estado, causal, guia) for guia in clean_guides],
+                [
+                    (operador, estado, causal, date.today().isoformat(), guia)
+                    for guia in clean_guides
+                ],
             )
             return cursor.rowcount
 
