@@ -45,6 +45,7 @@ INFORME_COMANDOS = {
     "dia": "informe-dia",
     "recaudo": "informe-recaudo",
     "relacion": "informe-relacion-ce-rr",
+    "devoluciones": "informe-devoluciones",
 }
 
 UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"

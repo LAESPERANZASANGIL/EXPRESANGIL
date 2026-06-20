@@ -6,6 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .config import load_settings
+from .devoluciones import generate_devoluciones_report
 from .excel_processor import consolidate_excels_with_movements
 from .exporter import export_dataframe, export_movements_copy
 from .operadores import hash_password
@@ -150,6 +151,14 @@ def report_relacion_ce_rr(target_date: date) -> Path:
     return output_path
 
 
+def report_of_devoluciones(target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_devoluciones_report(repository, settings.paths.output_dir, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
 def open_editor() -> None:
     # Import perezoso: tkinter solo esta disponible/es necesario en uso local
     # de escritorio, no en el servidor donde corre el panel web.
@@ -254,6 +263,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
+    devoluciones_report_parser = subparsers.add_parser(
+        "informe-devoluciones",
+        help="Genera el informe de devoluciones (estado D) a partir de las guias guardadas",
+    )
+    devoluciones_report_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
     subparsers.add_parser("editar", help="Abre la interfaz para editar operador, estado y causal")
 
     operador_crear_parser = subparsers.add_parser(
@@ -306,6 +323,8 @@ def main() -> None:
         report_of_recaudo(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-relacion-ce-rr":
         report_relacion_ce_rr(parse_date(args.fecha, settings.gmail.timezone))
+    elif args.command == "informe-devoluciones":
+        report_of_devoluciones(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "editar":
         open_editor()
     elif args.command == "operador-crear":
