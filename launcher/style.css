@@ -85,6 +85,10 @@ header .subtitulo {
   display: none;
 }
 
+#pantalla-principal.oculto {
+  display: none;
+}
+
 .boton {
   display: flex;
   align-items: center;
