@@ -216,7 +216,7 @@ header .subtitulo {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 32px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .opcion-compacta {
@@ -261,22 +261,6 @@ header .subtitulo {
 .opcion-compacta .boton {
   margin-top: auto;
   padding-top: 24px;
-}
-
-.boton-importar {
-  background: #2e7d32;
-}
-
-.boton-editor {
-  background: #1565c0;
-}
-
-.boton-exportar {
-  background: #6a1b9a;
-}
-
-.boton-informe {
-  background: #b8860b;
 }
 
 @media (min-width: 1500px) {
@@ -324,6 +308,22 @@ header .subtitulo {
   color: #fff;
   margin-top: 20px;
   width: 100%;
+}
+
+.boton-importar {
+  background: #2e7d32;
+}
+
+.boton-editor {
+  background: #1565c0;
+}
+
+.boton-exportar {
+  background: #6a1b9a;
+}
+
+.boton-informe {
+  background: #b8860b;
 }
 
 .boton-volver {
