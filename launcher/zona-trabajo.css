@@ -1,5 +1,5 @@
 .ancho {
-  max-width: 1280px;
+  max-width: 1880px;
 }
 
 .tabla-contenedor {
@@ -12,13 +12,13 @@
 .tabla-guias {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .tabla-guias th,
 .tabla-guias td {
   border: 1px solid var(--gris-borde);
-  padding: 10px 12px;
+  padding: 14px 18px;
   text-align: left;
   white-space: nowrap;
 }
@@ -26,7 +26,7 @@
 .tabla-guias thead th {
   background: var(--azul-oscuro);
   color: #fff;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   position: sticky;
@@ -82,8 +82,8 @@
 
 #bulk-text {
   width: 100%;
-  padding: 12px;
+  padding: 14px 16px;
   border: 1px solid var(--gris-borde);
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: 8px;
+  font-size: 1.05rem;
 }

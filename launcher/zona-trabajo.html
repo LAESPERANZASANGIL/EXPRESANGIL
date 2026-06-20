@@ -48,14 +48,24 @@
 
     <section class="opcion">
       <h3>Editar guia seleccionada</h3>
-      <label>GUIA</label>
-      <input type="text" id="form-guia" readonly />
-      <label>OPERADOR</label>
-      <input type="text" id="form-operador" />
-      <label>ESTADO</label>
-      <input type="text" id="form-estado" />
-      <label>CAUSAL</label>
-      <input type="text" id="form-causal" />
+      <div class="campos-grid">
+        <div class="campo">
+          <label>GUIA</label>
+          <input type="text" id="form-guia" readonly />
+        </div>
+        <div class="campo">
+          <label>OPERADOR</label>
+          <input type="text" id="form-operador" />
+        </div>
+        <div class="campo">
+          <label>ESTADO</label>
+          <input type="text" id="form-estado" />
+        </div>
+        <div class="campo">
+          <label>CAUSAL</label>
+          <input type="text" id="form-causal" />
+        </div>
+      </div>
       <div class="fila-botones">
         <button class="boton boton-accion" id="btn-guardar-una">Guardar guia seleccionada</button>
         <button class="boton boton-accion" id="btn-aplicar-marcadas">Aplicar a marcadas</button>

@@ -19,12 +19,20 @@
       <div class="opcion">
         <h3>Crear el primer administrador</h3>
         <p class="nota">Todavia no existe ningun administrador. Crea el primero para poder gestionar los usuarios del sistema.</p>
-        <label>Usuario</label>
-        <input type="text" id="boot-usuario" autocomplete="off" />
-        <label>Contrasena</label>
-        <input type="password" id="boot-password" autocomplete="new-password" />
-        <label>Nombre completo</label>
-        <input type="text" id="boot-nombre" autocomplete="off" />
+        <div class="campos-grid">
+          <div class="campo">
+            <label>Usuario</label>
+            <input type="text" id="boot-usuario" autocomplete="off" />
+          </div>
+          <div class="campo">
+            <label>Contrasena</label>
+            <input type="password" id="boot-password" autocomplete="new-password" />
+          </div>
+          <div class="campo">
+            <label>Nombre completo</label>
+            <input type="text" id="boot-nombre" autocomplete="off" />
+          </div>
+        </div>
         <button class="boton boton-accion" id="btn-bootstrap">Crear administrador</button>
       </div>
       <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
@@ -50,17 +58,27 @@
 
       <div class="opcion">
         <h3>Crear o actualizar usuario</h3>
-        <label>Usuario de acceso</label>
-        <input type="text" id="nuevo-usuario" autocomplete="off" />
-        <label>Contrasena</label>
-        <input type="password" id="nuevo-password" autocomplete="new-password" />
-        <label>Nombre (como aparece en la columna OPERADOR)</label>
-        <input type="text" id="nuevo-nombre" autocomplete="off" />
-        <label>Rol</label>
-        <select id="nuevo-rol">
-          <option value="operador">Operador</option>
-          <option value="admin">Administrador</option>
-        </select>
+        <div class="campos-grid">
+          <div class="campo">
+            <label>Usuario de acceso</label>
+            <input type="text" id="nuevo-usuario" autocomplete="off" />
+          </div>
+          <div class="campo">
+            <label>Contrasena</label>
+            <input type="password" id="nuevo-password" autocomplete="new-password" />
+          </div>
+          <div class="campo">
+            <label>Nombre (como aparece en la columna OPERADOR)</label>
+            <input type="text" id="nuevo-nombre" autocomplete="off" />
+          </div>
+          <div class="campo">
+            <label>Rol</label>
+            <select id="nuevo-rol">
+              <option value="operador">Operador</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
         <button class="boton boton-accion" id="btn-crear">Guardar usuario</button>
       </div>
 
