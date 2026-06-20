@@ -8,35 +8,65 @@
   <link rel="stylesheet" href="consulta.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
-      <h1>EXPRESANGIL</h1>
-      <p class="subtitulo">Consulta el estado de tu guia</p>
-    </header>
+  <div class="pagina">
+    <div class="container">
+      <header>
+        <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+        <h1>EXPRESANGIL</h1>
+        <p class="subtitulo">Consulta el estado de tu guia</p>
+      </header>
 
-    <section class="opcion">
-      <label>Numero de guia</label>
-      <input type="text" id="guia" placeholder="Ej: 980941" autofocus />
-      <button class="boton boton-accion" id="btn-consultar">Consultar</button>
-    </section>
+      <section class="opcion">
+        <label>Numero de guia</label>
+        <input type="text" id="guia" placeholder="Ej: 980941" autofocus />
+        <button class="boton boton-accion" id="btn-consultar">Consultar</button>
+      </section>
 
-    <section class="opcion oculto" id="resultado">
-      <h3 id="resultado-titulo"></h3>
-      <p id="resultado-mensaje"></p>
-    </section>
+      <section class="opcion oculto" id="resultado">
+        <h3 id="resultado-titulo"></h3>
+        <p id="resultado-mensaje"></p>
+      </section>
 
-    <button class="boton boton-volver" id="btn-ingresar-panel">Ingresar al panel</button>
+      <button class="boton boton-volver" id="btn-ingresar-panel">Ingresar al panel</button>
 
-    <section class="opcion oculto" id="panel-acceso">
-      <h3>Ingresar al panel</h3>
-      <label>Usuario</label>
-      <input type="text" id="panel-usuario" autocomplete="username" />
-      <label>Contrasena del administrador</label>
-      <input type="password" id="panel-password" autocomplete="current-password" />
-      <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
-      <p id="panel-error" class="panel-error oculto"></p>
-    </section>
+      <section class="opcion oculto" id="panel-acceso">
+        <h3>Ingresar al panel</h3>
+        <label>Usuario</label>
+        <input type="text" id="panel-usuario" autocomplete="username" />
+        <label>Contrasena del administrador</label>
+        <input type="password" id="panel-password" autocomplete="current-password" />
+        <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
+        <p id="panel-error" class="panel-error oculto"></p>
+      </section>
+    </div>
+
+    <aside class="info-empresa">
+      <h2>¡En EXPRESANGIL llevamos tus encomiendas a donde las necesites!</h2>
+      <p>
+        Recogemos tus paquetes directamente en la puerta de tu casa o negocio
+        y los entregamos de manera rapida y segura en San Gil y los
+        municipios circunvecinos.
+      </p>
+
+      <ul class="info-contacto">
+        <li>📍 Carrera 9 No. 17-22, San Gil</li>
+        <li>📱 304 262 4407</li>
+        <li>📱 314 269 3385</li>
+      </ul>
+
+      <p class="info-ayuda">
+        🔍 Consulta el estado de tu envio ingresando el numero de guia sin
+        puntos, guiones ni espacios; unicamente numeros.
+      </p>
+
+      <p class="info-lema">🚚 "Recogemos donde estas, entregamos donde necesitas."</p>
+
+      <p class="info-hashtags">
+        #Expresangil #SanGil #Encomiendas #Mensajeria #PuertaAPuerta
+        #Santander #Logistica #EnviosSeguros #ProvinciaGuanentina
+        #ServicioDeEncomiendas #SeguimientoDeGuias #RecogidaADomicilio 🚚📦
+      </p>
+    </aside>
   </div>
 
   <script src="consulta.js"></script>
