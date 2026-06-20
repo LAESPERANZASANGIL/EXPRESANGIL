@@ -6,6 +6,7 @@ import json
 import os
 import re
 import secrets
+import ssl
 import subprocess
 import sys
 import threading
@@ -53,6 +54,12 @@ INFORME_COMANDOS = {
 UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 SESSION_MAX_EDAD_SEGUNDOS = 12 * 60 * 60
+# Se activa en main() si se configuro un certificado HTTPS valido.
+COOKIE_SECURE = False
+
+
+def _cookie_atributos() -> str:
+    return "; Secure" if COOKIE_SECURE else ""
 
 STATIC_FILES = {
     "/logo.png": ("logo.png", "image/png"),
@@ -81,6 +88,16 @@ STATIC_FILES = {
     "/zona-trabajo.css": ("zona-trabajo.css", "text/css; charset=utf-8"),
     "/zona-trabajo.js": ("zona-trabajo.js", "application/javascript; charset=utf-8"),
 }
+
+
+AUDITORIA_FILE = SETTINGS.paths.database_file.parent / "auditoria.log"
+
+
+def registrar_auditoria(usuario: str, accion: str, detalle: str) -> None:
+    AUDITORIA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    linea = f"{datetime.now().isoformat(timespec='seconds')}\t{usuario}\t{accion}\t{detalle}\n"
+    with AUDITORIA_FILE.open("a", encoding="utf-8") as archivo:
+        archivo.write(linea)
 
 
 def run_command(args: list[str]) -> dict:
@@ -348,6 +365,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
                 return
             eliminadas = REPOSITORY.delete_many(guias)
+            registrar_auditoria(
+                self._get_session()["usuario"], "eliminar-guias", f"{eliminadas} guia(s): {guias}"
+            )
             self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s)."})
             return
 
@@ -359,6 +379,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Escribe una fecha en formato YYYY-MM-DD."})
                 return
             eliminadas = REPOSITORY.delete_by_fecha(fecha)
+            registrar_auditoria(
+                self._get_session()["usuario"], "eliminar-guias-por-fecha", f"{eliminadas} guia(s), fecha={fecha}"
+            )
             self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) con fecha {fecha}."})
             return
 
@@ -370,6 +393,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Escribe un estado."})
                 return
             eliminadas = REPOSITORY.delete_by_estado(estado)
+            registrar_auditoria(
+                self._get_session()["usuario"], "eliminar-guias-por-estado", f"{eliminadas} guia(s), estado={estado}"
+            )
             self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) con estado '{estado}'."})
             return
 
@@ -381,6 +407,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Escribe un operador."})
                 return
             eliminadas = REPOSITORY.delete_by_operador(operador)
+            registrar_auditoria(
+                self._get_session()["usuario"], "eliminar-guias-por-operador", f"{eliminadas} guia(s), operador={operador}"
+            )
             self._send_json(
                 {"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) del operador '{operador}'."}
             )
@@ -455,7 +484,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "nombre": operador["nombre"],
                     "rol": rol,
                 },
-                headers={"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Lax"},
+                headers={"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Lax{_cookie_atributos()}"},
             )
             return
 
@@ -488,6 +517,11 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
 
             REPOSITORY.crear_operador(usuario, hash_password(password), nombre, rol)
+            registrar_auditoria(
+                session["usuario"] if session else "bootstrap",
+                "crear-usuario",
+                f"usuario={usuario}, rol={rol}",
+            )
             self._send_json(
                 {"ok": True, "output": f"Usuario '{usuario}' guardado con rol '{rol}'."}
             )
@@ -508,6 +542,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
             eliminado = REPOSITORY.eliminar_operador(usuario)
             if eliminado:
+                registrar_auditoria(session["usuario"], "eliminar-usuario", f"usuario={usuario}")
                 self._send_json({"ok": True, "output": f"Usuario '{usuario}' eliminado."})
             else:
                 self._send_json({"ok": False, "output": "Usuario no encontrado."})
@@ -518,7 +553,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
             SESSIONS.pop(token, None)
             self._send_json(
                 {"ok": True, "output": "Sesion cerrada."},
-                headers={"Set-Cookie": "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"},
+                headers={
+                    "Set-Cookie": f"session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{_cookie_atributos()}"
+                },
             )
             return
 
@@ -584,8 +621,27 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    global COOKIE_SECURE
+
     server = ThreadingHTTPServer((HOST, PORT), LauncherHandler)
-    url = f"http://{HOST}:{PORT}/"
+    esquema = "http"
+
+    cert_file = SETTINGS.servidor.cert_file
+    key_file = SETTINGS.servidor.key_file
+    if cert_file and key_file:
+        if not cert_file.is_file() or not key_file.is_file():
+            print(
+                f"Aviso: no se encontro el certificado o la llave configurados "
+                f"({cert_file}, {key_file}); el panel seguira por HTTP plano."
+            )
+        else:
+            contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            contexto.load_cert_chain(certfile=str(cert_file), keyfile=str(key_file))
+            server.socket = contexto.wrap_socket(server.socket, server_side=True)
+            esquema = "https"
+            COOKIE_SECURE = True
+
+    url = f"{esquema}://{HOST}:{PORT}/"
     if os.environ.get("GESTOR_GUIAS_NO_BROWSER") != "1":
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     print(f"Panel disponible en {url} (Ctrl+C para salir)")
