@@ -19,6 +19,7 @@ body {
   max-width: 480px;
   margin: 0;
   flex: 1 1 380px;
+  order: 2;
 }
 
 header h1 {
@@ -130,34 +131,57 @@ header .subtitulo {
   color: #333;
 }
 
-.info-contacto {
+.info-empresa {
+  order: 1;
+}
+
+.info-ubicacion,
+.info-telefonos {
+  font-weight: bold;
+  color: var(--azul-oscuro);
+}
+
+.info-seccion {
+  margin: 18px 0 8px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: var(--azul-medio);
+  border-radius: 6px;
+}
+
+.info-importante {
+  margin: 12px 0 4px;
+  font-weight: bold;
+  color: var(--azul-oscuro);
+}
+
+.lista-reglas {
   list-style: none;
   margin: 0 0 14px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.92rem;
-  font-weight: bold;
-  color: var(--azul-oscuro);
+  gap: 4px;
+  font-size: 0.9rem;
 }
 
-.info-ayuda {
-  background: var(--gris-claro);
-  border-radius: 6px;
-  padding: 10px 12px;
+.regla-ok {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.regla-mal {
+  color: #b71c1c;
+  font-weight: bold;
 }
 
 .info-lema {
+  margin-top: 6px;
   font-weight: bold;
   color: var(--azul-medio);
   text-align: center;
-}
-
-.info-hashtags {
-  font-size: 0.78rem;
-  color: #777;
-  line-height: 1.5;
 }
 
 @media (max-width: 760px) {
