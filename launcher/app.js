@@ -24,6 +24,24 @@ function mostrarAviso(texto, tipo) {
   }, 4000);
 }
 
+function mostrarDescargas(descargas) {
+  const anterior = document.getElementById("descargas");
+  if (anterior) anterior.remove();
+  if (!descargas || !descargas.length) return;
+
+  const contenedor = document.createElement("div");
+  contenedor.id = "descargas";
+  for (const nombre of descargas) {
+    const enlace = document.createElement("a");
+    enlace.className = "boton boton-accion";
+    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
+    enlace.textContent = "Descargar " + nombre;
+    enlace.setAttribute("download", nombre);
+    contenedor.appendChild(enlace);
+  }
+  log.insertAdjacentElement("afterend", contenedor);
+}
+
 async function llamar(ruta, datos, accion) {
   const nombre = accion || "Orden";
   mostrarLog("Procesando...");
@@ -36,6 +54,7 @@ async function llamar(ruta, datos, accion) {
     });
     const resultado = await respuesta.json();
     mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    mostrarDescargas(resultado.descargas);
     if (resultado.ok) {
       mostrarAviso(nombre + ": orden ejecutada correctamente.", "exito");
     } else {

@@ -77,7 +77,9 @@ def run_command(args: list[str]) -> dict:
         text=True,
     )
     output = (result.stdout + result.stderr).strip() or "Listo."
-    return {"ok": result.returncode == 0, "output": output}
+    archivos = re.findall(r"^.+generado:\s*(.+)$", output, re.MULTILINE)
+    descargas = [Path(ruta.strip()).name for ruta in archivos if Path(ruta.strip()).suffix in {".xlsx", ".pdf"}]
+    return {"ok": result.returncode == 0, "output": output, "descargas": descargas}
 
 
 class LauncherHandler(BaseHTTPRequestHandler):
@@ -181,6 +183,28 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 )
                 return
             self._send_json({"ok": True, "usuarios": REPOSITORY.listar_operadores()})
+            return
+
+        if route == "/api/descargar":
+            from urllib.parse import parse_qs, urlsplit
+
+            query = parse_qs(urlsplit(self.path).query)
+            nombre = (query.get("archivo") or [""])[0]
+            nombre = Path(nombre).name
+            ruta = SETTINGS.paths.output_dir / nombre
+            if not nombre or not ruta.is_file():
+                self.send_error(404)
+                return
+            content_type = "application/pdf" if ruta.suffix == ".pdf" else (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            data = ruta.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Disposition", f'attachment; filename="{nombre}"')
+            self.end_headers()
+            self.wfile.write(data)
             return
 
         if route in STATIC_FILES:

@@ -16,6 +16,24 @@ function mostrarLog(texto) {
   log.textContent = texto;
 }
 
+function mostrarDescargas(descargas) {
+  const anterior = document.getElementById("descargas");
+  if (anterior) anterior.remove();
+  if (!descargas || !descargas.length) return;
+
+  const contenedor = document.createElement("div");
+  contenedor.id = "descargas";
+  for (const nombre of descargas) {
+    const enlace = document.createElement("a");
+    enlace.className = "boton boton-accion";
+    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
+    enlace.textContent = "Descargar " + nombre;
+    enlace.setAttribute("download", nombre);
+    contenedor.appendChild(enlace);
+  }
+  log.insertAdjacentElement("afterend", contenedor);
+}
+
 async function llamar(ruta, datos) {
   mostrarLog("Procesando...");
   try {
@@ -27,6 +45,7 @@ async function llamar(ruta, datos) {
     });
     const resultado = await respuesta.json();
     mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    mostrarDescargas(resultado.descargas);
     return resultado;
   } catch (error) {
     mostrarLog("No se pudo conectar con el panel: " + error);
