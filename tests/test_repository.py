@@ -153,6 +153,9 @@ def test_operadores_crud(tmp_path: Path) -> None:
         "password_hash": "hash1",
         "nombre": "KEVIN",
         "rol": "operador",
+        "licencia_vencimiento": "",
+        "soat_vencimiento": "",
+        "tecnomecanica_vencimiento": "",
     }
 
     repository.crear_operador("kevin", "hash2", "KEVIN ACTUALIZADO")

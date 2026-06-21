@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import hashlib
 import os
 import re
@@ -15,6 +16,29 @@ ESTADO_SALIDA = "R"
 
 # Codigos de novedad capturados al cierre del dia.
 NOVEDADES = (("ro", "RO"), ("n", "N"), ("d", "D"))
+
+# Documentos de un operador con fecha de vencimiento; campo en la tabla -> etiqueta para el usuario.
+DOCUMENTOS_OPERADOR = (
+    ("licencia_vencimiento", "Licencia de conduccion"),
+    ("soat_vencimiento", "Seguro obligatorio (SOAT)"),
+    ("tecnomecanica_vencimiento", "Tecnomecanica"),
+)
+
+
+def documentos_vencidos(operador: dict) -> list[str]:
+    hoy = date.today()
+    vencidos = []
+    for campo, etiqueta in DOCUMENTOS_OPERADOR:
+        valor = str(operador.get(campo, "") or "").strip()
+        if not valor:
+            continue
+        try:
+            vencimiento = date.fromisoformat(valor)
+        except ValueError:
+            continue
+        if vencimiento < hoy:
+            vencidos.append(etiqueta)
+    return vencidos
 
 
 def hash_password(password: str) -> str:

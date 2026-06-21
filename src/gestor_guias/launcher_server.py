@@ -19,6 +19,7 @@ from .config import load_settings
 from .consulta_publica import describir_estado
 from .operadores import (
     cerrar_dia,
+    documentos_vencidos,
     hash_password,
     registrar_novedades,
     registrar_salidas,
@@ -91,6 +92,14 @@ STATIC_FILES = {
 
 
 AUDITORIA_FILE = SETTINGS.paths.database_file.parent / "auditoria.log"
+
+
+def _validar_fecha_opcional(valor: object) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    date.fromisoformat(texto)
+    return texto
 
 
 def registrar_auditoria(usuario: str, accion: str, detalle: str) -> None:
@@ -465,6 +474,17 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Usuario o contrasena incorrectos."}, status=401)
                 return
 
+            vencidos = documentos_vencidos(operador)
+            if vencidos:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "output": "No puedes ingresar: tienes vencido(s) " + ", ".join(vencidos) + ".",
+                    },
+                    status=403,
+                )
+                return
+
             for token_previo, sesion_previa in list(SESSIONS.items()):
                 if sesion_previa.get("usuario") == usuario:
                     SESSIONS.pop(token_previo, None)
@@ -498,6 +518,15 @@ class LauncherHandler(BaseHTTPRequestHandler):
             password = str(data.get("password", ""))
             nombre = str(data.get("nombre", "")).strip().upper()
             rol = str(data.get("rol", "operador")).strip().lower()
+            existente = REPOSITORY.obtener_operador(usuario) if usuario else None
+
+            try:
+                licencia_vencimiento = _validar_fecha_opcional(data.get("licencia_vencimiento", ""))
+                soat_vencimiento = _validar_fecha_opcional(data.get("soat_vencimiento", ""))
+                tecnomecanica_vencimiento = _validar_fecha_opcional(data.get("tecnomecanica_vencimiento", ""))
+            except ValueError:
+                self._send_json({"ok": False, "output": "Las fechas deben tener formato YYYY-MM-DD."})
+                return
 
             if not es_admin and not primer_admin:
                 self._send_json(
@@ -509,17 +538,29 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     {"ok": False, "output": "Primero debes crear un usuario administrador."}
                 )
                 return
-            if not usuario or not password or not nombre:
-                self._send_json({"ok": False, "output": "Usuario, contrasena y nombre son obligatorios."})
+            if not usuario or not nombre:
+                self._send_json({"ok": False, "output": "Usuario y nombre son obligatorios."})
+                return
+            if not password and not existente:
+                self._send_json({"ok": False, "output": "La contrasena es obligatoria para usuarios nuevos."})
                 return
             if rol not in ROLES_VALIDOS:
                 self._send_json({"ok": False, "output": "Rol no valido (operador o admin)."})
                 return
 
-            REPOSITORY.crear_operador(usuario, hash_password(password), nombre, rol)
+            password_hash = hash_password(password) if password else existente["password_hash"]
+            REPOSITORY.crear_operador(
+                usuario,
+                password_hash,
+                nombre,
+                rol,
+                licencia_vencimiento,
+                soat_vencimiento,
+                tecnomecanica_vencimiento,
+            )
             registrar_auditoria(
                 session["usuario"] if session else "bootstrap",
-                "crear-usuario",
+                "actualizar-usuario" if existente else "crear-usuario",
                 f"usuario={usuario}, rol={rol}",
             )
             self._send_json(

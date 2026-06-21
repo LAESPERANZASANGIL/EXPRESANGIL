@@ -61,6 +61,9 @@ class GuiaRepository:
                 connection.execute(
                     "ALTER TABLE operadores ADD COLUMN rol TEXT NOT NULL DEFAULT 'operador'"
                 )
+            for columna in ("licencia_vencimiento", "soat_vencimiento", "tecnomecanica_vencimiento"):
+                if columna not in columnas:
+                    connection.execute(f"ALTER TABLE operadores ADD COLUMN {columna} TEXT NOT NULL DEFAULT ''")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS cierres_operador (
@@ -263,20 +266,41 @@ class GuiaRepository:
             return cursor.rowcount
 
     def crear_operador(
-        self, usuario: str, password_hash: str, nombre: str, rol: str = "operador"
+        self,
+        usuario: str,
+        password_hash: str,
+        nombre: str,
+        rol: str = "operador",
+        licencia_vencimiento: str = "",
+        soat_vencimiento: str = "",
+        tecnomecanica_vencimiento: str = "",
     ) -> None:
         self.initialize()
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO operadores (usuario, password_hash, nombre, rol)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO operadores (
+                    usuario, password_hash, nombre, rol,
+                    licencia_vencimiento, soat_vencimiento, tecnomecanica_vencimiento
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(usuario) DO UPDATE SET
                     password_hash = excluded.password_hash,
                     nombre = excluded.nombre,
-                    rol = excluded.rol
+                    rol = excluded.rol,
+                    licencia_vencimiento = excluded.licencia_vencimiento,
+                    soat_vencimiento = excluded.soat_vencimiento,
+                    tecnomecanica_vencimiento = excluded.tecnomecanica_vencimiento
                 """,
-                (usuario, password_hash, nombre, rol),
+                (
+                    usuario,
+                    password_hash,
+                    nombre,
+                    rol,
+                    licencia_vencimiento,
+                    soat_vencimiento,
+                    tecnomecanica_vencimiento,
+                ),
             )
 
     def obtener_operador(self, usuario: str) -> dict | None:
@@ -293,7 +317,11 @@ class GuiaRepository:
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
             rows = connection.execute(
-                "SELECT usuario, nombre, rol FROM operadores ORDER BY nombre"
+                """
+                SELECT usuario, nombre, rol,
+                       licencia_vencimiento, soat_vencimiento, tecnomecanica_vencimiento
+                FROM operadores ORDER BY nombre
+                """
             ).fetchall()
             return [dict(row) for row in rows]
 

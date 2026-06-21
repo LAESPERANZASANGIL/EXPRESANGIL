@@ -4,6 +4,7 @@ import pandas as pd
 
 from gestor_guias.operadores import (
     cerrar_dia,
+    documentos_vencidos,
     hash_password,
     parse_guides,
     registrar_novedades,
@@ -40,6 +41,26 @@ def test_hash_and_verify_password() -> None:
 
     assert verify_password("clave123", stored)
     assert not verify_password("otra-clave", stored)
+
+
+def test_documentos_vencidos_detecta_fechas_pasadas() -> None:
+    operador = {
+        "licencia_vencimiento": "2000-01-01",
+        "soat_vencimiento": "2999-01-01",
+        "tecnomecanica_vencimiento": "",
+    }
+
+    assert documentos_vencidos(operador) == ["Licencia de conduccion"]
+
+
+def test_documentos_vencidos_sin_fechas_no_bloquea() -> None:
+    operador = {
+        "licencia_vencimiento": "",
+        "soat_vencimiento": "",
+        "tecnomecanica_vencimiento": "",
+    }
+
+    assert documentos_vencidos(operador) == []
 
 
 def test_parse_guides_extracts_long_numbers() -> None:
