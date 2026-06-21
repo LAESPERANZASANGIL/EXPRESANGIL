@@ -136,7 +136,7 @@ def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
         "2026-06-09",
         ro_texto="",
         n_texto="",
-        d_texto="100000 101\nguia-sin-causal\n100001,205",
+        d_texto="100000 10\nguia-sin-causal\n100001,25",
     )
 
     assert resultado["d"]["recibidas"] == 2
@@ -145,9 +145,9 @@ def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
 
     dataframe = repository.to_dataframe().set_index("GUIA")
     assert dataframe.loc["100000", "ESTADO"] == "D"
-    assert dataframe.loc["100000", "CAUSAL"] == "101"
+    assert dataframe.loc["100000", "CAUSAL"] == "10"
     assert dataframe.loc["100001", "ESTADO"] == "D"
-    assert dataframe.loc["100001", "CAUSAL"] == "205"
+    assert dataframe.loc["100001", "CAUSAL"] == "25"
 
 
 def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:

@@ -62,8 +62,8 @@ def parse_guides(text: str) -> list[str]:
 
 
 def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]]:
-    # Cada linea de una devolucion debe traer la guia y la causal (3 digitos)
-    # separados por espacio, coma o guion, ej: "064108123 101".
+    # Cada linea de una devolucion debe traer la guia y la causal (2 digitos)
+    # separados por espacio, coma o guion, ej: "064108123 10".
     items: list[tuple[str, str]] = []
     errores: list[str] = []
     for linea in (text or "").splitlines():
@@ -71,7 +71,7 @@ def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]
         if not linea:
             continue
         tokens = [token for token in re.split(r"[\s,;-]+", linea) if token]
-        if len(tokens) < 2 or not re.fullmatch(r"\d{6,}", tokens[0]) or not re.fullmatch(r"\d{3}", tokens[-1]):
+        if len(tokens) < 2 or not re.fullmatch(r"\d{6,}", tokens[0]) or not re.fullmatch(r"\d{2}", tokens[-1]):
             errores.append(linea)
             continue
         items.append((normalize_guide(tokens[0]), tokens[-1]))

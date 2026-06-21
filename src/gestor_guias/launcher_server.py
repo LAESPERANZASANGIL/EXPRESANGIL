@@ -641,7 +641,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if errores_d:
                 resumen += (
                     f". No se entendieron {len(errores_d)} linea(s) de devoluciones "
-                    "(formato esperado: guia y causal de 3 digitos, ej. '064108123 101')"
+                    "(formato esperado: guia y causal de 2 digitos, ej. '064108123 10')"
                 )
             self._send_json(
                 {"ok": True, "output": f"Novedades registradas -> {resumen}", "errores_d": errores_d}
