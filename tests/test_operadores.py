@@ -116,12 +116,38 @@ def test_registrar_novedades_solo_afecta_guias_en_r(tmp_path: Path) -> None:
 
     assert resultado["ro"] == {"recibidas": 1, "actualizadas": 1}
     assert resultado["n"] == {"recibidas": 1, "actualizadas": 1}
-    assert resultado["d"] == {"recibidas": 0, "actualizadas": 0}
+    assert resultado["d"] == {"recibidas": 0, "actualizadas": 0, "errores": []}
 
     dataframe = repository.to_dataframe().set_index("GUIA")
     assert dataframe.loc["100000", "ESTADO"] == "RO"
     assert dataframe.loc["100001", "ESTADO"] == "N"
     assert dataframe.loc["100002", "ESTADO"] == "R"
+
+
+def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000\n100001")
+
+    resultado = registrar_novedades(
+        repository,
+        "KEVIN",
+        "2026-06-09",
+        ro_texto="",
+        n_texto="",
+        d_texto="100000 101\nguia-sin-causal\n100001,205",
+    )
+
+    assert resultado["d"]["recibidas"] == 2
+    assert resultado["d"]["actualizadas"] == 2
+    assert resultado["d"]["errores"] == ["guia-sin-causal"]
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000", "ESTADO"] == "D"
+    assert dataframe.loc["100000", "CAUSAL"] == "101"
+    assert dataframe.loc["100001", "ESTADO"] == "D"
+    assert dataframe.loc["100001", "CAUSAL"] == "205"
 
 
 def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:

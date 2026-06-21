@@ -378,6 +378,32 @@ class GuiaRepository:
             )
             return cursor.rowcount
 
+    def registrar_devolucion(
+        self,
+        items: list[tuple[str, str]],
+        operador: str,
+        fecha: str,
+        estado_actual: str,
+        nuevo_estado: str,
+    ) -> int:
+        self.initialize()
+        clean_items = [(guia.strip(), causal.strip()) for guia, causal in items if guia.strip()]
+        if not clean_items:
+            return 0
+
+        with self._connect() as connection:
+            cursor = connection.executemany(
+                """
+                UPDATE guias SET estado = ?, causal = ?, ingreso = ?
+                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado = ?
+                """,
+                [
+                    (nuevo_estado, causal, fecha, guia, operador, f"{fecha}%", estado_actual)
+                    for guia, causal in clean_items
+                ],
+            )
+            return cursor.rowcount
+
     def cerrar_dia_operador(self, operador: str, fecha: str, estado_actual: str, nuevo_estado: str) -> int:
         self.initialize()
         with self._connect() as connection:

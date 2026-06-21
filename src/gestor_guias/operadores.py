@@ -14,9 +14,6 @@ from .repository import GuiaRepository
 # Estado que marca una guia como "en reparto" (salio con el operador, aun sin cerrar).
 ESTADO_SALIDA = "R"
 
-# Codigos de novedad capturados al cierre del dia.
-NOVEDADES = (("ro", "RO"), ("n", "N"), ("d", "D"))
-
 # Documentos de un operador con fecha de vencimiento; campo en la tabla -> etiqueta para el usuario.
 DOCUMENTOS_OPERADOR = (
     ("licencia_vencimiento", "Licencia de conduccion"),
@@ -64,6 +61,23 @@ def parse_guides(text: str) -> list[str]:
     return [normalize_guide(match.group(0)) for match in re.finditer(r"\d{6,}", text or "")]
 
 
+def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]]:
+    # Cada linea de una devolucion debe traer la guia y la causal (3 digitos)
+    # separados por espacio, coma o guion, ej: "064108123 101".
+    items: list[tuple[str, str]] = []
+    errores: list[str] = []
+    for linea in (text or "").splitlines():
+        linea = linea.strip()
+        if not linea:
+            continue
+        tokens = [token for token in re.split(r"[\s,;-]+", linea) if token]
+        if len(tokens) < 2 or not re.fullmatch(r"\d{6,}", tokens[0]) or not re.fullmatch(r"\d{3}", tokens[-1]):
+            errores.append(linea)
+            continue
+        items.append((normalize_guide(tokens[0]), tokens[-1]))
+    return items, errores
+
+
 def registrar_salidas(repository: GuiaRepository, operador: str, guias_texto: str) -> dict:
     guias = parse_guides(guias_texto)
     actualizadas = repository.asignar_salida(guias, operador, ESTADO_SALIDA)
@@ -78,12 +92,16 @@ def registrar_novedades(
     n_texto: str,
     d_texto: str,
 ) -> dict:
-    textos = {"ro": ro_texto, "n": n_texto, "d": d_texto}
+    textos = {"ro": ro_texto, "n": n_texto}
     resultado = {}
-    for clave, estado in NOVEDADES:
+    for clave, estado in (("ro", "RO"), ("n", "N")):
         guias = parse_guides(textos[clave])
         actualizadas = repository.registrar_novedad(guias, operador, fecha, ESTADO_SALIDA, estado)
         resultado[clave] = {"recibidas": len(guias), "actualizadas": actualizadas}
+
+    items_d, errores_d = parse_guides_con_causal(d_texto)
+    actualizadas_d = repository.registrar_devolucion(items_d, operador, fecha, ESTADO_SALIDA, "D")
+    resultado["d"] = {"recibidas": len(items_d), "actualizadas": actualizadas_d, "errores": errores_d}
     return resultado
 
 

@@ -637,7 +637,15 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 f"{clave.upper()}: {info['actualizadas']}/{info['recibidas']}"
                 for clave, info in resultado.items()
             )
-            self._send_json({"ok": True, "output": f"Novedades registradas -> {resumen}"})
+            errores_d = resultado.get("d", {}).get("errores", [])
+            if errores_d:
+                resumen += (
+                    f". No se entendieron {len(errores_d)} linea(s) de devoluciones "
+                    "(formato esperado: guia y causal de 3 digitos, ej. '064108123 101')"
+                )
+            self._send_json(
+                {"ok": True, "output": f"Novedades registradas -> {resumen}", "errores_d": errores_d}
+            )
             return
 
         if self.path == "/api/operador/cierre":

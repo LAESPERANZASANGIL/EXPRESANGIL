@@ -99,7 +99,9 @@ document.getElementById("btn-novedades").addEventListener("click", async () => {
   if (resultado.ok) {
     document.getElementById("novedad-ro").value = "";
     document.getElementById("novedad-n").value = "";
-    document.getElementById("novedad-d").value = "";
+    if (!resultado.errores_d || resultado.errores_d.length === 0) {
+      document.getElementById("novedad-d").value = "";
+    }
   }
 });
 
