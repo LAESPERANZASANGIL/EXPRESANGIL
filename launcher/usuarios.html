@@ -58,7 +58,9 @@
 
       <div class="opcion">
         <h3 id="titulo-formulario">Crear o actualizar usuario</h3>
-        <div class="campos-grid">
+
+        <h4 class="subtitulo-form">Datos de acceso</h4>
+        <div class="campos-grid campos-grid-acceso">
           <div class="campo">
             <label>Usuario de acceso</label>
             <input type="text" id="nuevo-usuario" autocomplete="off" />
@@ -78,21 +80,29 @@
               <option value="admin">Administrador</option>
             </select>
           </div>
+        </div>
+
+        <h4 class="subtitulo-form">Documentos del operador (fechas de vencimiento)</h4>
+        <p class="nota nota-documentos">Si un documento vence, el operador no podra iniciar sesion hasta que se actualice la fecha.</p>
+        <div class="campos-grid campos-grid-documentos">
           <div class="campo">
-            <label>Licencia de conduccion (vence)</label>
+            <label>Licencia de conduccion</label>
             <input type="date" id="nuevo-licencia" />
           </div>
           <div class="campo">
-            <label>Seguro obligatorio - SOAT (vence)</label>
+            <label>Seguro obligatorio (SOAT)</label>
             <input type="date" id="nuevo-soat" />
           </div>
           <div class="campo">
-            <label>Tecnomecanica (vence)</label>
+            <label>Tecnomecanica</label>
             <input type="date" id="nuevo-tecnomecanica" />
           </div>
         </div>
-        <button class="boton boton-accion" id="btn-crear">Guardar usuario</button>
-        <button class="boton boton-volver oculto" id="btn-cancelar-edicion">Cancelar edicion</button>
+
+        <div class="acciones-formulario">
+          <button class="boton boton-accion" id="btn-crear">Guardar usuario</button>
+          <button class="boton boton-volver oculto" id="btn-cancelar-edicion">Cancelar edicion</button>
+        </div>
       </div>
 
       <div class="opcion">

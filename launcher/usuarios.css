@@ -118,8 +118,55 @@
   color: #777;
 }
 
-#btn-cancelar-edicion {
-  margin-top: 10px;
+.subtitulo-form {
+  margin: 28px 0 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--gris-borde);
+  font-size: 1.05rem;
+  color: var(--azul-oscuro);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.opcion h3 + .subtitulo-form {
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.nota-documentos {
+  margin: 0 0 16px;
+}
+
+.campos-grid-acceso,
+.campos-grid-documentos {
+  row-gap: 6px;
+}
+
+.campos-grid .campo label {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.6em;
+  margin: 0 0 8px;
+}
+
+.campos-grid .campo input,
+.campos-grid .campo select {
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+.acciones-formulario {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.acciones-formulario .boton {
+  margin-top: 0;
+  width: auto;
+  flex: 0 0 auto;
 }
 
 #btn-cancelar-edicion.oculto {
