@@ -189,12 +189,13 @@ document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
 document.getElementById("btn-actualizar").addEventListener("click", cargarGuias);
 
 document.getElementById("btn-guardar-una").addEventListener("click", async () => {
-  if (!seleccionada) {
-    mostrarLog("Selecciona una guia en la tabla.");
+  const guia = formGuia.value.trim() || seleccionada;
+  if (!guia) {
+    mostrarLog("Escribe o selecciona una guia en la tabla.");
     return;
   }
   const resultado = await llamar("/api/guias/guardar", {
-    guia: seleccionada,
+    guia,
     planilla: formPlanilla.value,
     destinatario: formDestinatario.value,
     direccion: formDireccion.value,
@@ -205,6 +206,20 @@ document.getElementById("btn-guardar-una").addEventListener("click", async () =>
     causal: formCausal.value,
   });
   if (resultado.ok) await cargarGuias();
+});
+
+document.getElementById("btn-limpiar-campos").addEventListener("click", () => {
+  seleccionada = null;
+  formGuia.value = "";
+  formPlanilla.value = "";
+  formDestinatario.value = "";
+  formDireccion.value = "";
+  formMunicipio.value = "";
+  formValor.value = "";
+  formOperador.value = "";
+  formEstado.value = "";
+  formCausal.value = "";
+  renderizarTabla();
 });
 
 document.getElementById("btn-aplicar-marcadas").addEventListener("click", async () => {
