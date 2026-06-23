@@ -337,7 +337,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
         if self.path == "/api/guias/guardar":
             if not self._require_admin():
                 return
-            guia = str(data.get("guia", "")).strip()
+            guia = normalize_guide(str(data.get("guia", "")).strip())
             if not guia:
                 self._send_json({"ok": False, "output": "Indica la guia a guardar."})
                 return
