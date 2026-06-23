@@ -195,3 +195,24 @@ def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None
     )
     assert resumen_exacto["diferencia"] == 0
     assert resumen_exacto["nota"] == ""
+
+
+def test_cerrar_dia_descuenta_gastos_y_adelanto_salario(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000\n100001")
+
+    resumen = cerrar_dia(
+        repository, "KEVIN", "2026-06-09", bancos=0, nequi=0, envia=0,
+        gastos=5_000, adelanto_salario=8_000,
+    )
+
+    assert resumen["recaudado"] == 30_000
+    assert resumen["gastos"] == 5_000
+    assert resumen["adelanto_salario"] == 8_000
+    assert resumen["efectivo"] == 17_000
+
+    cierre = repository.obtener_cierre("2026-06-09", "KEVIN")
+    assert cierre["gastos"] == 5_000
+    assert cierre["adelanto_salario"] == 8_000

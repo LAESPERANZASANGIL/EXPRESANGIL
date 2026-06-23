@@ -138,6 +138,8 @@ def build_cierre_breakdown(
                 "BANCOS",
                 "NEQUI",
                 "ENVIA",
+                "GASTOS",
+                "ADELANTO_SALARIO",
                 "EFECTIVO",
             ]
         )
@@ -160,7 +162,12 @@ def build_cierre_breakdown(
         bancos = cierre["bancos"] if cierre else 0
         nequi = cierre["nequi"] if cierre else 0
         envia = cierre["envia"] if cierre else 0
-        efectivo = cierre["efectivo"] if cierre else recaudado - (bancos + nequi + envia)
+        gastos = cierre["gastos"] if cierre else 0
+        adelanto_salario = cierre["adelanto_salario"] if cierre else 0
+        efectivo = (
+            cierre["efectivo"] if cierre
+            else recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
+        )
 
         filas.append(
             {
@@ -174,6 +181,8 @@ def build_cierre_breakdown(
                 "BANCOS": bancos,
                 "NEQUI": nequi,
                 "ENVIA": envia,
+                "GASTOS": gastos,
+                "ADELANTO_SALARIO": adelanto_salario,
                 "EFECTIVO": efectivo,
             }
         )
@@ -262,6 +271,8 @@ def generate_operator_report_pdf(
                 ["DINERO EN BANCOS", format_currency_co(int(fila["BANCOS"]))],
                 ["DINERO EN NEQUI", format_currency_co(int(fila["NEQUI"]))],
                 ["DINERO EN LINK ENVIA", format_currency_co(int(fila["ENVIA"]))],
+                ["GASTOS", format_currency_co(int(fila["GASTOS"]))],
+                ["ADELANTO DE SALARIO", format_currency_co(int(fila["ADELANTO_SALARIO"]))],
                 ["EFECTIVO A ENTREGAR", format_currency_co(int(fila["EFECTIVO"]))],
             ]
 

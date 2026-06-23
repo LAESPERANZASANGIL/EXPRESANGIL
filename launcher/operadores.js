@@ -179,6 +179,8 @@ const FILAS_RESUMEN = [
   ["bancos", "Dinero en bancos"],
   ["nequi", "Dinero en Nequi"],
   ["envia", "Dinero en link Envia"],
+  ["gastos", "Gastos"],
+  ["adelanto_salario", "Adelanto de salario"],
   ["efectivo", "Efectivo a entregar"],
   ["efectivo_contado", "Efectivo contado en caja"],
   ["diferencia", "Diferencia"],
@@ -186,7 +188,8 @@ const FILAS_RESUMEN = [
 ];
 
 const CAMPOS_MONEDA = new Set([
-  "recaudado", "bancos", "nequi", "envia", "efectivo", "efectivo_contado", "diferencia",
+  "recaudado", "bancos", "nequi", "envia", "gastos", "adelanto_salario",
+  "efectivo", "efectivo_contado", "diferencia",
 ]);
 
 function formatoMoneda(valor) {
@@ -222,8 +225,12 @@ document.getElementById("btn-cierre").addEventListener("click", async () => {
   const bancos = document.getElementById("cierre-bancos").value;
   const nequi = document.getElementById("cierre-nequi").value;
   const envia = document.getElementById("cierre-envia").value;
+  const gastos = document.getElementById("cierre-gastos").value;
+  const adelanto_salario = document.getElementById("cierre-adelanto").value;
   const denominaciones = obtenerDenominaciones();
-  const resultado = await llamar("/api/operador/cierre", { fecha, bancos, nequi, envia, denominaciones });
+  const resultado = await llamar("/api/operador/cierre", {
+    fecha, bancos, nequi, envia, gastos, adelanto_salario, denominaciones,
+  });
   if (resultado.ok && resultado.resumen) {
     mostrarResumen(resultado.resumen);
     construirTablaDenominaciones();

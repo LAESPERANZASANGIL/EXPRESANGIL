@@ -116,6 +116,8 @@ def cerrar_dia(
     nequi: int,
     envia: int,
     denominaciones: dict[int, int] | None = None,
+    gastos: int = 0,
+    adelanto_salario: int = 0,
 ) -> dict:
     repository.cerrar_dia_operador(operador, fecha, ESTADO_SALIDA, ESTADO_RECAUDO)
 
@@ -130,7 +132,7 @@ def cerrar_dia(
             recaudado += value_to_number(guia["valor"])
 
     gestionadas = len(guias)
-    efectivo = recaudado - (bancos + nequi + envia)
+    efectivo = recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
 
     repository.guardar_cierre(
         fecha=fecha,
@@ -145,6 +147,8 @@ def cerrar_dia(
         nequi=nequi,
         envia=envia,
         efectivo=efectivo,
+        gastos=gastos,
+        adelanto_salario=adelanto_salario,
     )
 
     efectivo_contado = sum(
@@ -168,6 +172,8 @@ def cerrar_dia(
         "bancos": bancos,
         "nequi": nequi,
         "envia": envia,
+        "gastos": gastos,
+        "adelanto_salario": adelanto_salario,
         "efectivo": efectivo,
         "efectivo_contado": efectivo_contado,
         "diferencia": diferencia,

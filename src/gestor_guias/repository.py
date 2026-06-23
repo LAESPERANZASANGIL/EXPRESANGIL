@@ -87,6 +87,12 @@ class GuiaRepository:
                 )
                 """
             )
+            columnas_cierre = {row[1] for row in connection.execute("PRAGMA table_info(cierres_operador)")}
+            for columna in ("gastos", "adelanto_salario"):
+                if columna not in columnas_cierre:
+                    connection.execute(
+                        f"ALTER TABLE cierres_operador ADD COLUMN {columna} INTEGER NOT NULL DEFAULT 0"
+                    )
 
     def save_consolidated(self, dataframe: pd.DataFrame) -> None:
         self.initialize()
@@ -536,6 +542,8 @@ class GuiaRepository:
         nequi: int,
         envia: int,
         efectivo: int,
+        gastos: int = 0,
+        adelanto_salario: int = 0,
     ) -> None:
         self.initialize()
         with self._connect() as connection:
@@ -543,9 +551,9 @@ class GuiaRepository:
                 """
                 INSERT INTO cierres_operador (
                     fecha, operador, gestionadas, ro, n, d, e,
-                    recaudado, bancos, nequi, envia, efectivo
+                    recaudado, bancos, nequi, envia, efectivo, gastos, adelanto_salario
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(fecha, operador) DO UPDATE SET
                     gestionadas = excluded.gestionadas,
                     ro = excluded.ro,
@@ -556,9 +564,14 @@ class GuiaRepository:
                     bancos = excluded.bancos,
                     nequi = excluded.nequi,
                     envia = excluded.envia,
-                    efectivo = excluded.efectivo
+                    efectivo = excluded.efectivo,
+                    gastos = excluded.gastos,
+                    adelanto_salario = excluded.adelanto_salario
                 """,
-                (fecha, operador, gestionadas, ro, n, d, e, recaudado, bancos, nequi, envia, efectivo),
+                (
+                    fecha, operador, gestionadas, ro, n, d, e, recaudado,
+                    bancos, nequi, envia, efectivo, gastos, adelanto_salario,
+                ),
             )
 
     def obtener_cierre(self, fecha: str, operador: str) -> dict | None:
