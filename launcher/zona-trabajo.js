@@ -189,12 +189,12 @@ document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
 document.getElementById("btn-actualizar").addEventListener("click", cargarGuias);
 
 document.getElementById("btn-guardar-una").addEventListener("click", async () => {
-  if (!formGuia.value) {
+  if (!seleccionada) {
     mostrarLog("Selecciona una guia en la tabla.");
     return;
   }
   const resultado = await llamar("/api/guias/guardar", {
-    guia: formGuia.value,
+    guia: seleccionada,
     planilla: formPlanilla.value,
     destinatario: formDestinatario.value,
     direccion: formDireccion.value,
