@@ -329,6 +329,18 @@ class GuiaRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def listar_operadores_en_guias(self) -> list[str]:
+        # Los nombres de operador en la columna OPERADOR de guias no siempre
+        # coinciden con un usuario de login en la tabla operadores (por
+        # ejemplo BODEGA o un repartidor sin acceso al panel), por eso se
+        # listan aparte para los selectores de informes.
+        self.initialize()
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT DISTINCT operador FROM guias WHERE TRIM(operador) != '' ORDER BY operador"
+            ).fetchall()
+            return [row[0] for row in rows]
+
     def contar_admins(self) -> int:
         self.initialize()
         with self._connect() as connection:

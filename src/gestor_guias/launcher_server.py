@@ -275,6 +275,16 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "usuarios": REPOSITORY.listar_operadores()})
             return
 
+        if route == "/api/operadores-guias":
+            session = self._get_session()
+            if session is None or session.get("rol") != "admin":
+                self._send_json(
+                    {"ok": False, "output": "Requiere sesion de administrador."}, status=401
+                )
+                return
+            self._send_json({"ok": True, "operadores": REPOSITORY.listar_operadores_en_guias()})
+            return
+
         if route == "/api/operador/descargar":
             session = self._get_session()
             if session is None:

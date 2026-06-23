@@ -209,11 +209,14 @@ const informeTipo = document.getElementById("informe-tipo");
 const informeOperadorCampo = document.getElementById("informe-operador-campo");
 const informeOperador = document.getElementById("informe-operador");
 
-async function cargarOperadoresInforme(incluirTodos) {
+async function cargarOperadoresInforme(tipo) {
+  const incluirTodos = tipo === "operador";
+  const ruta = incluirTodos ? "/api/operadores-guias" : "/api/usuarios";
   try {
-    const respuesta = await fetch("/api/usuarios", { credentials: "same-origin" });
+    const respuesta = await fetch(ruta, { credentials: "same-origin" });
     const resultado = await respuesta.json();
     if (!resultado.ok) return;
+    const nombres = incluirTodos ? resultado.operadores : resultado.usuarios.map((u) => u.nombre);
     informeOperador.innerHTML = "";
     if (incluirTodos) {
       const opcionTodos = document.createElement("option");
@@ -221,10 +224,10 @@ async function cargarOperadoresInforme(incluirTodos) {
       opcionTodos.textContent = "Todos los operadores";
       informeOperador.appendChild(opcionTodos);
     }
-    for (const usuario of resultado.usuarios) {
+    for (const nombre of nombres) {
       const opcion = document.createElement("option");
-      opcion.value = usuario.nombre;
-      opcion.textContent = usuario.nombre;
+      opcion.value = nombre;
+      opcion.textContent = nombre;
       informeOperador.appendChild(opcion);
     }
   } catch (error) {
@@ -237,9 +240,9 @@ function actualizarCampoOperadorInforme() {
   const esOperador = informeTipo.value === "operador";
   informeOperadorCampo.classList.toggle("oculto", !esSalidas && !esOperador);
   if (esSalidas) {
-    cargarOperadoresInforme(false);
+    cargarOperadoresInforme("salidas");
   } else if (esOperador) {
-    cargarOperadoresInforme(true);
+    cargarOperadoresInforme("operador");
   }
 }
 

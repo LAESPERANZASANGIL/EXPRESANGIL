@@ -303,7 +303,7 @@ const informeOperador = document.getElementById("informe-operador");
 
 async function cargarOperadoresInforme() {
   try {
-    const respuesta = await fetch("/api/usuarios", { credentials: "same-origin" });
+    const respuesta = await fetch("/api/operadores-guias", { credentials: "same-origin" });
     const resultado = await respuesta.json();
     if (!resultado.ok) return;
     informeOperador.innerHTML = "";
@@ -311,10 +311,10 @@ async function cargarOperadoresInforme() {
     opcionTodos.value = "";
     opcionTodos.textContent = "Todos los operadores";
     informeOperador.appendChild(opcionTodos);
-    for (const usuario of resultado.usuarios) {
+    for (const nombre of resultado.operadores) {
       const opcion = document.createElement("option");
-      opcion.value = usuario.nombre;
-      opcion.textContent = usuario.nombre;
+      opcion.value = nombre;
+      opcion.textContent = nombre;
       informeOperador.appendChild(opcion);
     }
   } catch (error) {
