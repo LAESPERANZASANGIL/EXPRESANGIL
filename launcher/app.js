@@ -77,6 +77,8 @@ function mostrarPantallaPrincipal(nombre, rol) {
   for (const elemento of document.querySelectorAll(".solo-admin")) {
     elemento.classList.toggle("oculto", rol !== "admin");
   }
+
+  actualizarCampoOperadorInforme();
 }
 
 function mostrarPantallaLogin() {
@@ -150,6 +152,7 @@ document.getElementById("btn-iniciar").addEventListener("click", () => {
   pantallaPrincipal.classList.add("oculto");
   pantallaIniciar.classList.remove("oculto");
   mostrarLog("Listo.");
+  actualizarCampoOperadorInforme();
 });
 
 document.getElementById("btn-volver").addEventListener("click", () => {
