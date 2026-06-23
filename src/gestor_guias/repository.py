@@ -356,6 +356,10 @@ class GuiaRepository:
             return cursor.rowcount
 
     def asignar_salida(self, guias: list[str], operador: str, estado: str) -> tuple[int, list[str]]:
+        # Las guias que llegan en la lista pero no estan en el consolidado
+        # (no vinieron en ninguna planilla) se crean igual, asignadas al
+        # repartidor que las registro, marcando planilla = "Sin planilla"
+        # para que sigan siendo visibles en su informe de salidas.
         self.initialize()
         clean_guides = [guia.strip() for guia in guias if guia.strip()]
         if not clean_guides:
@@ -371,11 +375,11 @@ class GuiaRepository:
                 ).fetchall()
             }
             no_encontradas = [guia for guia in clean_guides if guia not in encontradas]
+            encontradas_en_orden = [guia for guia in clean_guides if guia in encontradas]
 
             siguiente_orden = (
                 connection.execute("SELECT COALESCE(MAX(orden_salida), 0) FROM guias").fetchone()[0] + 1
             )
-            encontradas_en_orden = [guia for guia in clean_guides if guia in encontradas]
 
             cursor = connection.executemany(
                 "UPDATE guias SET operador = ?, estado = ?, orden_salida = ? WHERE guia = ?",
@@ -384,7 +388,27 @@ class GuiaRepository:
                     for indice, guia in enumerate(encontradas_en_orden)
                 ],
             )
-            return cursor.rowcount, no_encontradas
+            actualizadas = cursor.rowcount
+
+            if no_encontradas:
+                hoy = date.today().isoformat()
+                connection.executemany(
+                    """
+                    INSERT INTO guias (
+                        guia, planilla, servicio, unid, tipo_de_servicio,
+                        destinatario, direccion, municipio, valor, operador, estado,
+                        causal, fecha, ingreso, orden_salida
+                    )
+                    VALUES (?, 'Sin planilla', '', '', '', '', '', '', '0', ?, ?, '', ?, ?, ?)
+                    """,
+                    [
+                        (guia, operador, estado, hoy, hoy, siguiente_orden + len(encontradas_en_orden) + indice)
+                        for indice, guia in enumerate(no_encontradas)
+                    ],
+                )
+                actualizadas += len(no_encontradas)
+
+            return actualizadas, no_encontradas
 
     def registrar_novedad(
         self,

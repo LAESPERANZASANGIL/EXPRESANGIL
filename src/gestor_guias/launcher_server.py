@@ -659,10 +659,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 f"Guias recibidas: {resultado['recibidas']}. "
                 f"Asignadas a {session['nombre']}: {resultado['actualizadas']}."
             )
-            no_encontradas = resultado["no_encontradas"]
-            if no_encontradas:
-                salida += " No se encontraron en el sistema: " + ", ".join(no_encontradas) + "."
-            self._send_json({"ok": True, "output": salida, "no_encontradas": no_encontradas})
+            creadas = resultado["no_encontradas"]
+            if creadas:
+                salida += " Creadas sin planilla: " + ", ".join(creadas) + "."
+            self._send_json({"ok": True, "output": salida, "no_encontradas": creadas})
             return
 
         if self.path == "/api/operador/novedades":

@@ -92,10 +92,11 @@ def test_registrar_salidas_marca_operador_y_estado(tmp_path: Path) -> None:
 
     resultado = registrar_salidas(repository, "KEVIN", "100000\n100001\n100099")
 
-    assert resultado == {"recibidas": 3, "actualizadas": 2, "no_encontradas": ["100099"]}
+    assert resultado == {"recibidas": 3, "actualizadas": 3, "no_encontradas": ["100099"]}
     dataframe = repository.to_dataframe()
-    assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN"]
-    assert list(dataframe["ESTADO"]) == ["R", "R"]
+    assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN", "KEVIN"]
+    assert list(dataframe["ESTADO"]) == ["R", "R", "R"]
+    assert dataframe.loc[dataframe["GUIA"] == "100099", "PLANILLA"].iloc[0] == "Sin planilla"
 
 
 def test_registrar_novedades_solo_afecta_guias_en_r(tmp_path: Path) -> None:

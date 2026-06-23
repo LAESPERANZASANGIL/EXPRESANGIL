@@ -86,11 +86,7 @@ document.getElementById("btn-salidas").addEventListener("click", async () => {
   const guias = document.getElementById("salidas-guias").value;
   const resultado = await llamar("/api/operador/salidas", { guias });
   if (resultado.ok) {
-    if (resultado.no_encontradas && resultado.no_encontradas.length > 0) {
-      document.getElementById("salidas-guias").value = resultado.no_encontradas.join("\n");
-    } else {
-      document.getElementById("salidas-guias").value = "";
-    }
+    document.getElementById("salidas-guias").value = "";
   }
 });
 
