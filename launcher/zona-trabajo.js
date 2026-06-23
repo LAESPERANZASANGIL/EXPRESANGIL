@@ -58,6 +58,10 @@ async function llamar(ruta, datos) {
   }
 }
 
+function formatoFecha(valor) {
+  return String(valor || "").split(" ")[0];
+}
+
 function formatoPesos(valor) {
   const numero = Number(String(valor || "0").replace(/[^0-9.-]/g, "")) || 0;
   return "$ " + numero.toLocaleString("es-CO");
@@ -138,7 +142,7 @@ function renderizarTabla() {
 
     for (const campo of ["fecha", "ingreso"]) {
       const td = document.createElement("td");
-      td.textContent = fila[campo] || "";
+      td.textContent = formatoFecha(fila[campo]);
       tr.appendChild(td);
     }
 
