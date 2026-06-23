@@ -26,7 +26,7 @@ from .operadores import (
     verify_password,
 )
 from .excel_processor import normalize_guide
-from .reports import value_to_number
+from .reports import generate_salidas_operador_pdf, value_to_number
 from .repository import GuiaRepository
 
 
@@ -272,6 +272,33 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 )
                 return
             self._send_json({"ok": True, "usuarios": REPOSITORY.listar_operadores()})
+            return
+
+        if route == "/api/operador/descargar":
+            session = self._get_session()
+            if session is None:
+                self.send_error(401)
+                return
+            from urllib.parse import parse_qs, urlsplit
+
+            query = parse_qs(urlsplit(self.path).query)
+            nombre = (query.get("archivo") or [""])[0]
+            nombre = Path(nombre).name
+            # Cada operador solo puede descargar sus propios informes de salidas.
+            if not nombre.startswith(f"salidas {session['nombre']} "):
+                self.send_error(403)
+                return
+            ruta = SETTINGS.paths.output_dir / nombre
+            if not ruta.is_file():
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            data_bytes = ruta.read_bytes()
+            self.send_header("Content-Length", str(len(data_bytes)))
+            self.send_header("Content-Disposition", f'attachment; filename="{nombre}"')
+            self.end_headers()
+            self.wfile.write(data_bytes)
             return
 
         if route == "/api/descargar":
@@ -644,6 +671,27 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 )
             self._send_json(
                 {"ok": True, "output": f"Novedades registradas -> {resumen}", "errores_d": errores_d}
+            )
+            return
+
+        if self.path == "/api/operador/informe-salidas":
+            session = self._get_session()
+            if session is None:
+                self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
+                return
+
+            fecha_texto = str(data.get("fecha", "")).strip()
+            try:
+                fecha = date.fromisoformat(fecha_texto) if fecha_texto else date.today()
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+
+            ruta = generate_salidas_operador_pdf(
+                REPOSITORY, SETTINGS.paths.output_dir, session["nombre"], fecha
+            )
+            self._send_json(
+                {"ok": True, "output": "Informe de salidas generado.", "archivo": ruta.name}
             )
             return
 

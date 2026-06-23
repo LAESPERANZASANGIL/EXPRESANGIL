@@ -17,6 +17,7 @@ from .reports import (
     generate_operator_report,
     generate_operator_report_pdf,
     generate_reports,
+    generate_salidas_operador_pdf,
 )
 from .repository import GuiaRepository
 
@@ -151,6 +152,14 @@ def report_relacion_ce_rr(target_date: date) -> Path:
     return output_path
 
 
+def report_of_salidas_operador(operador: str, target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_salidas_operador_pdf(repository, settings.paths.output_dir, operador, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
 def report_of_devoluciones(target_date: date) -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
@@ -239,6 +248,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--fecha", help="Filtra por fecha de planilla en formato YYYY-MM-DD (opcional)"
     )
 
+    salidas_report_parser = subparsers.add_parser(
+        "informe-salidas",
+        help="Genera el PDF con las guias en salida (en reparto) de un operador",
+    )
+    salidas_report_parser.add_argument("--operador", required=True, help="Nombre del operador")
+    salidas_report_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
     daily_report_parser = subparsers.add_parser(
         "informe-dia",
         help="Genera el informe del dia a partir de las guias guardadas",
@@ -317,6 +335,9 @@ def main() -> None:
     elif args.command == "informe-operador":
         fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else None
         report_by_operator(fecha)
+    elif args.command == "informe-salidas":
+        fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else date.today()
+        report_of_salidas_operador(args.operador, fecha)
     elif args.command == "informe-dia":
         report_of_day(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-recaudo":

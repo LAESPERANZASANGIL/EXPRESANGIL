@@ -36,6 +36,10 @@ DETAIL_COLUMNS = [
 # Estado que indica que la guia fue entregada y su valor recaudado.
 ESTADO_RECAUDO = "E"
 
+# Estado que indica que la guia salio en reparto con el operador (igual a
+# operadores.ESTADO_SALIDA; se repite aqui para evitar un import circular).
+ESTADO_SALIDA = "R"
+
 
 def generate_reports(source_file: Path, output_dir: Path, target_date: date) -> Path:
     detail = pd.read_excel(source_file, dtype=str).fillna("")
@@ -231,6 +235,62 @@ def generate_operator_report_pdf(repository: GuiaRepository, output_dir: Path, t
 
             elements.append(table)
             elements.append(Spacer(1, 14))
+
+    doc = SimpleDocTemplate(str(output_path), pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
+    doc.build(elements)
+
+    return output_path
+
+
+def generate_salidas_operador_pdf(
+    repository: GuiaRepository, output_dir: Path, operador: str, target_date: date
+) -> Path:
+    guias = [
+        guia
+        for guia in repository.guias_de_operador(operador, target_date.isoformat())
+        if str(guia.get("estado", "")).strip().upper() == ESTADO_SALIDA
+    ]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"
+    output_path = output_dir / f"salidas {operador}{suffix}.pdf"
+
+    fecha_label = f"{MONTHS_ES[target_date.month].upper()} {target_date.day} DE {target_date.year}"
+
+    styles = getSampleStyleSheet()
+    title_style = styles["Title"].clone("CardTitle")
+    title_style.textColor = colors.white
+    title_style.alignment = 1
+
+    elements: list = [
+        Paragraph(f"SALIDAS DEL DIA<br/>{operador}<br/>{fecha_label}", title_style),
+        Spacer(1, 14),
+    ]
+
+    rows = [["GUIA", "DESTINATARIO", "DIRECCION"]]
+    for guia in guias:
+        rows.append([guia.get("guia", ""), guia.get("destinatario", ""), guia.get("direccion", "")])
+
+    if not guias:
+        elements.append(Paragraph("Sin guias en salida para esta fecha", styles["Normal"]))
+    else:
+        table = Table(rows, colWidths=[3.5 * cm, 6 * cm, 7.5 * cm], repeatRows=1)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ]
+            )
+        )
+        elements.append(table)
+        elements.append(Spacer(1, 10))
+        elements.append(Paragraph(f"Total guias: {len(guias)}", styles["Normal"]))
 
     doc = SimpleDocTemplate(str(output_path), pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
     doc.build(elements)

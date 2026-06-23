@@ -109,6 +109,14 @@ document.getElementById("btn-novedades").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("btn-informe-salidas").addEventListener("click", async () => {
+  const fecha = fechaTrabajo.value.trim();
+  const resultado = await llamar("/api/operador/informe-salidas", { fecha });
+  if (resultado.ok && resultado.archivo) {
+    window.open(`/api/operador/descargar?archivo=${encodeURIComponent(resultado.archivo)}`, "_blank");
+  }
+});
+
 const FILAS_RESUMEN = [
   ["gestionadas", "Guias gestionadas (salidas del dia)"],
   ["ro", "Reclama oficina (RO)"],
