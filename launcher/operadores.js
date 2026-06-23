@@ -113,6 +113,62 @@ document.getElementById("btn-informe-salidas").addEventListener("click", async (
   }
 });
 
+const DENOMINACIONES = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50];
+const tablaDenominacionesBody = document.getElementById("tabla-denominaciones-body");
+const subtotalContado = document.getElementById("subtotal-contado");
+
+function construirTablaDenominaciones() {
+  tablaDenominacionesBody.innerHTML = "";
+  for (const denominacion of DENOMINACIONES) {
+    const fila = document.createElement("tr");
+
+    const tdDenominacion = document.createElement("td");
+    tdDenominacion.textContent = formatoMoneda(denominacion);
+
+    const tdCantidad = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.placeholder = "0";
+    input.dataset.denominacion = String(denominacion);
+    input.addEventListener("input", actualizarSubtotalContado);
+    tdCantidad.appendChild(input);
+
+    const tdSubtotal = document.createElement("td");
+    tdSubtotal.dataset.subtotalDe = String(denominacion);
+    tdSubtotal.textContent = formatoMoneda(0);
+
+    fila.appendChild(tdDenominacion);
+    fila.appendChild(tdCantidad);
+    fila.appendChild(tdSubtotal);
+    tablaDenominacionesBody.appendChild(fila);
+  }
+}
+
+function obtenerDenominaciones() {
+  const denominaciones = {};
+  for (const input of tablaDenominacionesBody.querySelectorAll("input")) {
+    const cantidad = Number(input.value) || 0;
+    if (cantidad > 0) denominaciones[input.dataset.denominacion] = cantidad;
+  }
+  return denominaciones;
+}
+
+function actualizarSubtotalContado() {
+  let total = 0;
+  for (const input of tablaDenominacionesBody.querySelectorAll("input")) {
+    const cantidad = Number(input.value) || 0;
+    const denominacion = Number(input.dataset.denominacion);
+    const subtotal = cantidad * denominacion;
+    total += subtotal;
+    const celdaSubtotal = tablaDenominacionesBody.querySelector(`[data-subtotal-de="${denominacion}"]`);
+    celdaSubtotal.textContent = formatoMoneda(subtotal);
+  }
+  subtotalContado.textContent = formatoMoneda(total);
+}
+
+construirTablaDenominaciones();
+
 const FILAS_RESUMEN = [
   ["gestionadas", "Guias gestionadas (salidas del dia)"],
   ["ro", "Reclama oficina (RO)"],
@@ -124,9 +180,14 @@ const FILAS_RESUMEN = [
   ["nequi", "Dinero en Nequi"],
   ["envia", "Dinero en link Envia"],
   ["efectivo", "Efectivo a entregar"],
+  ["efectivo_contado", "Efectivo contado en caja"],
+  ["diferencia", "Diferencia"],
+  ["nota", "Anotacion"],
 ];
 
-const CAMPOS_MONEDA = new Set(["recaudado", "bancos", "nequi", "envia", "efectivo"]);
+const CAMPOS_MONEDA = new Set([
+  "recaudado", "bancos", "nequi", "envia", "efectivo", "efectivo_contado", "diferencia",
+]);
 
 function formatoMoneda(valor) {
   return "$ " + Number(valor || 0).toLocaleString("es-CO");
@@ -135,8 +196,10 @@ function formatoMoneda(valor) {
 function mostrarResumen(resumen) {
   tablaResumenBody.innerHTML = "";
   for (const [clave, etiqueta] of FILAS_RESUMEN) {
+    if (clave === "nota" && !resumen[clave]) continue;
+
     const fila = document.createElement("tr");
-    if (clave === "efectivo") {
+    if (clave === "efectivo" || clave === "nota") {
       fila.classList.add("fila-efectivo");
     }
 
@@ -159,9 +222,11 @@ document.getElementById("btn-cierre").addEventListener("click", async () => {
   const bancos = document.getElementById("cierre-bancos").value;
   const nequi = document.getElementById("cierre-nequi").value;
   const envia = document.getElementById("cierre-envia").value;
-  const resultado = await llamar("/api/operador/cierre", { fecha, bancos, nequi, envia });
+  const denominaciones = obtenerDenominaciones();
+  const resultado = await llamar("/api/operador/cierre", { fecha, bancos, nequi, envia, denominaciones });
   if (resultado.ok && resultado.resumen) {
     mostrarResumen(resultado.resumen);
+    construirTablaDenominaciones();
   }
 });
 

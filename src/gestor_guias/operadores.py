@@ -105,6 +105,9 @@ def registrar_novedades(
     return resultado
 
 
+DENOMINACIONES = (100_000, 50_000, 20_000, 10_000, 5_000, 2_000, 1_000, 500, 200, 100, 50)
+
+
 def cerrar_dia(
     repository: GuiaRepository,
     operador: str,
@@ -112,6 +115,7 @@ def cerrar_dia(
     bancos: int,
     nequi: int,
     envia: int,
+    denominaciones: dict[int, int] | None = None,
 ) -> dict:
     repository.cerrar_dia_operador(operador, fecha, ESTADO_SALIDA, ESTADO_RECAUDO)
 
@@ -143,6 +147,17 @@ def cerrar_dia(
         efectivo=efectivo,
     )
 
+    efectivo_contado = sum(
+        denominacion * cantidad for denominacion, cantidad in (denominaciones or {}).items()
+    )
+    diferencia = efectivo - efectivo_contado
+    if diferencia > 0:
+        nota = f"Pendiente por entregar: $ {diferencia:,.0f}".replace(",", ".")
+    elif diferencia < 0:
+        nota = f"Sobrante en caja: $ {abs(diferencia):,.0f}".replace(",", ".")
+    else:
+        nota = ""
+
     return {
         "gestionadas": gestionadas,
         "ro": conteos["RO"],
@@ -154,4 +169,7 @@ def cerrar_dia(
         "nequi": nequi,
         "envia": envia,
         "efectivo": efectivo,
+        "efectivo_contado": efectivo_contado,
+        "diferencia": diferencia,
+        "nota": nota,
     }

@@ -79,3 +79,40 @@
   font-weight: bold;
   font-size: 1.15rem;
 }
+
+.tabla-denominaciones {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 1.05rem;
+}
+
+.tabla-denominaciones th,
+.tabla-denominaciones td {
+  border: 1px solid var(--gris-borde);
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.tabla-denominaciones th {
+  background: var(--azul-oscuro);
+  color: #fff;
+}
+
+.tabla-denominaciones td:nth-child(2),
+.tabla-denominaciones td:nth-child(3) {
+  text-align: right;
+}
+
+.tabla-denominaciones input {
+  width: 100px;
+  padding: 8px 10px;
+  font-size: 1rem;
+  text-align: right;
+}
+
+.tabla-denominaciones tfoot td {
+  font-weight: bold;
+  color: var(--azul-oscuro);
+  background: #fdf3e0;
+}

@@ -731,8 +731,15 @@ class LauncherHandler(BaseHTTPRequestHandler):
             bancos = value_to_number(data.get("bancos", 0))
             nequi = value_to_number(data.get("nequi", 0))
             envia = value_to_number(data.get("envia", 0))
+            denominaciones_raw = data.get("denominaciones") or {}
+            denominaciones = {
+                int(denominacion): value_to_number(cantidad)
+                for denominacion, cantidad in denominaciones_raw.items()
+            }
 
-            resumen = cerrar_dia(REPOSITORY, session["nombre"], fecha, bancos, nequi, envia)
+            resumen = cerrar_dia(
+                REPOSITORY, session["nombre"], fecha, bancos, nequi, envia, denominaciones
+            )
             self._send_json({"ok": True, "output": "Cierre del dia generado.", "resumen": resumen})
             return
 

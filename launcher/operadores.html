@@ -67,7 +67,19 @@
         <input type="text" id="cierre-nequi" placeholder="0" />
         <label>Dinero en link Envia</label>
         <input type="text" id="cierre-envia" placeholder="0" />
-        <button class="boton boton-accion" id="btn-cierre">Cerrar dia y generar resumen</button>
+
+        <h4>Conteo de efectivo en caja</h4>
+        <table class="tabla-denominaciones">
+          <thead>
+            <tr><th>Denominacion</th><th>Cantidad</th><th>Subtotal</th></tr>
+          </thead>
+          <tbody id="tabla-denominaciones-body"></tbody>
+          <tfoot>
+            <tr><td colspan="2">SUBTOTAL CONTADO</td><td id="subtotal-contado">$ 0</td></tr>
+          </tfoot>
+        </table>
+
+        <button class="boton boton-accion" id="btn-cierre">Generar cierre del dia</button>
       </div>
 
       <div class="opcion oculto" id="resumen-cierre">

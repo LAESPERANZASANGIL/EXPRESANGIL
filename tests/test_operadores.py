@@ -172,3 +172,26 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     cierre = repository.obtener_cierre("2026-06-09", "KEVIN")
     assert cierre["recaudado"] == 50_000
     assert cierre["efectivo"] == 35_000
+
+
+def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000\n100001")
+
+    resumen_faltante = cerrar_dia(
+        repository, "KEVIN", "2026-06-09", bancos=0, nequi=0, envia=0,
+        denominaciones={50_000: 0, 10_000: 1},
+    )
+    assert resumen_faltante["efectivo"] == 30_000
+    assert resumen_faltante["efectivo_contado"] == 10_000
+    assert resumen_faltante["diferencia"] == 20_000
+    assert "Pendiente por entregar" in resumen_faltante["nota"]
+
+    resumen_exacto = cerrar_dia(
+        repository, "KEVIN", "2026-06-09", bancos=0, nequi=0, envia=0,
+        denominaciones={10_000: 1, 20_000: 1},
+    )
+    assert resumen_exacto["diferencia"] == 0
+    assert resumen_exacto["nota"] == ""
