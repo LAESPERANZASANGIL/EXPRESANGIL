@@ -46,6 +46,7 @@ ROLES_VALIDOS = {"operador", "admin"}
 
 INFORME_COMANDOS = {
     "operador": "informe-operador",
+    "salidas": "informe-salidas",
     "dia": "informe-dia",
     "recaudo": "informe-recaudo",
     "relacion": "informe-relacion-ce-rr",
@@ -488,6 +489,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Tipo de informe no valido."})
                 return
             args = [comando]
+            if tipo == "salidas":
+                operador = str(data.get("operador", "")).strip()
+                if not operador:
+                    self._send_json({"ok": False, "output": "Indica el operador del informe de salidas."})
+                    return
+                args += ["--operador", operador]
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))

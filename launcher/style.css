@@ -497,6 +497,10 @@ header .subtitulo {
   display: none;
 }
 
+#informe-operador-campo.oculto {
+  display: none;
+}
+
 .nota-login {
   margin: 14px 0 0;
   font-size: 0.95rem;

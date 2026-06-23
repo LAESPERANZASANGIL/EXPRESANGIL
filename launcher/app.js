@@ -202,9 +202,47 @@ document.getElementById("btn-exportar").addEventListener("click", () => {
   llamar("/api/exportar", { fecha }, "Exportar");
 });
 
+const informeTipo = document.getElementById("informe-tipo");
+const informeOperadorCampo = document.getElementById("informe-operador-campo");
+const informeOperador = document.getElementById("informe-operador");
+
+async function cargarOperadoresInforme() {
+  try {
+    const respuesta = await fetch("/api/usuarios", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    informeOperador.innerHTML = "";
+    for (const usuario of resultado.usuarios) {
+      const opcion = document.createElement("option");
+      opcion.value = usuario.nombre;
+      opcion.textContent = usuario.nombre;
+      informeOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+informeTipo.addEventListener("change", () => {
+  const esSalidas = informeTipo.value === "salidas";
+  informeOperadorCampo.classList.toggle("oculto", !esSalidas);
+  if (esSalidas) {
+    cargarOperadoresInforme();
+  }
+});
+
 document.getElementById("btn-informe").addEventListener("click", () => {
-  const tipo = document.getElementById("informe-tipo").value;
+  const tipo = informeTipo.value;
   const fecha = document.getElementById("informe-fecha").value.trim();
-  const nombre = document.getElementById("informe-tipo").selectedOptions[0].textContent;
+  const nombre = informeTipo.selectedOptions[0].textContent;
+  if (tipo === "salidas") {
+    const operador = informeOperador.value;
+    if (!operador) {
+      mostrarLog("Selecciona un operador para el informe de salidas.");
+      return;
+    }
+    llamar("/api/informe", { tipo, fecha, operador }, nombre);
+    return;
+  }
   llamar("/api/informe", { tipo, fecha }, nombre);
 });

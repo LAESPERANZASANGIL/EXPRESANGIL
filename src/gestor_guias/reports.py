@@ -267,14 +267,25 @@ def generate_salidas_operador_pdf(
         Spacer(1, 14),
     ]
 
-    rows = [["GUIA", "DESTINATARIO", "DIRECCION"]]
+    rows = [["GUIA", "DESTINATARIO", "DIRECCION", "VALOR"]]
+    total_valor = 0
     for guia in guias:
-        rows.append([guia.get("guia", ""), guia.get("destinatario", ""), guia.get("direccion", "")])
+        valor = value_to_number(guia.get("valor", ""))
+        total_valor += valor
+        rows.append(
+            [
+                guia.get("guia", ""),
+                guia.get("destinatario", ""),
+                guia.get("direccion", ""),
+                format_currency_co(valor),
+            ]
+        )
 
     if not guias:
         elements.append(Paragraph("Sin guias en salida para esta fecha", styles["Normal"]))
     else:
-        table = Table(rows, colWidths=[3.5 * cm, 6 * cm, 7.5 * cm], repeatRows=1)
+        rows.append(["", "", "TOTAL", format_currency_co(total_valor)])
+        table = Table(rows, colWidths=[3 * cm, 5.5 * cm, 6.5 * cm, 3 * cm], repeatRows=1)
         table.setStyle(
             TableStyle(
                 [
@@ -285,6 +296,9 @@ def generate_salidas_operador_pdf(
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
                     ("TOPPADDING", (0, 0), (-1, -1), 6),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+                    ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                    ("ALIGN", (2, -1), (2, -1), "RIGHT"),
                 ]
             )
         )
