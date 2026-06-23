@@ -156,12 +156,19 @@ def efectividad_color(porcentaje: float) -> colors.Color:
     return colors.HexColor("#F8CBAD")
 
 
-def generate_operator_report_pdf(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
+def generate_operator_report_pdf(
+    repository: GuiaRepository, output_dir: Path, target_date: date, operador: str = ""
+) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
     daily = filter_by_date(dataframe, target_date)
+    if operador:
+        daily = daily[daily["OPERADOR"] == operador]
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"informe por operador {target_date.day:02d} {MONTHS_ES[target_date.month]}.pdf"
+    sufijo_operador = f" {operador}" if operador else ""
+    output_path = (
+        output_dir / f"informe por operador{sufijo_operador} {target_date.day:02d} {MONTHS_ES[target_date.month]}.pdf"
+    )
 
     fecha_label = f"{MONTHS_ES[target_date.month].upper()} {target_date.day} DE {target_date.year}"
 

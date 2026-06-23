@@ -110,14 +110,14 @@ def generate_reports_from_file(source_file: str, target_date: date) -> Path:
     return output_path
 
 
-def report_by_operator(target_date: date | None) -> Path:
+def report_by_operator(target_date: date | None, operador: str = "") -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
     output_path = generate_operator_report(repository, settings.paths.output_dir, target_date)
     print(f"Informe generado: {output_path}")
 
     pdf_date = target_date or date.today()
-    pdf_path = generate_operator_report_pdf(repository, settings.paths.output_dir, pdf_date)
+    pdf_path = generate_operator_report_pdf(repository, settings.paths.output_dir, pdf_date, operador)
     print(f"Informe PDF generado: {pdf_path}")
     return output_path
 
@@ -247,6 +247,9 @@ def build_parser() -> argparse.ArgumentParser:
     operator_report_parser.add_argument(
         "--fecha", help="Filtra por fecha de planilla en formato YYYY-MM-DD (opcional)"
     )
+    operator_report_parser.add_argument(
+        "--operador", help="Filtra el informe a un solo operador (opcional, vacio = todos)"
+    )
 
     salidas_report_parser = subparsers.add_parser(
         "informe-salidas",
@@ -334,7 +337,7 @@ def main() -> None:
         clear_data(args.confirmar)
     elif args.command == "informe-operador":
         fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else None
-        report_by_operator(fecha)
+        report_by_operator(fecha, args.operador or "")
     elif args.command == "informe-salidas":
         fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else date.today()
         report_of_salidas_operador(args.operador, fecha)

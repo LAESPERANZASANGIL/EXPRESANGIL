@@ -206,12 +206,18 @@ const informeTipo = document.getElementById("informe-tipo");
 const informeOperadorCampo = document.getElementById("informe-operador-campo");
 const informeOperador = document.getElementById("informe-operador");
 
-async function cargarOperadoresInforme() {
+async function cargarOperadoresInforme(incluirTodos) {
   try {
     const respuesta = await fetch("/api/usuarios", { credentials: "same-origin" });
     const resultado = await respuesta.json();
     if (!resultado.ok) return;
     informeOperador.innerHTML = "";
+    if (incluirTodos) {
+      const opcionTodos = document.createElement("option");
+      opcionTodos.value = "";
+      opcionTodos.textContent = "Todos los operadores";
+      informeOperador.appendChild(opcionTodos);
+    }
     for (const usuario of resultado.usuarios) {
       const opcion = document.createElement("option");
       opcion.value = usuario.nombre;
@@ -223,13 +229,19 @@ async function cargarOperadoresInforme() {
   }
 }
 
-informeTipo.addEventListener("change", () => {
+function actualizarCampoOperadorInforme() {
   const esSalidas = informeTipo.value === "salidas";
-  informeOperadorCampo.classList.toggle("oculto", !esSalidas);
+  const esOperador = informeTipo.value === "operador";
+  informeOperadorCampo.classList.toggle("oculto", !esSalidas && !esOperador);
   if (esSalidas) {
-    cargarOperadoresInforme();
+    cargarOperadoresInforme(false);
+  } else if (esOperador) {
+    cargarOperadoresInforme(true);
   }
-});
+}
+
+informeTipo.addEventListener("change", actualizarCampoOperadorInforme);
+actualizarCampoOperadorInforme();
 
 document.getElementById("btn-informe").addEventListener("click", () => {
   const tipo = informeTipo.value;
@@ -241,6 +253,11 @@ document.getElementById("btn-informe").addEventListener("click", () => {
       mostrarLog("Selecciona un operador para el informe de salidas.");
       return;
     }
+    llamar("/api/informe", { tipo, fecha, operador }, nombre);
+    return;
+  }
+  if (tipo === "operador") {
+    const operador = informeOperador.value;
     llamar("/api/informe", { tipo, fecha, operador }, nombre);
     return;
   }

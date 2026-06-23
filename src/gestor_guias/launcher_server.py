@@ -495,6 +495,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     self._send_json({"ok": False, "output": "Indica el operador del informe de salidas."})
                     return
                 args += ["--operador", operador]
+            elif tipo == "operador":
+                operador = str(data.get("operador", "")).strip()
+                if operador:
+                    args += ["--operador", operador]
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))
