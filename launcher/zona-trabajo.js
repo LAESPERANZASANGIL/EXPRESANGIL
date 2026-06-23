@@ -2,6 +2,7 @@ const log = document.getElementById("log");
 const tablaBody = document.getElementById("tabla-body");
 const contador = document.getElementById("contador");
 const buscar = document.getElementById("buscar");
+const buscarCampo = document.getElementById("buscar-campo");
 
 const formGuia = document.getElementById("form-guia");
 const formPlanilla = document.getElementById("form-planilla");
@@ -89,7 +90,10 @@ function filasFiltradas() {
   // Las guias se guardan sin el cero inicial (normalize_guide), pero el
   // usuario puede pegar el numero tal como viene en la planilla, con cero.
   const textoSinCero = texto.replace(/^0+(?=\d)/, "");
-  const campos = ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal"];
+  const campoSeleccionado = buscarCampo.value;
+  const campos = campoSeleccionado
+    ? [campoSeleccionado]
+    : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal"];
   return guias.filter((fila) =>
     campos.some((campo) => {
       const valor = String(fila[campo] || "").toUpperCase();
@@ -180,9 +184,11 @@ function guiasObjetivo() {
 }
 
 buscar.addEventListener("input", renderizarTabla);
+buscarCampo.addEventListener("change", renderizarTabla);
 
 document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
   buscar.value = "";
+  buscarCampo.value = "";
   renderizarTabla();
 });
 
