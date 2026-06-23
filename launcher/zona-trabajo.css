@@ -2,6 +2,10 @@
   max-width: 1880px;
 }
 
+#informe-operador-campo.oculto {
+  display: none;
+}
+
 .tabla-contenedor {
   overflow-x: auto;
   max-height: 520px;

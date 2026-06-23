@@ -297,10 +297,50 @@ document.getElementById("btn-eliminar-operador").addEventListener("click", async
   }
 });
 
+const informeTipo = document.getElementById("informe-tipo");
+const informeOperadorCampo = document.getElementById("informe-operador-campo");
+const informeOperador = document.getElementById("informe-operador");
+
+async function cargarOperadoresInforme() {
+  try {
+    const respuesta = await fetch("/api/usuarios", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    informeOperador.innerHTML = "";
+    const opcionTodos = document.createElement("option");
+    opcionTodos.value = "";
+    opcionTodos.textContent = "Todos los operadores";
+    informeOperador.appendChild(opcionTodos);
+    for (const usuario of resultado.usuarios) {
+      const opcion = document.createElement("option");
+      opcion.value = usuario.nombre;
+      opcion.textContent = usuario.nombre;
+      informeOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+function actualizarCampoOperadorInforme() {
+  const esOperador = informeTipo.value === "operador";
+  informeOperadorCampo.classList.toggle("oculto", !esOperador);
+  if (esOperador) {
+    cargarOperadoresInforme();
+  }
+}
+
+informeTipo.addEventListener("change", actualizarCampoOperadorInforme);
+actualizarCampoOperadorInforme();
+
 document.getElementById("btn-informe").addEventListener("click", async () => {
-  const tipo = document.getElementById("informe-tipo").value;
+  const tipo = informeTipo.value;
   const fecha = document.getElementById("informe-fecha").value.trim();
-  await llamar("/api/informe", { tipo, fecha });
+  const datos = { tipo, fecha };
+  if (tipo === "operador") {
+    datos.operador = informeOperador.value;
+  }
+  await llamar("/api/informe", datos);
 });
 
 cargarGuias();
