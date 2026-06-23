@@ -7,7 +7,7 @@ import re
 from openpyxl.styles import Alignment, Font, PatternFill
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -257,6 +257,9 @@ def generate_salidas_operador_pdf(
     title_style = styles["Title"].clone("CardTitle")
     title_style.textColor = colors.white
     title_style.alignment = 1
+    cell_style = styles["Normal"].clone("CeldaInforme")
+    cell_style.fontSize = 9
+    cell_style.leading = 11
 
     elements: list = [
         Paragraph(f"SALIDAS DEL DIA<br/>{operador}<br/>{fecha_label}", title_style),
@@ -271,8 +274,8 @@ def generate_salidas_operador_pdf(
         rows.append(
             [
                 guia.get("guia", ""),
-                guia.get("destinatario", ""),
-                guia.get("direccion", ""),
+                Paragraph(guia.get("destinatario", ""), cell_style),
+                Paragraph(guia.get("direccion", ""), cell_style),
                 format_currency_co(valor),
             ]
         )
@@ -281,7 +284,7 @@ def generate_salidas_operador_pdf(
         elements.append(Paragraph("Sin guias en salida para esta fecha", styles["Normal"]))
     else:
         rows.append(["", "", "TOTAL", format_currency_co(total_valor)])
-        table = Table(rows, colWidths=[3 * cm, 5.5 * cm, 6.5 * cm, 3 * cm], repeatRows=1)
+        table = Table(rows, colWidths=[3.5 * cm, 8 * cm, 10 * cm, 3.5 * cm], repeatRows=1)
         table.setStyle(
             TableStyle(
                 [
@@ -302,7 +305,14 @@ def generate_salidas_operador_pdf(
         elements.append(Spacer(1, 10))
         elements.append(Paragraph(f"Total guias: {len(guias)}", styles["Normal"]))
 
-    doc = SimpleDocTemplate(str(output_path), pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
+    doc = SimpleDocTemplate(
+        str(output_path),
+        pagesize=landscape(letter),
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+    )
     doc.build(elements)
 
     return output_path
