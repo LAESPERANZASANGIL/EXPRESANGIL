@@ -80,8 +80,8 @@ def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]
 
 def registrar_salidas(repository: GuiaRepository, operador: str, guias_texto: str) -> dict:
     guias = parse_guides(guias_texto)
-    actualizadas = repository.asignar_salida(guias, operador, ESTADO_SALIDA)
-    return {"recibidas": len(guias), "actualizadas": actualizadas}
+    actualizadas, no_encontradas = repository.asignar_salida(guias, operador, ESTADO_SALIDA)
+    return {"recibidas": len(guias), "actualizadas": actualizadas, "no_encontradas": no_encontradas}
 
 
 def registrar_novedades(

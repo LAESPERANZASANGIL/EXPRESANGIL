@@ -180,10 +180,11 @@ def test_asignar_salida_y_registrar_novedad(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100", "Persona A"))
     repository.save_consolidated(build_dataframe("200", "Persona B"))
 
-    asignadas = repository.asignar_salida(["100", "200"], "KEVIN", "R")
+    asignadas, no_encontradas = repository.asignar_salida(["100", "200", "999"], "KEVIN", "R")
     dataframe = repository.to_dataframe()
 
     assert asignadas == 2
+    assert no_encontradas == ["999"]
     assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN"]
     assert list(dataframe["ESTADO"]) == ["R", "R"]
 

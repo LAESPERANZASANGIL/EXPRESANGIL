@@ -80,7 +80,7 @@ def test_registrar_salidas_acepta_guias_con_cero_inicial(tmp_path: Path) -> None
 
     resultado = registrar_salidas(repository, "OMAR", "064108678163")
 
-    assert resultado == {"recibidas": 1, "actualizadas": 1}
+    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
     dataframe = repository.to_dataframe()
     assert list(dataframe["OPERADOR"]) == ["OMAR"]
 
@@ -92,7 +92,7 @@ def test_registrar_salidas_marca_operador_y_estado(tmp_path: Path) -> None:
 
     resultado = registrar_salidas(repository, "KEVIN", "100000\n100001\n100099")
 
-    assert resultado == {"recibidas": 3, "actualizadas": 2}
+    assert resultado == {"recibidas": 3, "actualizadas": 2, "no_encontradas": ["100099"]}
     dataframe = repository.to_dataframe()
     assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN"]
     assert list(dataframe["ESTADO"]) == ["R", "R"]

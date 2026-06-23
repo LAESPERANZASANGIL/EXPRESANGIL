@@ -607,15 +607,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
 
             resultado = registrar_salidas(REPOSITORY, session["nombre"], str(data.get("guias", "")))
-            self._send_json(
-                {
-                    "ok": True,
-                    "output": (
-                        f"Guias recibidas: {resultado['recibidas']}. "
-                        f"Asignadas a {session['nombre']}: {resultado['actualizadas']}."
-                    ),
-                }
+            salida = (
+                f"Guias recibidas: {resultado['recibidas']}. "
+                f"Asignadas a {session['nombre']}: {resultado['actualizadas']}."
             )
+            no_encontradas = resultado["no_encontradas"]
+            if no_encontradas:
+                salida += " No se encontraron en el sistema: " + ", ".join(no_encontradas) + "."
+            self._send_json({"ok": True, "output": salida, "no_encontradas": no_encontradas})
             return
 
         if self.path == "/api/operador/novedades":

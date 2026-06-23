@@ -339,18 +339,28 @@ class GuiaRepository:
             cursor = connection.execute("DELETE FROM operadores WHERE usuario = ?", (usuario,))
             return cursor.rowcount
 
-    def asignar_salida(self, guias: list[str], operador: str, estado: str) -> int:
+    def asignar_salida(self, guias: list[str], operador: str, estado: str) -> tuple[int, list[str]]:
         self.initialize()
         clean_guides = [guia.strip() for guia in guias if guia.strip()]
         if not clean_guides:
-            return 0
+            return 0, []
 
         with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            placeholders = ",".join("?" * len(clean_guides))
+            encontradas = {
+                row["guia"]
+                for row in connection.execute(
+                    f"SELECT guia FROM guias WHERE guia IN ({placeholders})", clean_guides
+                ).fetchall()
+            }
+            no_encontradas = [guia for guia in clean_guides if guia not in encontradas]
+
             cursor = connection.executemany(
                 "UPDATE guias SET operador = ?, estado = ? WHERE guia = ?",
                 [(operador, estado, guia) for guia in clean_guides],
             )
-            return cursor.rowcount
+            return cursor.rowcount, no_encontradas
 
     def registrar_novedad(
         self,
