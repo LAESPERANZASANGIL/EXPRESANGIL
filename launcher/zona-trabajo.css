@@ -84,6 +84,13 @@
   min-width: 240px;
 }
 
+.ayuda {
+  font-size: 0.9rem;
+  color: var(--azul-oscuro);
+  opacity: 0.75;
+  margin-top: 10px;
+}
+
 #bulk-text {
   width: 100%;
   padding: 14px 16px;

@@ -4,6 +4,11 @@ const contador = document.getElementById("contador");
 const buscar = document.getElementById("buscar");
 
 const formGuia = document.getElementById("form-guia");
+const formPlanilla = document.getElementById("form-planilla");
+const formDestinatario = document.getElementById("form-destinatario");
+const formDireccion = document.getElementById("form-direccion");
+const formMunicipio = document.getElementById("form-municipio");
+const formValor = document.getElementById("form-valor");
 const formOperador = document.getElementById("form-operador");
 const formEstado = document.getElementById("form-estado");
 const formCausal = document.getElementById("form-causal");
@@ -148,6 +153,11 @@ function renderizarTabla() {
 function seleccionarFila(fila) {
   seleccionada = fila.guia;
   formGuia.value = fila.guia;
+  formPlanilla.value = fila.planilla || "";
+  formDestinatario.value = fila.destinatario || "";
+  formDireccion.value = fila.direccion || "";
+  formMunicipio.value = fila.municipio || "";
+  formValor.value = fila.valor || "";
   formOperador.value = fila.operador || "";
   formEstado.value = fila.estado || "";
   formCausal.value = fila.causal || "";
@@ -181,6 +191,11 @@ document.getElementById("btn-guardar-una").addEventListener("click", async () =>
   }
   const resultado = await llamar("/api/guias/guardar", {
     guia: formGuia.value,
+    planilla: formPlanilla.value,
+    destinatario: formDestinatario.value,
+    direccion: formDireccion.value,
+    municipio: formMunicipio.value,
+    valor: formValor.value,
     operador: formOperador.value,
     estado: formEstado.value,
     causal: formCausal.value,

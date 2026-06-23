@@ -379,8 +379,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not guia:
                 self._send_json({"ok": False, "output": "Indica la guia a guardar."})
                 return
-            REPOSITORY.update_tracking_fields(
+            REPOSITORY.update_guide_details(
                 guia=guia,
+                planilla=str(data.get("planilla", "")).strip(),
+                destinatario=str(data.get("destinatario", "")).strip(),
+                direccion=str(data.get("direccion", "")).strip(),
+                municipio=str(data.get("municipio", "")).strip(),
+                valor=str(data.get("valor", "")).strip(),
                 operador=str(data.get("operador", "")).strip(),
                 estado=str(data.get("estado", "")).strip(),
                 causal=str(data.get("causal", "")).strip(),

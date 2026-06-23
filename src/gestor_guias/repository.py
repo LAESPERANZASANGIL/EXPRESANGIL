@@ -187,6 +187,33 @@ class GuiaRepository:
                 (operador, estado, causal, date.today().isoformat(), guia),
             )
 
+    def update_guide_details(
+        self,
+        guia: str,
+        planilla: str,
+        destinatario: str,
+        direccion: str,
+        municipio: str,
+        valor: str,
+        operador: str,
+        estado: str,
+        causal: str,
+    ) -> None:
+        self.initialize()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE guias
+                SET planilla = ?, destinatario = ?, direccion = ?, municipio = ?,
+                    valor = ?, operador = ?, estado = ?, causal = ?, ingreso = ?
+                WHERE guia = ?
+                """,
+                (
+                    planilla, destinatario, direccion, municipio, valor,
+                    operador, estado, causal, date.today().isoformat(), guia,
+                ),
+            )
+
     def update_many_tracking_fields(
         self,
         guias: list[str],
