@@ -75,6 +75,34 @@ def test_generate_salidas_operador_pdf_solo_incluye_guias_en_reparto(tmp_path: P
     assert output_path.stat().st_size > 0
 
 
+def test_generate_salidas_operador_pdf_no_depende_de_la_fecha_de_planilla(tmp_path: Path) -> None:
+    # La guia puede haber llegado en una planilla de otro dia y salir hoy;
+    # el informe debe encontrarla igual, sin filtrar por F_INGRESO.
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.asignar_salida(["100"], "KEVIN", "R")
+
+    output_path = generate_salidas_operador_pdf(repository, tmp_path / "output", "KEVIN", date(2026, 6, 23))
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_guias_en_salida_respeta_el_orden_de_registro(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    for guia in ("300", "100", "200"):
+        repository.save_consolidated(build_dataframe(guia, "", "", "10000"))
+
+    repository.asignar_salida(["300", "100"], "KEVIN", "R")
+    repository.asignar_salida(["200"], "KEVIN", "R")
+
+    guias = repository.guias_en_salida("KEVIN", "R")
+
+    assert [guia["guia"] for guia in guias] == ["300", "100", "200"]
+
+
 def test_generate_salidas_operador_pdf_sin_guias(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

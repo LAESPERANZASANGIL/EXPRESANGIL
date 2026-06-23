@@ -245,11 +245,7 @@ def generate_operator_report_pdf(repository: GuiaRepository, output_dir: Path, t
 def generate_salidas_operador_pdf(
     repository: GuiaRepository, output_dir: Path, operador: str, target_date: date
 ) -> Path:
-    guias = [
-        guia
-        for guia in repository.guias_de_operador(operador, target_date.isoformat())
-        if str(guia.get("estado", "")).strip().upper() == ESTADO_SALIDA
-    ]
+    guias = repository.guias_en_salida(operador, ESTADO_SALIDA)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"

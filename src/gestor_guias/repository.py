@@ -46,6 +46,10 @@ class GuiaRepository:
             columnas_guias = {row[1] for row in connection.execute("PRAGMA table_info(guias)")}
             if "direccion" not in columnas_guias:
                 connection.execute("ALTER TABLE guias ADD COLUMN direccion TEXT")
+            if "orden_salida" not in columnas_guias:
+                # Guarda el orden en que cada guia fue registrada como salida,
+                # para poder listarlas en ese mismo orden en el informe de salidas.
+                connection.execute("ALTER TABLE guias ADD COLUMN orden_salida INTEGER NOT NULL DEFAULT 0")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS operadores (
@@ -356,9 +360,17 @@ class GuiaRepository:
             }
             no_encontradas = [guia for guia in clean_guides if guia not in encontradas]
 
+            siguiente_orden = (
+                connection.execute("SELECT COALESCE(MAX(orden_salida), 0) FROM guias").fetchone()[0] + 1
+            )
+            encontradas_en_orden = [guia for guia in clean_guides if guia in encontradas]
+
             cursor = connection.executemany(
-                "UPDATE guias SET operador = ?, estado = ? WHERE guia = ?",
-                [(operador, estado, guia) for guia in clean_guides],
+                "UPDATE guias SET operador = ?, estado = ?, orden_salida = ? WHERE guia = ?",
+                [
+                    (operador, estado, siguiente_orden + indice, guia)
+                    for indice, guia in enumerate(encontradas_en_orden)
+                ],
             )
             return cursor.rowcount, no_encontradas
 
@@ -430,6 +442,20 @@ class GuiaRepository:
             rows = connection.execute(
                 "SELECT * FROM guias WHERE operador = ? AND fecha LIKE ?",
                 (operador, f"{fecha}%"),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def guias_en_salida(self, operador: str, estado: str) -> list[dict]:
+        # No filtra por fecha de planilla: una guia puede haber llegado en
+        # dias distintos y salir hoy con el operador, por eso se busca solo
+        # por operador y estado actual. Se ordena por orden_salida para
+        # respetar el orden en que el operador la registro en el campo "Salidas".
+        self.initialize()
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT * FROM guias WHERE operador = ? AND estado = ? ORDER BY orden_salida",
+                (operador, estado),
             ).fetchall()
             return [dict(row) for row in rows]
 
