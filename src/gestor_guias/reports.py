@@ -119,8 +119,70 @@ def filter_by_date(dataframe: pd.DataFrame, target_date: date) -> pd.DataFrame:
     return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
 
 
+def build_cierre_breakdown(
+    repository: GuiaRepository, dataframe: pd.DataFrame, target_date: date | None, operador: str = ""
+) -> pd.DataFrame:
+    if operador:
+        dataframe = dataframe[dataframe["OPERADOR"] == operador]
+
+    if dataframe.empty:
+        return pd.DataFrame(
+            columns=[
+                "OPERADOR",
+                "GESTIONADAS",
+                "RO",
+                "N",
+                "D",
+                "E",
+                "RECAUDADO",
+                "BANCOS",
+                "NEQUI",
+                "ENVIA",
+                "EFECTIVO",
+            ]
+        )
+
+    fecha_texto = target_date.isoformat() if target_date else ""
+    operadores = sorted(dataframe["OPERADOR"].dropna().unique())
+
+    filas = []
+    for nombre_operador in operadores:
+        guias_operador = dataframe[dataframe["OPERADOR"] == nombre_operador]
+        gestionadas = len(guias_operador)
+        ro = int((guias_operador["ESTADO"].str.upper() == "RO").sum())
+        n = int((guias_operador["ESTADO"].str.upper() == "N").sum())
+        d = int((guias_operador["ESTADO"].str.upper() == "D").sum())
+        entregadas = guias_operador[guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO]
+        e = len(entregadas)
+        recaudado = int(entregadas["VALOR_NUMERICO"].sum())
+
+        cierre = repository.obtener_cierre(fecha_texto, nombre_operador) if fecha_texto else None
+        bancos = cierre["bancos"] if cierre else 0
+        nequi = cierre["nequi"] if cierre else 0
+        envia = cierre["envia"] if cierre else 0
+        efectivo = cierre["efectivo"] if cierre else recaudado - (bancos + nequi + envia)
+
+        filas.append(
+            {
+                "OPERADOR": nombre_operador,
+                "GESTIONADAS": gestionadas,
+                "RO": ro,
+                "N": n,
+                "D": d,
+                "E": e,
+                "RECAUDADO": recaudado,
+                "BANCOS": bancos,
+                "NEQUI": nequi,
+                "ENVIA": envia,
+                "EFECTIVO": efectivo,
+            }
+        )
+
+    return pd.DataFrame(filas).sort_values("GESTIONADAS", ascending=False)
+
+
 def generate_operator_report(
-    repository: GuiaRepository, output_dir: Path, target_date: date | None = None
+    repository: GuiaRepository, output_dir: Path, target_date: date | None = None, operador: str = ""
 ) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
     if target_date is not None:
@@ -128,9 +190,10 @@ def generate_operator_report(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}" if target_date else ""
-    output_path = output_dir / f"informe por operador{suffix}.xlsx"
+    sufijo_operador = f" {operador}" if operador else ""
+    output_path = output_dir / f"informe por operador{sufijo_operador}{suffix}.xlsx"
 
-    summary = build_breakdown(dataframe, "OPERADOR")
+    summary = build_cierre_breakdown(repository, dataframe, target_date, operador)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         summary.to_excel(writer, index=False, sheet_name="POR OPERADOR")

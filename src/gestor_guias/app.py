@@ -113,7 +113,7 @@ def generate_reports_from_file(source_file: str, target_date: date) -> Path:
 def report_by_operator(target_date: date | None, operador: str = "") -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = generate_operator_report(repository, settings.paths.output_dir, target_date)
+    output_path = generate_operator_report(repository, settings.paths.output_dir, target_date, operador)
     print(f"Informe generado: {output_path}")
 
     pdf_date = target_date or date.today()
