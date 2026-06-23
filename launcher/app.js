@@ -269,3 +269,119 @@ document.getElementById("btn-informe").addEventListener("click", () => {
   }
   llamar("/api/informe", { tipo, fecha }, nombre);
 });
+
+const DENOMINACIONES = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50];
+const tablaCierreGeneralBody = document.getElementById("tabla-cierre-general-body");
+const cierreGeneralSubtotal = document.getElementById("cierre-general-subtotal");
+const resumenCierreGeneral = document.getElementById("resumen-cierre-general");
+const tablaResumenCierreGeneralBody = document.getElementById("tabla-resumen-cierre-general-body");
+
+function formatoMonedaCierreGeneral(valor) {
+  return "$ " + Number(valor || 0).toLocaleString("es-CO");
+}
+
+function construirTablaCierreGeneral() {
+  tablaCierreGeneralBody.innerHTML = "";
+  for (const denominacion of DENOMINACIONES) {
+    const fila = document.createElement("tr");
+
+    const tdDenominacion = document.createElement("td");
+    tdDenominacion.textContent = formatoMonedaCierreGeneral(denominacion);
+
+    const tdCantidad = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.placeholder = "0";
+    input.dataset.denominacion = String(denominacion);
+    input.addEventListener("input", actualizarSubtotalCierreGeneral);
+    tdCantidad.appendChild(input);
+
+    const tdSubtotal = document.createElement("td");
+    tdSubtotal.dataset.subtotalDe = String(denominacion);
+    tdSubtotal.textContent = formatoMonedaCierreGeneral(0);
+
+    fila.appendChild(tdDenominacion);
+    fila.appendChild(tdCantidad);
+    fila.appendChild(tdSubtotal);
+    tablaCierreGeneralBody.appendChild(fila);
+  }
+}
+
+function obtenerDenominacionesCierreGeneral() {
+  const denominaciones = {};
+  for (const input of tablaCierreGeneralBody.querySelectorAll("input")) {
+    const cantidad = Number(input.value) || 0;
+    if (cantidad > 0) denominaciones[input.dataset.denominacion] = cantidad;
+  }
+  return denominaciones;
+}
+
+function actualizarSubtotalCierreGeneral() {
+  let total = 0;
+  for (const input of tablaCierreGeneralBody.querySelectorAll("input")) {
+    const cantidad = Number(input.value) || 0;
+    const denominacion = Number(input.dataset.denominacion);
+    const subtotal = cantidad * denominacion;
+    total += subtotal;
+    const celdaSubtotal = tablaCierreGeneralBody.querySelector(`[data-subtotal-de="${denominacion}"]`);
+    celdaSubtotal.textContent = formatoMonedaCierreGeneral(subtotal);
+  }
+  cierreGeneralSubtotal.textContent = formatoMonedaCierreGeneral(total);
+}
+
+construirTablaCierreGeneral();
+
+function mostrarResumenCierreGeneral(resumen) {
+  const filas = [
+    ["Efectivo esperado (todos los operadores)", resumen.efectivo_esperado],
+    ["Efectivo contado en caja", resumen.efectivo_contado],
+    ["Diferencia", resumen.diferencia],
+  ];
+  tablaResumenCierreGeneralBody.innerHTML = "";
+  for (const [etiqueta, valor] of filas) {
+    const fila = document.createElement("tr");
+    fila.classList.add("fila-efectivo");
+
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = etiqueta;
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = formatoMonedaCierreGeneral(valor);
+
+    fila.appendChild(celdaEtiqueta);
+    fila.appendChild(celdaValor);
+    tablaResumenCierreGeneralBody.appendChild(fila);
+  }
+  if (resumen.nota) {
+    const filaNota = document.createElement("tr");
+    filaNota.classList.add("fila-efectivo");
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = "Anotacion";
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = resumen.nota;
+    filaNota.appendChild(celdaEtiqueta);
+    filaNota.appendChild(celdaValor);
+    tablaResumenCierreGeneralBody.appendChild(filaNota);
+  }
+  resumenCierreGeneral.classList.remove("oculto");
+}
+
+document.getElementById("btn-cierre-general").addEventListener("click", async () => {
+  const fecha = document.getElementById("cierre-general-fecha").value.trim();
+  const denominaciones = obtenerDenominacionesCierreGeneral();
+  mostrarLog("Procesando...");
+  try {
+    const respuesta = await fetch("/api/cierre-general", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fecha, denominaciones }),
+    });
+    const resultado = await respuesta.json();
+    mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    if (resultado.ok && resultado.resumen) {
+      mostrarResumenCierreGeneral(resultado.resumen);
+    }
+  } catch (error) {
+    mostrarLog("No se pudo conectar con el panel: " + error);
+  }
+});

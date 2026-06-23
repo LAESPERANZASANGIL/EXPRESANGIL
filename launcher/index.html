@@ -106,6 +106,31 @@
           <input type="date" id="informe-fecha" />
           <button class="boton boton-accion boton-informe" id="btn-informe"><span class="icono">📊</span>Generar informe</button>
         </div>
+
+        <div class="opcion opcion-compacta opcion-ancha">
+          <h3>5. Cierre del dia general</h3>
+          <p class="desc-opcion">Verifica el efectivo total de la oficina contando billetes y monedas por denominacion.</p>
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="cierre-general-fecha" />
+
+          <table class="tabla-denominaciones">
+            <thead>
+              <tr><th>Denominacion</th><th>Cantidad</th><th>Subtotal</th></tr>
+            </thead>
+            <tbody id="tabla-cierre-general-body"></tbody>
+            <tfoot>
+              <tr><td colspan="2">SUBTOTAL CONTADO</td><td id="cierre-general-subtotal">$ 0</td></tr>
+            </tfoot>
+          </table>
+
+          <button class="boton boton-accion" id="btn-cierre-general"><span class="icono">🧮</span>Verificar cierre general</button>
+
+          <div class="opcion oculto" id="resumen-cierre-general">
+            <table class="tabla-resumen">
+              <tbody id="tabla-resumen-cierre-general-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <button class="boton boton-volver" id="btn-volver"><span class="icono">🏠</span>VOLVER AL MENU PRINCIPAL</button>

@@ -108,6 +108,20 @@ def registrar_novedades(
 DENOMINACIONES = (100_000, 50_000, 20_000, 10_000, 5_000, 2_000, 1_000, 500, 200, 100, 50)
 
 
+def calcular_diferencia_caja(efectivo_esperado: int, denominaciones: dict[int, int] | None) -> dict:
+    efectivo_contado = sum(
+        denominacion * cantidad for denominacion, cantidad in (denominaciones or {}).items()
+    )
+    diferencia = efectivo_esperado - efectivo_contado
+    if diferencia > 0:
+        nota = f"Pendiente por entregar: $ {diferencia:,.0f}".replace(",", ".")
+    elif diferencia < 0:
+        nota = f"Sobrante en caja: $ {abs(diferencia):,.0f}".replace(",", ".")
+    else:
+        nota = ""
+    return {"efectivo_contado": efectivo_contado, "diferencia": diferencia, "nota": nota}
+
+
 def cerrar_dia(
     repository: GuiaRepository,
     operador: str,
@@ -151,16 +165,7 @@ def cerrar_dia(
         adelanto_salario=adelanto_salario,
     )
 
-    efectivo_contado = sum(
-        denominacion * cantidad for denominacion, cantidad in (denominaciones or {}).items()
-    )
-    diferencia = efectivo - efectivo_contado
-    if diferencia > 0:
-        nota = f"Pendiente por entregar: $ {diferencia:,.0f}".replace(",", ".")
-    elif diferencia < 0:
-        nota = f"Sobrante en caja: $ {abs(diferencia):,.0f}".replace(",", ".")
-    else:
-        nota = ""
+    caja = calcular_diferencia_caja(efectivo, denominaciones)
 
     return {
         "gestionadas": gestionadas,
@@ -175,7 +180,7 @@ def cerrar_dia(
         "gastos": gastos,
         "adelanto_salario": adelanto_salario,
         "efectivo": efectivo,
-        "efectivo_contado": efectivo_contado,
-        "diferencia": diferencia,
-        "nota": nota,
+        "efectivo_contado": caja["efectivo_contado"],
+        "diferencia": caja["diferencia"],
+        "nota": caja["nota"],
     }

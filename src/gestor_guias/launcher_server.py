@@ -18,6 +18,7 @@ from pathlib import Path
 from .config import load_settings
 from .consulta_publica import describir_estado
 from .operadores import (
+    calcular_diferencia_caja,
     cerrar_dia,
     documentos_vencidos,
     hash_password,
@@ -26,7 +27,13 @@ from .operadores import (
     verify_password,
 )
 from .excel_processor import normalize_guide
-from .reports import generate_salidas_operador_pdf, value_to_number
+from .reports import (
+    build_cierre_breakdown,
+    filter_by_date,
+    generate_salidas_operador_pdf,
+    normalize_dataframe,
+    value_to_number,
+)
 from .repository import GuiaRepository
 
 
@@ -517,6 +524,43 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))
+            return
+
+        if self.path == "/api/cierre-general":
+            if not self._require_admin():
+                return
+
+            fecha_texto = str(data.get("fecha", "")).strip()
+            try:
+                fecha = date.fromisoformat(fecha_texto) if fecha_texto else date.today()
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+
+            denominaciones_raw = data.get("denominaciones") or {}
+            denominaciones = {
+                int(denominacion): value_to_number(cantidad)
+                for denominacion, cantidad in denominaciones_raw.items()
+            }
+
+            dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
+            daily = filter_by_date(dataframe, fecha)
+            resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
+            efectivo_esperado = int(resumen["EFECTIVO"].sum()) if not resumen.empty else 0
+
+            caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
+            self._send_json(
+                {
+                    "ok": True,
+                    "output": "Cierre general calculado.",
+                    "resumen": {
+                        "efectivo_esperado": efectivo_esperado,
+                        "efectivo_contado": caja["efectivo_contado"],
+                        "diferencia": caja["diferencia"],
+                        "nota": caja["nota"],
+                    },
+                }
+            )
             return
 
         if self.path == "/api/operador/login":

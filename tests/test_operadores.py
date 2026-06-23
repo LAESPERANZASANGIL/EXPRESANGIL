@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from gestor_guias.operadores import (
+    calcular_diferencia_caja,
     cerrar_dia,
     documentos_vencidos,
     hash_password,
@@ -172,6 +173,25 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     cierre = repository.obtener_cierre("2026-06-09", "KEVIN")
     assert cierre["recaudado"] == 50_000
     assert cierre["efectivo"] == 35_000
+
+
+def test_calcular_diferencia_caja() -> None:
+    pendiente = calcular_diferencia_caja(50_000, {20_000: 1, 10_000: 1})
+    assert pendiente["efectivo_contado"] == 30_000
+    assert pendiente["diferencia"] == 20_000
+    assert "Pendiente por entregar" in pendiente["nota"]
+
+    sobrante = calcular_diferencia_caja(10_000, {10_000: 2})
+    assert sobrante["diferencia"] == -10_000
+    assert "Sobrante en caja" in sobrante["nota"]
+
+    exacto = calcular_diferencia_caja(10_000, {10_000: 1})
+    assert exacto["diferencia"] == 0
+    assert exacto["nota"] == ""
+
+    sin_denominaciones = calcular_diferencia_caja(5_000, None)
+    assert sin_denominaciones["efectivo_contado"] == 0
+    assert sin_denominaciones["diferencia"] == 5_000
 
 
 def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None:

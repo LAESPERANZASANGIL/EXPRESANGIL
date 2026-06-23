@@ -7,7 +7,12 @@ from gestor_guias.devoluciones import generate_devoluciones_report
 from gestor_guias.recaudo import generate_recaudo_report
 from gestor_guias.relacion_ce_rr import generate_relacion_ce_rr_report
 from gestor_guias.repository import GuiaRepository
-from gestor_guias.reports import generate_operator_report_pdf, generate_salidas_operador_pdf
+from gestor_guias.reports import (
+    build_cierre_breakdown,
+    generate_operator_report_pdf,
+    generate_salidas_operador_pdf,
+    normalize_dataframe,
+)
 
 
 def build_dataframe(guia: str, operador: str, estado: str, valor: str, servicio: str = "") -> pd.DataFrame:
@@ -54,6 +59,31 @@ def test_generate_operator_report_pdf_no_data(tmp_path: Path) -> None:
     output_path = generate_operator_report_pdf(repository, tmp_path / "output", date(2026, 6, 10))
 
     assert output_path.exists()
+
+
+def test_build_cierre_breakdown_suma_efectivo_de_varios_operadores(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.save_consolidated(build_dataframe("200", "", "", "20000"))
+    repository.update_tracking_fields("200", "KEVIN", "E", "")
+
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="OMAR", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=0, nequi=0, envia=0, efectivo=10_000,
+    )
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=20_000, bancos=5_000, nequi=0, envia=0, efectivo=15_000,
+        gastos=2_000,
+    )
+
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    resumen = build_cierre_breakdown(repository, dataframe, date(2026, 6, 10))
+
+    assert int(resumen["EFECTIVO"].sum()) == 25_000
+    assert int(resumen.set_index("OPERADOR").loc["KEVIN", "GASTOS"]) == 2_000
 
 
 def test_generate_salidas_operador_pdf_solo_incluye_guias_en_reparto(tmp_path: Path) -> None:
