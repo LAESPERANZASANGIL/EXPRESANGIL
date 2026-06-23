@@ -77,9 +77,18 @@ function filasFiltradas() {
   if (!texto) {
     return guias;
   }
+  // Las guias se guardan sin el cero inicial (normalize_guide), pero el
+  // usuario puede pegar el numero tal como viene en la planilla, con cero.
+  const textoSinCero = texto.replace(/^0+(?=\d)/, "");
   const campos = ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal"];
   return guias.filter((fila) =>
-    campos.some((campo) => String(fila[campo] || "").toUpperCase().includes(texto))
+    campos.some((campo) => {
+      const valor = String(fila[campo] || "").toUpperCase();
+      if (campo === "guia") {
+        return valor.includes(texto) || valor.includes(textoSinCero);
+      }
+      return valor.includes(texto);
+    })
   );
 }
 
