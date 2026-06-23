@@ -486,10 +486,10 @@ class GuiaRepository:
             cursor = connection.executemany(
                 """
                 UPDATE guias SET estado = ?, causal = ?, ingreso = ?
-                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado = ?
+                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado IN (?, ?)
                 """,
                 [
-                    (nuevo_estado, causal, fecha, guia, operador, f"{fecha}%", estado_actual)
+                    (nuevo_estado, causal, fecha, guia, operador, f"{fecha}%", estado_actual, nuevo_estado)
                     for guia, causal in clean_items
                 ],
             )

@@ -152,6 +152,30 @@ def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
     assert dataframe.loc["100001", "CAUSAL"] == "25"
 
 
+def test_registrar_novedades_corrige_causal_de_guia_ya_en_devolucion(tmp_path: Path) -> None:
+    # Si una guia ya quedo en D sin causal (por ejemplo editada a mano en
+    # Zona de Trabajo), el operador debe poder corregir la causal volviendo
+    # a registrar la devolucion, aunque ya no este en estado R.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
+    repository.update_tracking_fields("100000", "KEVIN", "D", "")
+
+    resultado = registrar_novedades(
+        repository,
+        "KEVIN",
+        "2026-06-09",
+        ro_texto="",
+        n_texto="",
+        d_texto="100000 10",
+    )
+
+    assert resultado["d"]["actualizadas"] == 1
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000", "ESTADO"] == "D"
+    assert dataframe.loc["100000", "CAUSAL"] == "10"
+
+
 def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
