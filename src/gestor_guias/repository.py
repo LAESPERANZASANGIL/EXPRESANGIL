@@ -584,6 +584,24 @@ class GuiaRepository:
             ).fetchone()
             return dict(row) if row else None
 
+    def sumar_gastos_adelantos_mes(self, anio: int, mes: int) -> dict[str, dict]:
+        self.initialize()
+        prefijo = f"{anio:04d}-{mes:02d}"
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT operador, SUM(gastos) AS gastos, SUM(adelanto_salario) AS adelanto_salario "
+                "FROM cierres_operador WHERE fecha LIKE ? GROUP BY operador",
+                (prefijo + "%",),
+            ).fetchall()
+            return {
+                row["operador"]: {
+                    "gastos": row["gastos"] or 0,
+                    "adelanto_salario": row["adelanto_salario"] or 0,
+                }
+                for row in rows
+            }
+
     def to_dataframe(self) -> pd.DataFrame:
         rows = self.list_all()
         columns = [

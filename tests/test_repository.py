@@ -234,6 +234,30 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     assert cierre["e"] == 2
 
 
+def test_sumar_gastos_adelantos_mes(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.guardar_cierre(
+        fecha="2026-06-05", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=0, nequi=0, envia=0, efectivo=10_000,
+        gastos=2_000, adelanto_salario=5_000,
+    )
+    repository.guardar_cierre(
+        fecha="2026-06-15", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=20_000, bancos=0, nequi=0, envia=0, efectivo=20_000,
+        gastos=1_000, adelanto_salario=0,
+    )
+    repository.guardar_cierre(
+        fecha="2026-07-01", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=30_000, bancos=0, nequi=0, envia=0, efectivo=30_000,
+        gastos=9_000, adelanto_salario=9_000,
+    )
+
+    resultado = repository.sumar_gastos_adelantos_mes(2026, 6)
+
+    assert resultado == {"KEVIN": {"gastos": 3_000, "adelanto_salario": 5_000}}
+
+
 def test_obtener_guia(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

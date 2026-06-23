@@ -97,13 +97,20 @@
             <option value="recaudo">Informe de recaudo</option>
             <option value="relacion">Relacion de guias CE y RR</option>
             <option value="devoluciones">Informe de devoluciones</option>
+            <option value="mensual">Informe mensual por operador</option>
           </select>
           <div id="informe-operador-campo" class="oculto">
             <label>Operador</label>
             <select id="informe-operador"></select>
           </div>
-          <label>Fecha (opcional, vacio = hoy)</label>
-          <input type="date" id="informe-fecha" />
+          <div id="informe-fecha-campo">
+            <label>Fecha (opcional, vacio = hoy)</label>
+            <input type="date" id="informe-fecha" />
+          </div>
+          <div id="informe-mes-campo" class="oculto">
+            <label>Mes</label>
+            <input type="month" id="informe-mes" />
+          </div>
           <button class="boton boton-accion boton-informe" id="btn-informe"><span class="icono">📊</span>Generar informe</button>
         </div>
 

@@ -235,10 +235,16 @@ async function cargarOperadoresInforme(tipo) {
   }
 }
 
+const informeFechaCampo = document.getElementById("informe-fecha-campo");
+const informeMesCampo = document.getElementById("informe-mes-campo");
+
 function actualizarCampoOperadorInforme() {
   const esSalidas = informeTipo.value === "salidas";
   const esOperador = informeTipo.value === "operador";
+  const esMensual = informeTipo.value === "mensual";
   informeOperadorCampo.classList.toggle("oculto", !esSalidas && !esOperador);
+  informeFechaCampo.classList.toggle("oculto", esMensual);
+  informeMesCampo.classList.toggle("oculto", !esMensual);
   if (esSalidas) {
     cargarOperadoresInforme("salidas");
   } else if (esOperador) {
@@ -265,6 +271,15 @@ document.getElementById("btn-informe").addEventListener("click", () => {
   if (tipo === "operador") {
     const operador = informeOperador.value;
     llamar("/api/informe", { tipo, fecha, operador }, nombre);
+    return;
+  }
+  if (tipo === "mensual") {
+    const mes = document.getElementById("informe-mes").value.trim();
+    if (!mes) {
+      mostrarLog("Selecciona el mes para el informe mensual.");
+      return;
+    }
+    llamar("/api/informe", { tipo, mes }, nombre);
     return;
   }
   llamar("/api/informe", { tipo, fecha }, nombre);

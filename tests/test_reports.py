@@ -9,6 +9,8 @@ from gestor_guias.relacion_ce_rr import generate_relacion_ce_rr_report
 from gestor_guias.repository import GuiaRepository
 from gestor_guias.reports import (
     build_cierre_breakdown,
+    build_monthly_breakdown,
+    generate_monthly_operator_report,
     generate_operator_report_pdf,
     generate_salidas_operador_pdf,
     normalize_dataframe,
@@ -211,6 +213,51 @@ def test_generate_devoluciones_report(tmp_path: Path) -> None:
     dataframe = pd.read_excel(output_path, dtype=str)
     assert list(dataframe["GUIA"]) == ["100"]
     assert dataframe.iloc[0]["CAUSAL"] == "DIRECCION ERRADA"
+
+
+def build_dataframe_con_fecha(guia: str, operador: str, estado: str, valor: str, fecha: str) -> pd.DataFrame:
+    dataframe = build_dataframe(guia, operador, estado, valor)
+    dataframe["F_INGRESO"] = fecha
+    return dataframe
+
+
+def test_build_monthly_breakdown_calcula_efectividad_por_operador(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-05 00:00:00"))
+    repository.update_tracking_fields("100", "KEVIN", "E", "")
+    repository.save_consolidated(build_dataframe_con_fecha("200", "", "", "20000", "2026-06-15 00:00:00"))
+    repository.update_tracking_fields("200", "KEVIN", "R", "")
+    repository.save_consolidated(build_dataframe_con_fecha("300", "", "", "30000", "2026-07-01 00:00:00"))
+    repository.update_tracking_fields("300", "KEVIN", "E", "")
+
+    repository.guardar_cierre(
+        fecha="2026-06-05", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=0, nequi=0, envia=0, efectivo=10_000,
+        gastos=2_000, adelanto_salario=5_000,
+    )
+
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    resumen = build_monthly_breakdown(repository, dataframe, 2026, 6)
+
+    fila = resumen.set_index("OPERADOR").loc["KEVIN"]
+    assert int(fila["GESTIONADAS"]) == 2
+    assert int(fila["ENTREGADAS"]) == 1
+    assert fila["EFECTIVIDAD"] == 50.0
+    assert int(fila["GASTOS"]) == 2_000
+    assert int(fila["ADELANTO_SALARIO"]) == 5_000
+
+
+def test_generate_monthly_operator_report(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-05 00:00:00"))
+    repository.update_tracking_fields("100", "KEVIN", "E", "")
+
+    output_path = generate_monthly_operator_report(repository, tmp_path / "output", 2026, 6)
+
+    assert output_path.exists()
+    assert output_path.suffix == ".xlsx"
 
 
 def test_generate_devoluciones_report_no_data(tmp_path: Path) -> None:

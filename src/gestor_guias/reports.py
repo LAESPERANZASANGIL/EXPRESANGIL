@@ -119,6 +119,14 @@ def filter_by_date(dataframe: pd.DataFrame, target_date: date) -> pd.DataFrame:
     return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
 
 
+def filter_by_month(dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    if "F_INGRESO" not in dataframe.columns:
+        return dataframe.iloc[0:0]
+
+    prefix = f"{year:04d}-{month:02d}"
+    return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
+
+
 def build_cierre_breakdown(
     repository: GuiaRepository, dataframe: pd.DataFrame, target_date: date | None, operador: str = ""
 ) -> pd.DataFrame:
@@ -188,6 +196,56 @@ def build_cierre_breakdown(
         )
 
     return pd.DataFrame(filas).sort_values("GESTIONADAS", ascending=False)
+
+
+def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    monthly = filter_by_month(dataframe, year, month)
+
+    columns = ["OPERADOR", "GASTOS", "ADELANTO_SALARIO", "GESTIONADAS", "ENTREGADAS", "EFECTIVIDAD"]
+    if monthly.empty:
+        return pd.DataFrame(columns=columns)
+
+    gastos_adelantos = repository.sumar_gastos_adelantos_mes(year, month)
+    operadores = sorted(monthly["OPERADOR"].dropna().unique())
+
+    filas = []
+    for nombre_operador in operadores:
+        guias_operador = monthly[monthly["OPERADOR"] == nombre_operador]
+        gestionadas = len(guias_operador)
+        entregadas = int((guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO).sum())
+        efectividad = round(entregadas / gestionadas * 100, 1) if gestionadas else 0.0
+        extra = gastos_adelantos.get(nombre_operador, {})
+
+        filas.append(
+            {
+                "OPERADOR": nombre_operador,
+                "GASTOS": extra.get("gastos", 0),
+                "ADELANTO_SALARIO": extra.get("adelanto_salario", 0),
+                "GESTIONADAS": gestionadas,
+                "ENTREGADAS": entregadas,
+                "EFECTIVIDAD": efectividad,
+            }
+        )
+
+    return pd.DataFrame(filas, columns=columns).sort_values("GESTIONADAS", ascending=False)
+
+
+def generate_monthly_operator_report(
+    repository: GuiaRepository, output_dir: Path, year: int, month: int
+) -> Path:
+    dataframe = normalize_dataframe(repository.to_dataframe())
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"informe mensual por operador {MONTHS_ES[month]} {year}.xlsx"
+
+    summary = build_monthly_breakdown(repository, dataframe, year, month)
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        summary.to_excel(writer, index=False, sheet_name="POR OPERADOR")
+        for sheet_name in writer.sheets:
+            apply_report_format(writer.sheets[sheet_name])
+
+    return output_path
 
 
 def generate_operator_report(

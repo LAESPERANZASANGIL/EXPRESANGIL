@@ -14,6 +14,7 @@ from .recaudo import generate_recaudo_report
 from .relacion_ce_rr import generate_relacion_ce_rr_report
 from .reports import (
     generate_daily_report,
+    generate_monthly_operator_report,
     generate_operator_report,
     generate_operator_report_pdf,
     generate_reports,
@@ -168,6 +169,14 @@ def report_of_devoluciones(target_date: date) -> Path:
     return output_path
 
 
+def report_monthly_by_operator(year: int, month: int) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_monthly_operator_report(repository, settings.paths.output_dir, year, month)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
 def open_editor() -> None:
     # Import perezoso: tkinter solo esta disponible/es necesario en uso local
     # de escritorio, no en el servidor donde corre el panel web.
@@ -292,6 +301,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
+    monthly_report_parser = subparsers.add_parser(
+        "informe-mensual",
+        help="Genera el informe mensual por operador (gastos, adelantos, gestionadas, entregadas, efectividad)",
+    )
+    monthly_report_parser.add_argument("--mes", required=True, help="Mes a consultar en formato YYYY-MM")
+
     subparsers.add_parser("editar", help="Abre la interfaz para editar operador, estado y causal")
 
     operador_crear_parser = subparsers.add_parser(
@@ -349,6 +364,9 @@ def main() -> None:
         report_relacion_ce_rr(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-devoluciones":
         report_of_devoluciones(parse_date(args.fecha, settings.gmail.timezone))
+    elif args.command == "informe-mensual":
+        anio, mes = (int(parte) for parte in args.mes.split("-"))
+        report_monthly_by_operator(anio, mes)
     elif args.command == "editar":
         open_editor()
     elif args.command == "operador-crear":

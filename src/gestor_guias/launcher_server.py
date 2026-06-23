@@ -58,6 +58,7 @@ INFORME_COMANDOS = {
     "recaudo": "informe-recaudo",
     "relacion": "informe-relacion-ce-rr",
     "devoluciones": "informe-devoluciones",
+    "mensual": "informe-mensual",
 }
 
 UPLOADS_DIR = SETTINGS.paths.attachments_dir / "subidos"
@@ -521,6 +522,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 operador = str(data.get("operador", "")).strip()
                 if operador:
                     args += ["--operador", operador]
+            elif tipo == "mensual":
+                mes = str(data.get("mes", "")).strip()
+                if not mes:
+                    self._send_json({"ok": False, "output": "Indica el mes del informe mensual."})
+                    return
+                args += ["--mes", mes]
+                self._send_json(run_command(args))
+                return
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))
