@@ -224,8 +224,6 @@ def generate_operator_report_pdf(
 ) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
     daily = filter_by_date(dataframe, target_date)
-    if operador:
-        daily = daily[daily["OPERADOR"] == operador]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     sufijo_operador = f" {operador}" if operador else ""
@@ -242,44 +240,29 @@ def generate_operator_report_pdf(
 
     elements: list = []
 
-    if daily.empty:
-        operators: list[str] = []
-    else:
-        totals = daily.groupby("OPERADOR")["GUIA"].count()
-        recaudo = (
-            daily[daily["ESTADO"].str.upper() == ESTADO_RECAUDO]
-            .groupby("OPERADOR")["VALOR_NUMERICO"]
-            .sum()
-        )
-        entregadas = (
-            daily[daily["ESTADO"].str.upper() == ESTADO_RECAUDO]
-            .groupby("OPERADOR")["GUIA"]
-            .count()
-        )
-        operators = sorted(totals.index, key=lambda operador: totals[operador], reverse=True)
+    resumen = build_cierre_breakdown(repository, daily, target_date, operador)
 
-    if not operators:
+    if resumen.empty:
         elements.append(Paragraph("Sin registros para esta fecha", styles["Normal"]))
     else:
-        for operador in operators:
-            gestionadas = int(totals.get(operador, 0))
-            entregadas_count = int(entregadas.get(operador, 0))
-            devolucion_count = gestionadas - entregadas_count
-            recaudado = int(recaudo.get(operador, 0))
-            efectividad = (entregadas_count / META_DIARIA_GUIAS) * 100
-
+        for _, fila in resumen.iterrows():
             title_paragraph = Paragraph(
-                f"INFORME POR OPERADOR<br/>{operador}<br/>{fecha_label}",
+                f"RESUMEN DEL DIA<br/>{fila['OPERADOR']}<br/>{fecha_label}",
                 title_style,
             )
 
             rows = [
                 [title_paragraph, ""],
-                ["GUIAS GESTIONADAS", gestionadas],
-                [f"GUIAS ENTREGADAS ({ESTADO_RECAUDO})", entregadas_count],
-                ["GUIAS EN DEVOLUCION", devolucion_count],
-                [f"VALOR RECAUDADO ({ESTADO_RECAUDO})", format_currency_co(recaudado)],
-                [f"EFECTIVIDAD DEL DIA (META {META_DIARIA_GUIAS})", f"{efectividad:.1f} %"],
+                ["GUIAS GESTIONADAS (SALIDAS DEL DIA)", int(fila["GESTIONADAS"])],
+                ["RECLAMA OFICINA (RO)", int(fila["RO"])],
+                ["NOVEDADES OPERATIVAS (N)", int(fila["N"])],
+                ["DEVOLUCIONES (D)", int(fila["D"])],
+                ["ENTREGADAS Y RECAUDADAS (E)", int(fila["E"])],
+                ["DINERO RECAUDADO", format_currency_co(int(fila["RECAUDADO"]))],
+                ["DINERO EN BANCOS", format_currency_co(int(fila["BANCOS"]))],
+                ["DINERO EN NEQUI", format_currency_co(int(fila["NEQUI"]))],
+                ["DINERO EN LINK ENVIA", format_currency_co(int(fila["ENVIA"]))],
+                ["EFECTIVO A ENTREGAR", format_currency_co(int(fila["EFECTIVO"]))],
             ]
 
             table = Table(rows, colWidths=[8 * cm, 6 * cm])
@@ -294,8 +277,7 @@ def generate_operator_report_pdf(
                         ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
                         ("FONTNAME", (0, 1), (-1, -1), "Helvetica-Bold"),
                         ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-                        ("BACKGROUND", (0, 4), (-1, 4), colors.HexColor("#FFFF00")),
-                        ("BACKGROUND", (0, 5), (-1, 5), efectividad_color(efectividad)),
+                        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FCE4D6")),
                         ("GRID", (0, 1), (-1, -1), 0.5, colors.grey),
                         ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
                         ("TOPPADDING", (0, 1), (-1, -1), 6),
