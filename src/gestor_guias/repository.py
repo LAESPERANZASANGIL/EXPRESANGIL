@@ -10,10 +10,6 @@ import pandas as pd
 
 TABLE_NAME = "guias"
 
-# Valores por defecto para guias importadas que aun no tienen seguimiento:
-# quedan en bodega ("BODEGA") y en reparto pendiente ("R").
-OPERADOR_BODEGA = "BODEGA"
-ESTADO_PENDIENTE = "R"
 
 
 class GuiaRepository:
@@ -155,14 +151,6 @@ class GuiaRepository:
                     ingreso = excluded.ingreso
                 """,
                 records,
-            )
-            connection.execute(
-                "UPDATE guias SET operador = ? WHERE TRIM(COALESCE(operador, '')) = ''",
-                (OPERADOR_BODEGA,),
-            )
-            connection.execute(
-                "UPDATE guias SET estado = ? WHERE TRIM(COALESCE(estado, '')) = '' AND operador = ?",
-                (ESTADO_PENDIENTE, OPERADOR_BODEGA),
             )
 
     def list_all(self) -> list[dict]:
