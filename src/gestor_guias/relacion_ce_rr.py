@@ -3,11 +3,8 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
 from .exporter import MONTHS_ES
 from .reports import ESTADO_RECAUDO, filter_by_date, normalize_dataframe
@@ -18,8 +15,10 @@ OFICINA_NOMBRE = "SAN GIL"
 ADMIN_NAME = "JOHAN A. ORTIZ"
 SERVICIOS_RELACION = ("RR", "CE")
 
-DARK_FILL = colors.HexColor("#1F3864")
-TITLE_TEXT = colors.HexColor("#FFC000")
+DARK_FILL = PatternFill(fill_type="solid", fgColor="1F3864")
+TITLE_FONT = Font(bold=True, color="FFC000")
+HEADER_FONT = Font(bold=True, color="FFFFFF")
+CENTER = Alignment(horizontal="center", vertical="center")
 
 
 def format_currency_co(value: int) -> str:
@@ -37,11 +36,9 @@ def generate_relacion_ce_rr_report(
     daily = filter_by_date(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"relacion guias ce y rr {target_date.day:02d} {MONTHS_ES[target_date.month]}.pdf"
+    output_path = output_dir / f"relacion guias ce y rr {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
 
     fecha_label = target_date.strftime("%d/%m/%Y")
-
-    elements: list = []
 
     if not daily.empty:
         relevant = daily[
@@ -52,82 +49,82 @@ def generate_relacion_ce_rr_report(
         relevant = daily
         operators = []
 
-    first = True
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+
+    nombres_usados: set[str] = set()
     for operador in operators:
         operator_rows = relevant[relevant["OPERADOR"] == operador].sort_values("SERVICIO")
         if operator_rows.empty:
             continue
 
-        if not first:
-            elements.append(PageBreak())
-        first = False
+        nombre_hoja = operador[:31] or "OPERADOR"
+        sufijo = 1
+        while nombre_hoja in nombres_usados:
+            sufijo += 1
+            nombre_hoja = f"{operador[:28]}_{sufijo}"
+        nombres_usados.add(nombre_hoja)
 
-        rows = [
-            ["RELACION DE GUIAS CE Y RR " + oficina_nombre, "", "", ""],
-            ["INFORME OFICINA EXPRESANGIL", "", "", ""],
-            [admin_name, "", "FECHA", fecha_label],
-            ["GUIAS CONTRAENTREGA Y RECAUDO", "", "", ""],
-            ["N°", "CE O RR", "N° DE GUIA", "VALOR"],
-        ]
+        worksheet = workbook.create_sheet(nombre_hoja)
+        _escribir_hoja_operador(worksheet, operador, operator_rows, admin_name, oficina_nombre, fecha_label)
 
-        total = 0
-        for index, (_, row) in enumerate(operator_rows.iterrows(), start=1):
-            valor = int(row["VALOR_NUMERICO"])
-            total += valor
-            rows.append([str(index), row["SERVICIO"], row["GUIA"], format_currency_co(valor)])
+    if not workbook.sheetnames:
+        worksheet = workbook.create_sheet("SIN REGISTROS")
+        worksheet["A1"] = "Sin registros para esta fecha"
 
-        rows.append(["TOTAL", "", "", format_currency_co(total)])
-
-        data_row_count = len(operator_rows)
-        last_row_index = len(rows) - 1
-
-        table = Table(rows, colWidths=[2 * cm, 3 * cm, 6 * cm, 4 * cm], repeatRows=5)
-        table.setStyle(
-            TableStyle(
-                [
-                    ("SPAN", (0, 0), (-1, 0)),
-                    ("SPAN", (0, 1), (-1, 1)),
-                    ("SPAN", (0, 2), (1, 2)),
-                    ("SPAN", (0, 3), (-1, 3)),
-                    ("SPAN", (0, last_row_index), (2, last_row_index)),
-                    ("BACKGROUND", (0, 0), (-1, 0), DARK_FILL),
-                    ("BACKGROUND", (0, 1), (-1, 1), DARK_FILL),
-                    ("BACKGROUND", (0, 2), (-1, 2), colors.white),
-                    ("BACKGROUND", (0, 3), (-1, 3), DARK_FILL),
-                    ("BACKGROUND", (0, 4), (-1, 4), DARK_FILL),
-                    ("BACKGROUND", (0, last_row_index), (-1, last_row_index), DARK_FILL),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), TITLE_TEXT),
-                    ("TEXTCOLOR", (0, 1), (-1, 1), colors.white),
-                    ("TEXTCOLOR", (0, 2), (-1, 2), colors.black),
-                    ("TEXTCOLOR", (0, 3), (-1, 3), TITLE_TEXT),
-                    ("TEXTCOLOR", (0, 4), (-1, 4), colors.white),
-                    ("TEXTCOLOR", (0, last_row_index), (-1, last_row_index), colors.white),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
-                    ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
-                    ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
-                    ("FONTNAME", (0, 4), (-1, 4), "Helvetica-Bold"),
-                    ("FONTNAME", (0, last_row_index), (-1, last_row_index), "Helvetica-Bold"),
-                    ("ALIGN", (0, 0), (-1, 4), "CENTER"),
-                    ("ALIGN", (0, last_row_index), (-1, last_row_index), "CENTER"),
-                    ("ALIGN", (0, 5), (0, 4 + data_row_count), "CENTER"),
-                    ("ALIGN", (1, 5), (1, 4 + data_row_count), "CENTER"),
-                    ("ALIGN", (3, 5), (3, last_row_index), "RIGHT"),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ("TOPPADDING", (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-
-        elements.append(table)
-        elements.append(Spacer(1, 14))
-
-    if not elements:
-        elements.append(Paragraph("Sin registros para esta fecha", getSampleStyleSheet()["Normal"]))
-
-    doc = SimpleDocTemplate(str(output_path), pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
-    doc.build(elements)
+    workbook.save(output_path)
 
     return output_path
+
+
+def _escribir_hoja_operador(worksheet, operador, operator_rows, admin_name, oficina_nombre, fecha_label) -> None:
+    worksheet.merge_cells("A1:D1")
+    worksheet["A1"] = "RELACION DE GUIAS CE Y RR " + oficina_nombre
+    worksheet.merge_cells("A2:D2")
+    worksheet["A2"] = "INFORME OFICINA EXPRESANGIL"
+    worksheet["A3"] = admin_name
+    worksheet["C3"] = "FECHA"
+    worksheet["D3"] = fecha_label
+    worksheet.merge_cells("A4:D4")
+    worksheet["A4"] = f"GUIAS CONTRAENTREGA Y RECAUDO - {operador}"
+
+    for fila in (1, 2, 4):
+        for columna in range(1, 5):
+            celda = worksheet.cell(row=fila, column=columna)
+            celda.fill = DARK_FILL
+            celda.font = TITLE_FONT
+            celda.alignment = CENTER
+
+    encabezados = ["N°", "CE O RR", "N° DE GUIA", "VALOR"]
+    for columna, encabezado in enumerate(encabezados, start=1):
+        celda = worksheet.cell(row=5, column=columna, value=encabezado)
+        celda.fill = DARK_FILL
+        celda.font = HEADER_FONT
+        celda.alignment = CENTER
+
+    fila_actual = 6
+    total = 0
+    for indice, (_, row) in enumerate(operator_rows.iterrows(), start=1):
+        valor = int(row["VALOR_NUMERICO"])
+        total += valor
+        worksheet.cell(row=fila_actual, column=1, value=indice).alignment = CENTER
+        worksheet.cell(row=fila_actual, column=2, value=row["SERVICIO"]).alignment = CENTER
+        guia_cell = worksheet.cell(row=fila_actual, column=3, value=row["GUIA"])
+        guia_cell.number_format = "@"
+        worksheet.cell(row=fila_actual, column=4, value=valor).number_format = '"$" #,##0'
+        fila_actual += 1
+
+    worksheet.merge_cells(start_row=fila_actual, start_column=1, end_row=fila_actual, end_column=3)
+    total_label_cell = worksheet.cell(row=fila_actual, column=1, value="TOTAL")
+    total_label_cell.fill = DARK_FILL
+    total_label_cell.font = HEADER_FONT
+    total_label_cell.alignment = CENTER
+    total_value_cell = worksheet.cell(row=fila_actual, column=4, value=total)
+    total_value_cell.fill = DARK_FILL
+    total_value_cell.font = HEADER_FONT
+    total_value_cell.number_format = '"$" #,##0'
+
+    worksheet.column_dimensions["A"].width = 6
+    worksheet.column_dimensions["B"].width = 10
+    worksheet.column_dimensions["C"].width = 20
+    worksheet.column_dimensions["D"].width = 14

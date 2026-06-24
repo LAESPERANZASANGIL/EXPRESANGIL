@@ -16,9 +16,8 @@ from .reports import (
     generate_daily_report,
     generate_monthly_operator_report,
     generate_operator_report,
-    generate_operator_report_pdf,
     generate_reports,
-    generate_salidas_operador_pdf,
+    generate_salidas_operador_excel,
 )
 from .repository import GuiaRepository
 
@@ -116,10 +115,6 @@ def report_by_operator(target_date: date | None, operador: str = "") -> Path:
     repository = GuiaRepository(settings.paths.database_file)
     output_path = generate_operator_report(repository, settings.paths.output_dir, target_date, operador)
     print(f"Informe generado: {output_path}")
-
-    pdf_date = target_date or date.today()
-    pdf_path = generate_operator_report_pdf(repository, settings.paths.output_dir, pdf_date, operador)
-    print(f"Informe PDF generado: {pdf_path}")
     return output_path
 
 
@@ -156,7 +151,7 @@ def report_relacion_ce_rr(target_date: date) -> Path:
 def report_of_salidas_operador(operador: str, target_date: date) -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = generate_salidas_operador_pdf(repository, settings.paths.output_dir, operador, target_date)
+    output_path = generate_salidas_operador_excel(repository, settings.paths.output_dir, operador, target_date)
     print(f"Informe generado: {output_path}")
     return output_path
 
@@ -262,7 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     salidas_report_parser = subparsers.add_parser(
         "informe-salidas",
-        help="Genera el PDF con las guias en salida (en reparto) de un operador",
+        help="Genera el Excel con las guias en salida (en reparto) de un operador",
     )
     salidas_report_parser.add_argument("--operador", required=True, help="Nombre del operador")
     salidas_report_parser.add_argument(

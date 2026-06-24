@@ -30,7 +30,7 @@ from .excel_processor import normalize_guide
 from .reports import (
     build_cierre_breakdown,
     filter_by_date,
-    generate_salidas_operador_pdf,
+    generate_salidas_operador_excel,
     normalize_dataframe,
     value_to_number,
 )
@@ -778,7 +778,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Fecha invalida."})
                 return
 
-            ruta = generate_salidas_operador_pdf(
+            ruta = generate_salidas_operador_excel(
                 REPOSITORY, SETTINGS.paths.output_dir, session["nombre"], fecha
             )
             self._send_json(

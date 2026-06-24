@@ -11,10 +11,10 @@ from gestor_guias.reports import (
     build_cierre_breakdown,
     build_monthly_breakdown,
     generate_monthly_operator_report,
-    generate_operator_report_pdf,
-    generate_salidas_operador_pdf,
+    generate_salidas_operador_excel,
     normalize_dataframe,
 )
+from openpyxl import load_workbook
 
 
 def build_dataframe(guia: str, operador: str, estado: str, valor: str, servicio: str = "") -> pd.DataFrame:
@@ -37,30 +37,6 @@ def build_dataframe(guia: str, operador: str, estado: str, valor: str, servicio:
             }
         ]
     )
-
-
-def test_generate_operator_report_pdf(tmp_path: Path) -> None:
-    repository = GuiaRepository(tmp_path / "guias.db")
-
-    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
-    repository.update_tracking_fields("100", "OMAR", "E", "")
-
-    repository.save_consolidated(build_dataframe("200", "", "", "20000"))
-    repository.update_tracking_fields("200", "OMAR", "R", "")
-
-    output_path = generate_operator_report_pdf(repository, tmp_path / "output", date(2026, 6, 10))
-
-    assert output_path.exists()
-    assert output_path.suffix == ".pdf"
-    assert output_path.stat().st_size > 0
-
-
-def test_generate_operator_report_pdf_no_data(tmp_path: Path) -> None:
-    repository = GuiaRepository(tmp_path / "guias.db")
-
-    output_path = generate_operator_report_pdf(repository, tmp_path / "output", date(2026, 6, 10))
-
-    assert output_path.exists()
 
 
 def test_build_cierre_breakdown_suma_efectivo_de_varios_operadores(tmp_path: Path) -> None:
@@ -88,7 +64,7 @@ def test_build_cierre_breakdown_suma_efectivo_de_varios_operadores(tmp_path: Pat
     assert int(resumen.set_index("OPERADOR").loc["KEVIN", "GASTOS"]) == 2_000
 
 
-def test_generate_salidas_operador_pdf_solo_incluye_guias_en_reparto(tmp_path: Path) -> None:
+def test_generate_salidas_operador_excel_solo_incluye_guias_en_reparto(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "", "", "10000"))
@@ -100,14 +76,19 @@ def test_generate_salidas_operador_pdf_solo_incluye_guias_en_reparto(tmp_path: P
     repository.save_consolidated(build_dataframe("300", "", "", "30000"))
     repository.update_tracking_fields("300", "OMAR", "R", "")
 
-    output_path = generate_salidas_operador_pdf(repository, tmp_path / "output", "KEVIN", date(2026, 6, 10))
+    output_path = generate_salidas_operador_excel(repository, tmp_path / "output", "KEVIN", date(2026, 6, 10))
 
     assert output_path.exists()
-    assert output_path.suffix == ".pdf"
-    assert output_path.stat().st_size > 0
+    assert output_path.suffix == ".xlsx"
+
+    worksheet = load_workbook(output_path)["SALIDAS"]
+    guias = [worksheet.cell(row=row, column=1).value for row in range(2, worksheet.max_row + 1)]
+    assert "100" in guias
+    assert "200" not in guias
+    assert "300" not in guias
 
 
-def test_generate_salidas_operador_pdf_no_depende_de_la_fecha_de_planilla(tmp_path: Path) -> None:
+def test_generate_salidas_operador_excel_no_depende_de_la_fecha_de_planilla(tmp_path: Path) -> None:
     # La guia puede haber llegado en una planilla de otro dia y salir hoy;
     # el informe debe encontrarla igual, sin filtrar por F_INGRESO.
     repository = GuiaRepository(tmp_path / "guias.db")
@@ -115,7 +96,7 @@ def test_generate_salidas_operador_pdf_no_depende_de_la_fecha_de_planilla(tmp_pa
     repository.save_consolidated(build_dataframe("100", "", "", "10000"))
     repository.asignar_salida(["100"], "KEVIN", "R")
 
-    output_path = generate_salidas_operador_pdf(repository, tmp_path / "output", "KEVIN", date(2026, 6, 23))
+    output_path = generate_salidas_operador_excel(repository, tmp_path / "output", "KEVIN", date(2026, 6, 23))
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
@@ -135,10 +116,10 @@ def test_guias_en_salida_respeta_el_orden_de_registro(tmp_path: Path) -> None:
     assert [guia["guia"] for guia in guias] == ["300", "100", "200"]
 
 
-def test_generate_salidas_operador_pdf_sin_guias(tmp_path: Path) -> None:
+def test_generate_salidas_operador_excel_sin_guias(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
-    output_path = generate_salidas_operador_pdf(repository, tmp_path / "output", "KEVIN", date(2026, 6, 10))
+    output_path = generate_salidas_operador_excel(repository, tmp_path / "output", "KEVIN", date(2026, 6, 10))
 
     assert output_path.exists()
 
@@ -217,7 +198,7 @@ def test_generate_relacion_ce_rr_report(tmp_path: Path) -> None:
     output_path = generate_relacion_ce_rr_report(repository, tmp_path / "output", date(2026, 6, 10))
 
     assert output_path.exists()
-    assert output_path.suffix == ".pdf"
+    assert output_path.suffix == ".xlsx"
     assert output_path.stat().st_size > 0
 
 

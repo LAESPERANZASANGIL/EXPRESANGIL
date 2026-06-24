@@ -6,11 +6,6 @@ import re
 
 from openpyxl.styles import Alignment, Font, PatternFill
 import pandas as pd
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import landscape, letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .exporter import MONTHS_ES
 from .repository import GuiaRepository
@@ -274,167 +269,36 @@ def generate_operator_report(
 META_DIARIA_GUIAS = 52
 
 
-def format_currency_co(value: int) -> str:
-    return f"$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def efectividad_color(porcentaje: float) -> colors.Color:
-    if porcentaje >= 100:
-        return colors.HexColor("#C6E0B4")
-    if porcentaje >= 70:
-        return colors.HexColor("#FFE699")
-    return colors.HexColor("#F8CBAD")
-
-
-def generate_operator_report_pdf(
-    repository: GuiaRepository, output_dir: Path, target_date: date, operador: str = ""
-) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    sufijo_operador = f" {operador}" if operador else ""
-    output_path = (
-        output_dir / f"informe por operador{sufijo_operador} {target_date.day:02d} {MONTHS_ES[target_date.month]}.pdf"
-    )
-
-    fecha_label = f"{MONTHS_ES[target_date.month].upper()} {target_date.day} DE {target_date.year}"
-
-    styles = getSampleStyleSheet()
-    title_style = styles["Title"].clone("CardTitle")
-    title_style.textColor = colors.white
-    title_style.alignment = 1
-
-    elements: list = []
-
-    resumen = build_cierre_breakdown(repository, daily, target_date, operador)
-
-    if resumen.empty:
-        elements.append(Paragraph("Sin registros para esta fecha", styles["Normal"]))
-    else:
-        for _, fila in resumen.iterrows():
-            title_paragraph = Paragraph(
-                f"RESUMEN DEL DIA<br/>{fila['OPERADOR']}<br/>{fecha_label}",
-                title_style,
-            )
-
-            rows = [
-                [title_paragraph, ""],
-                ["GUIAS GESTIONADAS (SALIDAS DEL DIA)", int(fila["GESTIONADAS"])],
-                ["RECLAMA OFICINA (RO)", int(fila["RO"])],
-                ["NOVEDADES OPERATIVAS (N)", int(fila["N"])],
-                ["DEVOLUCIONES (D)", int(fila["D"])],
-                ["ENTREGADAS Y RECAUDADAS (E)", int(fila["E"])],
-                ["DINERO RECAUDADO", format_currency_co(int(fila["RECAUDADO"]))],
-                ["DINERO EN BANCOS", format_currency_co(int(fila["BANCOS"]))],
-                ["DINERO EN NEQUI", format_currency_co(int(fila["NEQUI"]))],
-                ["DINERO EN LINK ENVIA", format_currency_co(int(fila["ENVIA"]))],
-                ["GASTOS", format_currency_co(int(fila["GASTOS"]))],
-                ["ADELANTO DE SALARIO", format_currency_co(int(fila["ADELANTO_SALARIO"]))],
-                ["EFECTIVO A ENTREGAR", format_currency_co(int(fila["EFECTIVO"]))],
-            ]
-
-            table = Table(rows, colWidths=[8 * cm, 6 * cm])
-            table.setStyle(
-                TableStyle(
-                    [
-                        ("SPAN", (0, 0), (-1, 0)),
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
-                        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-                        ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
-                        ("TOPPADDING", (0, 0), (-1, 0), 8),
-                        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-                        ("FONTNAME", (0, 1), (-1, -1), "Helvetica-Bold"),
-                        ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-                        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FCE4D6")),
-                        ("GRID", (0, 1), (-1, -1), 0.5, colors.grey),
-                        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
-                        ("TOPPADDING", (0, 1), (-1, -1), 6),
-                    ]
-                )
-            )
-
-            elements.append(table)
-            elements.append(Spacer(1, 14))
-
-    doc = SimpleDocTemplate(str(output_path), pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
-    doc.build(elements)
-
-    return output_path
-
-
-def generate_salidas_operador_pdf(
+def generate_salidas_operador_excel(
     repository: GuiaRepository, output_dir: Path, operador: str, target_date: date
 ) -> Path:
     guias = repository.guias_en_salida(operador, ESTADO_SALIDA)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"
-    output_path = output_dir / f"salidas {operador}{suffix}.pdf"
+    output_path = output_dir / f"salidas {operador}{suffix}.xlsx"
 
-    fecha_label = f"{MONTHS_ES[target_date.month].upper()} {target_date.day} DE {target_date.year}"
-
-    styles = getSampleStyleSheet()
-    title_style = styles["Title"].clone("CardTitle")
-    title_style.textColor = colors.white
-    title_style.alignment = 1
-    cell_style = styles["Normal"].clone("CeldaInforme")
-    cell_style.fontSize = 9
-    cell_style.leading = 11
-
-    elements: list = [
-        Paragraph(f"SALIDAS DEL DIA<br/>{operador}<br/>{fecha_label}", title_style),
-        Spacer(1, 14),
-    ]
-
-    rows = [["GUIA", "DESTINATARIO", "DIRECCION", "VALOR"]]
+    filas = []
     total_valor = 0
     for guia in guias:
         valor = value_to_number(guia.get("valor", ""))
         total_valor += valor
-        rows.append(
-            [
-                guia.get("guia", ""),
-                Paragraph(guia.get("destinatario", ""), cell_style),
-                Paragraph(guia.get("direccion", ""), cell_style),
-                format_currency_co(valor),
-            ]
+        filas.append(
+            {
+                "GUIA": guia.get("guia", ""),
+                "DESTINATARIO": guia.get("destinatario", ""),
+                "DIRECCION": guia.get("direccion", ""),
+                "VALOR": valor,
+            }
         )
 
-    if not guias:
-        elements.append(Paragraph("Sin guias en salida para esta fecha", styles["Normal"]))
-    else:
-        rows.append(["", "", "TOTAL", format_currency_co(total_valor)])
-        table = Table(rows, colWidths=[3.5 * cm, 8 * cm, 10 * cm, 3.5 * cm], repeatRows=1)
-        table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                    ("TOPPADDING", (0, 0), (-1, -1), 6),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("ALIGN", (3, 0), (3, -1), "RIGHT"),
-                    ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-                    ("ALIGN", (2, -1), (2, -1), "RIGHT"),
-                ]
-            )
-        )
-        elements.append(table)
-        elements.append(Spacer(1, 10))
-        elements.append(Paragraph(f"Total guias: {len(guias)}", styles["Normal"]))
+    filas.append({"GUIA": "", "DESTINATARIO": "", "DIRECCION": "TOTAL", "VALOR": total_valor})
 
-    doc = SimpleDocTemplate(
-        str(output_path),
-        pagesize=landscape(letter),
-        topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm,
-        leftMargin=1.5 * cm,
-        rightMargin=1.5 * cm,
-    )
-    doc.build(elements)
+    dataframe = pd.DataFrame(filas, columns=["GUIA", "DESTINATARIO", "DIRECCION", "VALOR"])
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        dataframe.to_excel(writer, index=False, sheet_name="SALIDAS")
+        apply_report_format(writer.sheets["SALIDAS"])
 
     return output_path
 
