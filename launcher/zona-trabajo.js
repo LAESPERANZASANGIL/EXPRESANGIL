@@ -304,6 +304,11 @@ document.getElementById("btn-eliminar-lista").addEventListener("click", async ()
   }
 });
 
+document.getElementById("btn-limpiar-lista").addEventListener("click", () => {
+  document.getElementById("bulk-text").value = "";
+  mostrarLog("Lista de guias limpiada.");
+});
+
 document.getElementById("btn-eliminar-fecha").addEventListener("click", async () => {
   const fecha = document.getElementById("del-fecha").value.trim();
   if (!fecha) {
