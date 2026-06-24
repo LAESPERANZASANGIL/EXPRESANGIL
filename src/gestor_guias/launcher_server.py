@@ -215,6 +215,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
         return archivos
 
     def do_GET(self) -> None:
+        try:
+            self._do_GET()
+        except Exception as error:
+            self._send_json({"ok": False, "output": f"Error interno: {error}"}, status=500)
+
+    def _do_GET(self) -> None:
         route = self.path.split("?")[0]
 
         if route == "/api/operador/sesion":
@@ -352,6 +358,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self) -> None:
+        try:
+            self._do_POST()
+        except Exception as error:
+            self._send_json({"ok": False, "output": f"Error interno: {error}"}, status=500)
+
+    def _do_POST(self) -> None:
         if self.path == "/api/subir-archivo":
             if not self._require_admin():
                 return

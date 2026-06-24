@@ -642,7 +642,7 @@ class GuiaRepository:
         return pd.DataFrame(data, columns=columns)
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_file)
+        connection = sqlite3.connect(self.database_file, timeout=30)
         connection.execute("PRAGMA journal_mode=WAL")
         return connection
 
