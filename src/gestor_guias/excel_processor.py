@@ -336,8 +336,11 @@ def is_guide_number(value: str) -> bool:
 
 
 def normalize_guide(value: str) -> str:
+    # Toda guia tiene 12 digitos; si llega mas corta (el escaner o la
+    # planilla no conservan el cero inicial), se rellena con ceros a la
+    # izquierda en vez de descartarlo.
     guide = value.replace("-", "").strip()
-    return guide[1:] if guide.startswith("0") else guide
+    return guide.zfill(12) if guide.isdigit() else guide
 
 
 def normalize_value(value: object) -> str:

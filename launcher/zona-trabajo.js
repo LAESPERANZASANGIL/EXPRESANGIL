@@ -87,8 +87,8 @@ function filasFiltradas() {
   if (!texto) {
     return guias;
   }
-  // Las guias se guardan sin el cero inicial (normalize_guide), pero el
-  // usuario puede pegar el numero tal como viene en la planilla, con cero.
+  // Las guias se guardan siempre con 12 digitos (normalize_guide), pero el
+  // usuario puede buscar sin los ceros iniciales.
   const textoSinCero = texto.replace(/^0+(?=\d)/, "");
   const campoSeleccionado = buscarCampo.value;
   const campos = campoSeleccionado
