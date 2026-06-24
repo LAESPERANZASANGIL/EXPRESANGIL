@@ -101,6 +101,18 @@ def test_registrar_salidas_marca_operador_y_estado(tmp_path: Path) -> None:
     assert dataframe.loc[dataframe["GUIA"] == "100099", "PLANILLA"].iloc[0] == "Sin planilla"
 
 
+def test_registrar_salidas_con_bodega_deja_estado_en_blanco(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
+
+    resultado = registrar_salidas(repository, "bodega", "100000")
+
+    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
+    dataframe = repository.to_dataframe()
+    assert dataframe.loc[0, "OPERADOR"] == "bodega"
+    assert dataframe.loc[0, "ESTADO"] == ""
+
+
 def test_registrar_novedades_solo_afecta_guias_en_r(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
