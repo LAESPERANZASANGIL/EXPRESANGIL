@@ -570,6 +570,10 @@ def apply_report_format(worksheet) -> None:
     data_fill = PatternFill(fill_type="solid", fgColor="D9E1F2")
     header_font = Font(bold=True)
 
+    guia_columnas = {
+        cell.column for cell in worksheet[1] if str(cell.value).strip().upper() == "GUIA"
+    }
+
     for cell in worksheet[1]:
         cell.fill = header_fill
         cell.font = header_font
@@ -577,6 +581,8 @@ def apply_report_format(worksheet) -> None:
     for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, max_col=worksheet.max_column):
         for cell in row:
             cell.fill = data_fill
+            if cell.column in guia_columnas:
+                cell.number_format = "@"
 
     worksheet.freeze_panes = "A2"
     worksheet.auto_filter.ref = worksheet.dimensions

@@ -124,6 +124,9 @@ def apply_master_format(worksheet) -> None:
         for cell in worksheet[1]
         if str(cell.value).strip().upper() in ("F_INGRESO", "F_ENTREGA")
     }
+    guia_columnas = {
+        cell.column for cell in worksheet[1] if str(cell.value).strip().upper() == "GUIA"
+    }
 
     for cell in worksheet[1]:
         cell.fill = header_fill
@@ -140,3 +143,5 @@ def apply_master_format(worksheet) -> None:
             cell.alignment = cell.alignment.copy(horizontal="left")
             if cell.column in fecha_columnas and isinstance(cell.value, date):
                 cell.number_format = FECHA_CORTA_FORMATO
+            if cell.column in guia_columnas:
+                cell.number_format = "@"
