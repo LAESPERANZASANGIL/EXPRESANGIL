@@ -186,6 +186,11 @@ def consolidate_excels_with_movements(
         if column in active.columns:
             active.loc[~preserve_mask.loc[active.index], column] = ""
 
+    if "SERVICIO" in active.columns and "VALOR" in active.columns:
+        sin_servicio = active["SERVICIO"].fillna("").astype(str).str.strip() == ""
+        con_valor = active["VALOR"].fillna("").astype(str).str.strip().ne("$ -")
+        active.loc[sin_servicio & con_valor, "SERVICIO"] = "RR"
+
     active = active[active["GUIA"] != ""]
     active = active.drop_duplicates(subset=["GUIA"], keep="first")
     movements_copy = movements_copy[movements_copy["GUIA"] != ""]

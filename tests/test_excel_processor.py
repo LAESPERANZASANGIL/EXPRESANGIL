@@ -29,6 +29,66 @@ REQUIRED_COLUMNS = [
 ]
 
 
+def test_consolidate_marca_rr_cuando_hay_valor_y_servicio_vacio(tmp_path: Path) -> None:
+    file_path = tmp_path / "planilla.xlsx"
+    dataframe = pd.DataFrame(
+        [
+            {
+                "PLANILLA": "P1",
+                "SERVICIO": "",
+                "GUIA": "100",
+                "UNID": "1",
+                "TIPO DE SERVICIO": "NORMAL",
+                "DESTINATARIO": "Persona A",
+                "MUNICIPIO": "Bucaramanga",
+                "VALOR": "10000",
+                "OPERADOR": "",
+                "ESTADO": "",
+                "CAUSAL": "",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "",
+            },
+            {
+                "PLANILLA": "P1",
+                "SERVICIO": "CE",
+                "GUIA": "200",
+                "UNID": "1",
+                "TIPO DE SERVICIO": "NORMAL",
+                "DESTINATARIO": "Persona B",
+                "MUNICIPIO": "Bucaramanga",
+                "VALOR": "20000",
+                "OPERADOR": "",
+                "ESTADO": "",
+                "CAUSAL": "",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "",
+            },
+            {
+                "PLANILLA": "P1",
+                "SERVICIO": "",
+                "GUIA": "300",
+                "UNID": "1",
+                "TIPO DE SERVICIO": "NORMAL",
+                "DESTINATARIO": "Persona C",
+                "MUNICIPIO": "Bucaramanga",
+                "VALOR": "",
+                "OPERADOR": "",
+                "ESTADO": "",
+                "CAUSAL": "",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "",
+            },
+        ]
+    )
+    dataframe.to_excel(file_path, index=False)
+
+    result = consolidate_excels([file_path], REQUIRED_COLUMNS).set_index("GUIA")
+
+    assert result.loc["100", "SERVICIO"] == "RR"
+    assert result.loc["200", "SERVICIO"] == "CE"
+    assert result.loc["300", "SERVICIO"] == ""
+
+
 def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_path: Path) -> None:
     file_path = tmp_path / "planilla.xlsx"
     dataframe = pd.DataFrame(
