@@ -152,6 +152,7 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     bancos_total_cell = f"D{total_row}"
     nequi_total_cell = f"E{total_row}"
     envia_total_cell = f"F{total_row}"
+    gastos_total_cell = f"G{total_row}"
 
     summary_row = total_row + 2
     sheet.merge_cells(f"A{summary_row}:B{summary_row}")
@@ -169,7 +170,7 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
         ("Valor total", float(daily["VALOR_NUMERICO"].sum()) if not daily.empty else 0, None),
         ("Valor total recaudado (= lista)", f"={valor_recaudado_total_cell}-{envia_total_cell}", HIGHLIGHT_FILL),
         ("Total a pagar (Bancos + Nequi)", f"={bancos_total_cell}+{nequi_total_cell}", None),
-        ("Gastos del dia", f"={expenses_total_cell}", None),
+        ("Gastos del dia", f"={gastos_total_cell}+{expenses_total_cell}", None),
         (
             "Saldo pendiente (= recaudo - pagar - gastos)",
             f"=B{summary_row + 3}-B{summary_row + 4}-B{summary_row + 5}",

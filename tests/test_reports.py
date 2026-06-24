@@ -184,6 +184,12 @@ def test_generate_recaudo_report_incluye_bancos_nequi_envia_gastos_y_adelanto(tm
     assert fila[6].value == 500
     assert fila[7].value == 1_500
 
+    fila_gastos_dia = next(
+        fila for fila in sheet.iter_rows(min_row=1, max_col=1) if fila[0].value == "Gastos del dia"
+    )
+    valor_gastos_dia = sheet.cell(row=fila_gastos_dia[0].row, column=2).value
+    assert "G" in valor_gastos_dia
+
 
 def test_generate_recaudo_report_no_data(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
