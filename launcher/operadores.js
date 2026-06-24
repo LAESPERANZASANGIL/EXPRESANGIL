@@ -82,11 +82,22 @@ document.getElementById("btn-logout").addEventListener("click", async () => {
   mostrarPantallaLogin();
 });
 
+const salidasGuias = document.getElementById("salidas-guias");
+const salidasContador = document.getElementById("salidas-contador");
+
+function actualizarContadorSalidas() {
+  const coincidencias = salidasGuias.value.match(/\d{6,}/g) || [];
+  salidasContador.textContent = String(coincidencias.length);
+}
+
+salidasGuias.addEventListener("input", actualizarContadorSalidas);
+
 document.getElementById("btn-salidas").addEventListener("click", async () => {
-  const guias = document.getElementById("salidas-guias").value;
+  const guias = salidasGuias.value;
   const resultado = await llamar("/api/operador/salidas", { guias });
   if (resultado.ok) {
-    document.getElementById("salidas-guias").value = "";
+    salidasGuias.value = "";
+    actualizarContadorSalidas();
   }
 });
 
