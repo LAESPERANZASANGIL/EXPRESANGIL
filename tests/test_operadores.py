@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -110,7 +111,7 @@ def test_registrar_novedades_solo_afecta_guias_en_r(tmp_path: Path) -> None:
     resultado = registrar_novedades(
         repository,
         "KEVIN",
-        "2026-06-09",
+        date.today().isoformat(),
         ro_texto="100000",
         n_texto="100001",
         d_texto="",
@@ -135,7 +136,7 @@ def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
     resultado = registrar_novedades(
         repository,
         "KEVIN",
-        "2026-06-09",
+        date.today().isoformat(),
         ro_texto="",
         n_texto="",
         d_texto="100000 10\nguia-sin-causal\n100001,25",
@@ -182,9 +183,10 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
     repository.save_consolidated(build_dataframe("100002", "$ 30.000"))
     registrar_salidas(repository, "KEVIN", "100000\n100001\n100002")
-    registrar_novedades(repository, "KEVIN", "2026-06-09", ro_texto="100000", n_texto="", d_texto="")
+    fecha = date.today().isoformat()
+    registrar_novedades(repository, "KEVIN", fecha, ro_texto="100000", n_texto="", d_texto="")
 
-    resumen = cerrar_dia(repository, "KEVIN", "2026-06-09", bancos=10_000, nequi=5_000, envia=0)
+    resumen = cerrar_dia(repository, "KEVIN", fecha, bancos=10_000, nequi=5_000, envia=0)
 
     assert resumen["gestionadas"] == 3
     assert resumen["ro"] == 1
@@ -194,7 +196,7 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     assert resumen["recaudado"] == 50_000
     assert resumen["efectivo"] == 35_000
 
-    cierre = repository.obtener_cierre("2026-06-09", "KEVIN")
+    cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["recaudado"] == 50_000
     assert cierre["efectivo"] == 35_000
 
@@ -223,9 +225,10 @@ def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None
     repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
     repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
     registrar_salidas(repository, "KEVIN", "100000\n100001")
+    fecha = date.today().isoformat()
 
     resumen_faltante = cerrar_dia(
-        repository, "KEVIN", "2026-06-09", bancos=0, nequi=0, envia=0,
+        repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
         denominaciones={50_000: 0, 10_000: 1},
     )
     assert resumen_faltante["efectivo"] == 30_000
@@ -234,7 +237,7 @@ def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None
     assert "Pendiente por entregar" in resumen_faltante["nota"]
 
     resumen_exacto = cerrar_dia(
-        repository, "KEVIN", "2026-06-09", bancos=0, nequi=0, envia=0,
+        repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
         denominaciones={10_000: 1, 20_000: 1},
     )
     assert resumen_exacto["diferencia"] == 0
@@ -246,9 +249,10 @@ def test_cerrar_dia_descuenta_gastos_y_adelanto_salario(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
     repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
     registrar_salidas(repository, "KEVIN", "100000\n100001")
+    fecha = date.today().isoformat()
 
     resumen = cerrar_dia(
-        repository, "KEVIN", "2026-06-09", bancos=0, nequi=0, envia=0,
+        repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
         gastos=5_000, adelanto_salario=8_000,
     )
 
@@ -257,6 +261,6 @@ def test_cerrar_dia_descuenta_gastos_y_adelanto_salario(tmp_path: Path) -> None:
     assert resumen["adelanto_salario"] == 8_000
     assert resumen["efectivo"] == 17_000
 
-    cierre = repository.obtener_cierre("2026-06-09", "KEVIN")
+    cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["gastos"] == 5_000
     assert cierre["adelanto_salario"] == 8_000

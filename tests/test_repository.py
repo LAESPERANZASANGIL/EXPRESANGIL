@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -189,13 +190,24 @@ def test_asignar_salida_y_registrar_novedad(tmp_path: Path) -> None:
     assert list(dataframe["ESTADO"]) == ["R", "R", "R"]
     assert dataframe.loc[dataframe["GUIA"] == "999", "PLANILLA"].iloc[0] == "Sin planilla"
 
-    fecha = "2026-06-09"
+    fecha = date.today().isoformat()
     actualizadas = repository.registrar_novedad(["100"], "KEVIN", fecha, "R", "RO")
     dataframe = repository.to_dataframe()
 
     assert actualizadas == 1
     assert dataframe.loc[dataframe["GUIA"] == "100", "ESTADO"].iloc[0] == "RO"
     assert dataframe.loc[dataframe["GUIA"] == "200", "ESTADO"].iloc[0] == "R"
+
+
+def test_asignar_salida_actualiza_fecha_de_ingreso_al_dia_actual(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.asignar_salida(["100"], "KEVIN", "R")
+
+    dataframe = repository.to_dataframe()
+
+    assert dataframe.loc[dataframe["GUIA"] == "100", "F_INGRESO"].iloc[0] == date.today().isoformat()
 
 
 def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
@@ -205,7 +217,7 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("200", "Persona B"))
     repository.asignar_salida(["100", "200"], "KEVIN", "R")
 
-    fecha = "2026-06-09"
+    fecha = date.today().isoformat()
     convertidas = repository.cerrar_dia_operador("KEVIN", fecha, "R", "E")
     dataframe = repository.to_dataframe()
 

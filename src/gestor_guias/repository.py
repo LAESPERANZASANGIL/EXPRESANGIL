@@ -402,17 +402,21 @@ class GuiaRepository:
                 connection.execute("SELECT COALESCE(MAX(orden_salida), 0) FROM guias").fetchone()[0] + 1
             )
 
+            hoy = date.today().isoformat()
             cursor = connection.executemany(
-                "UPDATE guias SET operador = ?, estado = ?, orden_salida = ? WHERE guia = ?",
+                """
+                UPDATE guias SET operador = ?, estado = ?, orden_salida = ?,
+                    fecha = CASE WHEN fecha LIKE ? THEN fecha ELSE ? END
+                WHERE guia = ?
+                """,
                 [
-                    (operador, estado, siguiente_orden + indice, guia)
+                    (operador, estado, siguiente_orden + indice, f"{hoy}%", hoy, guia)
                     for indice, guia in enumerate(encontradas_en_orden)
                 ],
             )
             actualizadas = cursor.rowcount
 
             if no_encontradas:
-                hoy = date.today().isoformat()
                 connection.executemany(
                     """
                     INSERT INTO guias (
