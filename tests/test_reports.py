@@ -158,6 +158,33 @@ def test_generate_recaudo_report(tmp_path: Path) -> None:
     assert output_path.suffix == ".xlsx"
 
 
+def test_generate_recaudo_report_incluye_bancos_nequi_envia_gastos_y_adelanto(tmp_path: Path) -> None:
+    import openpyxl
+
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="OMAR", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=3_000, nequi=2_000, envia=1_000, efectivo=4_000,
+        gastos=500, adelanto_salario=1_500,
+    )
+
+    output_path = generate_recaudo_report(repository, tmp_path / "output", date(2026, 6, 10))
+
+    workbook = openpyxl.load_workbook(output_path)
+    sheet = workbook["RECAUDO"]
+    fila = next(fila for fila in sheet.iter_rows(min_row=5) if fila[0].value == "OMAR")
+
+    assert fila[3].value == 3_000
+    assert fila[4].value == 2_000
+    assert fila[5].value == 1_000
+    assert fila[6].value == 500
+    assert fila[7].value == 1_500
+
+
 def test_generate_recaudo_report_no_data(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

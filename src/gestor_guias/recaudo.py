@@ -25,7 +25,7 @@ THIN_BORDER = Border(*(Side(style="thin", color="BFBFBF") for _ in range(4)))
 EXTRA_OPERATOR_ROWS = 5
 EXPENSE_ROWS = 10
 
-COLUMNS = ["OPERADOR", "UNID", "VALOR RECAUDADO", "BANCOS", "NEQUI", "ENVIA", "TOTAL"]
+COLUMNS = ["OPERADOR", "UNID", "VALOR RECAUDADO", "BANCOS", "NEQUI", "ENVIA", "GASTOS", "ADELANTO SALARIO", "TOTAL"]
 
 
 def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
@@ -89,16 +89,23 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
         valor_recaudado_cell.number_format = CURRENCY_FORMAT
         valor_recaudado_cell.border = THIN_BORDER
 
-        for column_index in (4, 5, 6):
-            cell = sheet.cell(row=row_index, column=column_index)
+        cierre = repository.obtener_cierre(target_date.isoformat(), operador)
+        valores_cierre = (
+            (cierre.get("bancos", 0), cierre.get("nequi", 0), cierre.get("envia", 0),
+             cierre.get("gastos", 0), cierre.get("adelanto_salario", 0))
+            if cierre
+            else (0, 0, 0, 0, 0)
+        )
+        for column_index, valor in zip((4, 5, 6, 7, 8), valores_cierre):
+            cell = sheet.cell(row=row_index, column=column_index, value=int(valor or 0))
             cell.fill = INPUT_FILL
             cell.number_format = CURRENCY_FORMAT
             cell.border = THIN_BORDER
 
         total_cell = sheet.cell(
             row=row_index,
-            column=7,
-            value=f"=C{row_index}-D{row_index}-E{row_index}-F{row_index}",
+            column=9,
+            value=f"=C{row_index}-D{row_index}-E{row_index}-F{row_index}-G{row_index}-H{row_index}",
         )
         total_cell.number_format = CURRENCY_FORMAT
         total_cell.border = THIN_BORDER
@@ -109,15 +116,15 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
         for column_index in range(1, last_column + 1):
             cell = sheet.cell(row=row_index, column=column_index)
             cell.border = THIN_BORDER
-            if column_index in (3, 4, 5, 6):
+            if column_index in (3, 4, 5, 6, 7, 8):
                 cell.number_format = CURRENCY_FORMAT
-            if column_index in (4, 5, 6):
+            if column_index in (4, 5, 6, 7, 8):
                 cell.fill = INPUT_FILL
 
         total_cell = sheet.cell(
             row=row_index,
-            column=7,
-            value=f"=C{row_index}-D{row_index}-E{row_index}-F{row_index}",
+            column=9,
+            value=f"=C{row_index}-D{row_index}-E{row_index}-F{row_index}-G{row_index}-H{row_index}",
         )
         total_cell.number_format = CURRENCY_FORMAT
         row_index += 1
@@ -215,7 +222,7 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     expenses_total.number_format = CURRENCY_FORMAT
     expenses_total.font = Font(bold=True)
 
-    widths = {"A": 28, "B": 12, "C": 18, "D": 14, "E": 14, "F": 14, "G": 16}
+    widths = {"A": 28, "B": 12, "C": 18, "D": 14, "E": 14, "F": 14, "G": 14, "H": 18, "I": 16}
     for column_letter, width in widths.items():
         sheet.column_dimensions[column_letter].width = width
 
