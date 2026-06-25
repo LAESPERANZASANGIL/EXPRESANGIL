@@ -12,6 +12,7 @@ from gestor_guias.reports import (
     build_monthly_breakdown,
     generate_entregadas_operador_excel,
     generate_monthly_operator_report,
+    generate_operator_report,
     generate_salidas_operador_excel,
     normalize_dataframe,
 )
@@ -63,6 +64,23 @@ def test_build_cierre_breakdown_suma_efectivo_de_varios_operadores(tmp_path: Pat
 
     assert int(resumen["EFECTIVO"].sum()) == 25_000
     assert int(resumen.set_index("OPERADOR").loc["KEVIN", "GASTOS"]) == 2_000
+
+
+def test_generate_operator_report_incluye_detalle_de_guias_entregadas(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-10 00:00:00"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.save_consolidated(build_dataframe_con_fecha("200", "", "", "20000", "2026-06-10 00:00:00"))
+    repository.update_tracking_fields("200", "KEVIN", "R", "")
+
+    output_path = generate_operator_report(repository, tmp_path / "output", date(2026, 6, 10))
+
+    workbook = load_workbook(output_path)
+    assert "GUIAS ENTREGADAS" in workbook.sheetnames
+    sheet = workbook["GUIAS ENTREGADAS"]
+    guias = [sheet.cell(row=row, column=2).value for row in range(2, sheet.max_row + 1)]
+    assert guias == ["100"]
 
 
 def test_generate_salidas_operador_excel_solo_incluye_guias_en_reparto(tmp_path: Path) -> None:

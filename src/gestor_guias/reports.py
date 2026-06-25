@@ -256,13 +256,32 @@ def generate_operator_report(
     output_path = output_dir / f"informe por operador{sufijo_operador}{suffix}.xlsx"
 
     summary = build_cierre_breakdown(repository, dataframe, target_date, operador)
+    entregadas = build_entregadas_detalle(dataframe, operador)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         summary.to_excel(writer, index=False, sheet_name="POR OPERADOR")
+        entregadas.to_excel(writer, index=False, sheet_name="GUIAS ENTREGADAS")
         for sheet_name in writer.sheets:
             apply_report_format(writer.sheets[sheet_name])
 
     return output_path
+
+
+def build_entregadas_detalle(dataframe: pd.DataFrame, operador: str = "") -> pd.DataFrame:
+    columnas = ["OPERADOR", "GUIA", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR", "F_ENTREGA"]
+    entregadas = dataframe[dataframe["ESTADO"].str.upper() == ESTADO_RECAUDO]
+    if operador:
+        entregadas = entregadas[entregadas["OPERADOR"] == operador]
+
+    if entregadas.empty:
+        return pd.DataFrame(columns=columnas)
+
+    return (
+        entregadas[columnas]
+        .assign(VALOR=entregadas["VALOR_NUMERICO"])
+        .sort_values(["OPERADOR", "GUIA"])
+        .reset_index(drop=True)
+    )
 
 
 # Meta diaria de guias entregadas por operador para calcular la efectividad.
