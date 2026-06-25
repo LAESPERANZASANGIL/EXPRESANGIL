@@ -10,6 +10,7 @@ from gestor_guias.repository import GuiaRepository
 from gestor_guias.reports import (
     build_cierre_breakdown,
     build_monthly_breakdown,
+    generate_entregadas_operador_excel,
     generate_monthly_operator_report,
     generate_salidas_operador_excel,
     normalize_dataframe,
@@ -120,6 +121,40 @@ def test_generate_salidas_operador_excel_sin_guias(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     output_path = generate_salidas_operador_excel(repository, tmp_path / "output", "KEVIN", date(2026, 6, 10))
+
+    assert output_path.exists()
+
+
+def test_generate_entregadas_operador_excel_solo_incluye_guias_entregadas(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.asignar_salida(["100"], "KEVIN", "R")
+    repository.update_tracking_fields("100", "KEVIN", "E", "")
+
+    repository.save_consolidated(build_dataframe("200", "", "", "20000"))
+    repository.asignar_salida(["200"], "KEVIN", "R")
+
+    repository.save_consolidated(build_dataframe("300", "", "", "30000"))
+    repository.asignar_salida(["300"], "OMAR", "R")
+    repository.update_tracking_fields("300", "OMAR", "E", "")
+
+    output_path = generate_entregadas_operador_excel(repository, tmp_path / "output", "KEVIN", date.today())
+
+    assert output_path.exists()
+    assert output_path.suffix == ".xlsx"
+
+    worksheet = load_workbook(output_path)["ENTREGAS"]
+    guias = [worksheet.cell(row=row, column=1).value for row in range(2, worksheet.max_row + 1)]
+    assert "100" in guias
+    assert "200" not in guias
+    assert "300" not in guias
+
+
+def test_generate_entregadas_operador_excel_sin_guias(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    output_path = generate_entregadas_operador_excel(repository, tmp_path / "output", "KEVIN", date.today())
 
     assert output_path.exists()
 

@@ -245,6 +245,9 @@ document.getElementById("btn-cierre").addEventListener("click", async () => {
   if (resultado.ok && resultado.resumen) {
     mostrarResumen(resultado.resumen);
     construirTablaDenominaciones();
+    if (resultado.archivo_entregas) {
+      window.open(`/api/operador/descargar?archivo=${encodeURIComponent(resultado.archivo_entregas)}`, "_blank");
+    }
   }
 });
 

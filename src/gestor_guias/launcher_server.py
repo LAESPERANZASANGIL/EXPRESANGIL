@@ -30,6 +30,7 @@ from .excel_processor import normalize_guide
 from .reports import (
     build_cierre_breakdown,
     filter_by_date,
+    generate_entregadas_operador_excel,
     generate_salidas_operador_excel,
     normalize_dataframe,
     value_to_number,
@@ -309,8 +310,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
             query = parse_qs(urlsplit(self.path).query)
             nombre = (query.get("archivo") or [""])[0]
             nombre = Path(nombre).name
-            # Cada operador solo puede descargar sus propios informes de salidas.
-            if not nombre.startswith(f"salidas {session['nombre']} "):
+            # Cada operador solo puede descargar sus propios informes de salidas o entregas.
+            prefijos_permitidos = (f"salidas {session['nombre']} ", f"entregas {session['nombre']} ")
+            if not nombre.startswith(prefijos_permitidos):
                 self.send_error(403)
                 return
             ruta = SETTINGS.paths.output_dir / nombre
@@ -318,7 +320,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self.send_error(404)
                 return
             self.send_response(200)
-            self.send_header("Content-Type", "application/pdf")
+            content_type = (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                if ruta.suffix == ".xlsx"
+                else "application/pdf"
+            )
+            self.send_header("Content-Type", content_type)
             data_bytes = ruta.read_bytes()
             self.send_header("Content-Length", str(len(data_bytes)))
             self.send_header("Content-Disposition", f'attachment; filename="{nombre}"')
@@ -808,7 +815,17 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 REPOSITORY, session["nombre"], fecha, bancos, nequi, envia,
                 denominaciones, gastos, adelanto_salario,
             )
-            self._send_json({"ok": True, "output": "Cierre del dia generado.", "resumen": resumen})
+            ruta_entregas = generate_entregadas_operador_excel(
+                REPOSITORY, SETTINGS.paths.output_dir, session["nombre"], date.fromisoformat(fecha)
+            )
+            self._send_json(
+                {
+                    "ok": True,
+                    "output": "Cierre del dia generado.",
+                    "resumen": resumen,
+                    "archivo_entregas": ruta_entregas.name,
+                }
+            )
             return
 
         self.send_error(404)

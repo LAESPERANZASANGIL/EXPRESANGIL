@@ -14,6 +14,7 @@ from .recaudo import generate_recaudo_report
 from .relacion_ce_rr import generate_relacion_ce_rr_report
 from .reports import (
     generate_daily_report,
+    generate_entregadas_operador_excel,
     generate_monthly_operator_report,
     generate_operator_report,
     generate_reports,
@@ -156,6 +157,14 @@ def report_of_salidas_operador(operador: str, target_date: date) -> Path:
     return output_path
 
 
+def report_of_entregas_operador(operador: str, target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_entregadas_operador_excel(repository, settings.paths.output_dir, operador, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
 def report_of_devoluciones(target_date: date) -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
@@ -264,6 +273,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
+    entregas_report_parser = subparsers.add_parser(
+        "informe-entregas",
+        help="Genera el Excel con las guias entregadas y recaudadas (estado E) de un operador",
+    )
+    entregas_report_parser.add_argument("--operador", required=True, help="Nombre del operador")
+    entregas_report_parser.add_argument(
+        "--fecha", help="Fecha de cierre a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
     daily_report_parser = subparsers.add_parser(
         "informe-dia",
         help="Genera el informe del dia a partir de las guias guardadas",
@@ -351,6 +369,9 @@ def main() -> None:
     elif args.command == "informe-salidas":
         fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else date.today()
         report_of_salidas_operador(args.operador, fecha)
+    elif args.command == "informe-entregas":
+        fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else date.today()
+        report_of_entregas_operador(args.operador, fecha)
     elif args.command == "informe-dia":
         report_of_day(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-recaudo":

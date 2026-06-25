@@ -303,6 +303,46 @@ def generate_salidas_operador_excel(
     return output_path
 
 
+def generate_entregadas_operador_excel(
+    repository: GuiaRepository, output_dir: Path, operador: str, target_date: date
+) -> Path:
+    guias = repository.guias_de_operador(operador, target_date.isoformat())
+    entregadas = [
+        guia for guia in guias if (guia.get("estado") or "").strip().upper() == ESTADO_RECAUDO
+    ]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"
+    output_path = output_dir / f"entregas {operador}{suffix}.xlsx"
+
+    filas = []
+    total_valor = 0
+    for guia in entregadas:
+        valor = value_to_number(guia.get("valor", ""))
+        total_valor += valor
+        filas.append(
+            {
+                "GUIA": guia.get("guia", ""),
+                "DESTINATARIO": guia.get("destinatario", ""),
+                "DIRECCION": guia.get("direccion", ""),
+                "MUNICIPIO": guia.get("municipio", ""),
+                "VALOR": valor,
+            }
+        )
+
+    filas.append(
+        {"GUIA": "", "DESTINATARIO": "", "DIRECCION": "", "MUNICIPIO": "TOTAL", "VALOR": total_valor}
+    )
+
+    dataframe = pd.DataFrame(filas, columns=["GUIA", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR"])
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        dataframe.to_excel(writer, index=False, sheet_name="ENTREGAS")
+        apply_report_format(writer.sheets["ENTREGAS"])
+
+    return output_path
+
+
 def generate_daily_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
     daily = filter_by_date(dataframe, target_date)
