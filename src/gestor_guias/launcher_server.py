@@ -574,7 +574,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
             dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
             daily = filter_by_date(dataframe, fecha)
             resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
-            efectivo_esperado = int(resumen["EFECTIVO"].sum()) if not resumen.empty else 0
+            if resumen.empty:
+                efectivo_esperado = 0
+            else:
+                efectivo_esperado = int(
+                    (resumen["RECAUDADO"] - resumen["BANCOS"] - resumen["NEQUI"] - resumen["ENVIA"] - resumen["GASTOS"]).sum()
+                )
 
             caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
             self._send_json(
