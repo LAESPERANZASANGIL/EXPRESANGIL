@@ -128,7 +128,15 @@ def build_cierre_breakdown(
     if operador:
         dataframe = dataframe[dataframe["OPERADOR"] == operador]
 
-    if dataframe.empty:
+    fecha_texto = target_date.isoformat() if target_date else ""
+
+    operadores_con_cierre = repository.operadores_con_cierre(fecha_texto) if fecha_texto else []
+    if operador:
+        operadores_con_cierre = [nombre for nombre in operadores_con_cierre if nombre == operador]
+
+    operadores = sorted({*dataframe["OPERADOR"].dropna().unique(), *operadores_con_cierre})
+
+    if not operadores:
         return pd.DataFrame(
             columns=[
                 "OPERADOR",
@@ -146,9 +154,6 @@ def build_cierre_breakdown(
                 "EFECTIVO",
             ]
         )
-
-    fecha_texto = target_date.isoformat() if target_date else ""
-    operadores = sorted(dataframe["OPERADOR"].dropna().unique())
 
     filas = []
     for nombre_operador in operadores:

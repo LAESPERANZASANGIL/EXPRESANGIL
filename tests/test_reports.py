@@ -10,6 +10,7 @@ from gestor_guias.repository import GuiaRepository
 from gestor_guias.reports import (
     build_cierre_breakdown,
     build_monthly_breakdown,
+    filter_by_date,
     generate_entregadas_operador_excel,
     generate_monthly_operator_report,
     generate_operator_report,
@@ -64,6 +65,23 @@ def test_build_cierre_breakdown_suma_efectivo_de_varios_operadores(tmp_path: Pat
 
     assert int(resumen["EFECTIVO"].sum()) == 25_000
     assert int(resumen.set_index("OPERADOR").loc["KEVIN", "GASTOS"]) == 2_000
+
+
+def test_build_cierre_breakdown_incluye_cierre_sin_guias_del_dia(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-05 00:00:00"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="OMAR", gestionadas=0, ro=0, n=0, d=0, e=0,
+        recaudado=0, bancos=0, nequi=0, envia=0, efectivo=7_161_650,
+    )
+
+    dataframe = filter_by_date(normalize_dataframe(repository.to_dataframe()), date(2026, 6, 10))
+    resumen = build_cierre_breakdown(repository, dataframe, date(2026, 6, 10))
+
+    assert int(resumen.set_index("OPERADOR").loc["OMAR", "EFECTIVO"]) == 7_161_650
 
 
 def test_generate_operator_report_incluye_detalle_de_guias_entregadas(tmp_path: Path) -> None:

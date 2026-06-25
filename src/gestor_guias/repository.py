@@ -576,6 +576,15 @@ class GuiaRepository:
             ).fetchone()
             return dict(row) if row else None
 
+    def operadores_con_cierre(self, fecha: str) -> list[str]:
+        self.initialize()
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT DISTINCT operador FROM cierres_operador WHERE fecha = ?",
+                (fecha,),
+            ).fetchall()
+            return [row[0] for row in rows]
+
     def sumar_gastos_adelantos_mes(self, anio: int, mes: int) -> dict[str, dict]:
         self.initialize()
         prefijo = f"{anio:04d}-{mes:02d}"
