@@ -43,59 +43,39 @@ def generate_relacion_ce_rr_report(
     if not daily.empty:
         relevant = daily[
             (daily["ESTADO"].str.upper() == ESTADO_RECAUDO) & (daily["SERVICIO"].str.upper().isin(SERVICIOS_RELACION))
-        ]
-        operators = sorted(relevant["OPERADOR"].unique())
+        ].sort_values(["OPERADOR", "SERVICIO"])
     else:
         relevant = daily
-        operators = []
 
     workbook = Workbook()
-    workbook.remove(workbook.active)
-
-    nombres_usados: set[str] = set()
-    for operador in operators:
-        operator_rows = relevant[relevant["OPERADOR"] == operador].sort_values("SERVICIO")
-        if operator_rows.empty:
-            continue
-
-        nombre_hoja = operador[:31] or "OPERADOR"
-        sufijo = 1
-        while nombre_hoja in nombres_usados:
-            sufijo += 1
-            nombre_hoja = f"{operador[:28]}_{sufijo}"
-        nombres_usados.add(nombre_hoja)
-
-        worksheet = workbook.create_sheet(nombre_hoja)
-        _escribir_hoja_operador(worksheet, operador, operator_rows, admin_name, oficina_nombre, fecha_label)
-
-    if not workbook.sheetnames:
-        worksheet = workbook.create_sheet("SIN REGISTROS")
-        worksheet["A1"] = "Sin registros para esta fecha"
+    worksheet = workbook.active
+    worksheet.title = "RELACION CE Y RR"
+    _escribir_hoja_relacion(worksheet, relevant, admin_name, oficina_nombre, fecha_label)
 
     workbook.save(output_path)
 
     return output_path
 
 
-def _escribir_hoja_operador(worksheet, operador, operator_rows, admin_name, oficina_nombre, fecha_label) -> None:
-    worksheet.merge_cells("A1:D1")
+def _escribir_hoja_relacion(worksheet, rows, admin_name, oficina_nombre, fecha_label) -> None:
+    worksheet.merge_cells("A1:E1")
     worksheet["A1"] = "RELACION DE GUIAS CE Y RR " + oficina_nombre
-    worksheet.merge_cells("A2:D2")
+    worksheet.merge_cells("A2:E2")
     worksheet["A2"] = "INFORME OFICINA EXPRESANGIL"
     worksheet["A3"] = admin_name
-    worksheet["C3"] = "FECHA"
-    worksheet["D3"] = fecha_label
-    worksheet.merge_cells("A4:D4")
-    worksheet["A4"] = f"GUIAS CONTRAENTREGA Y RECAUDO - {operador}"
+    worksheet["D3"] = "FECHA"
+    worksheet["E3"] = fecha_label
+    worksheet.merge_cells("A4:E4")
+    worksheet["A4"] = "GUIAS CONTRAENTREGA Y RECAUDO"
 
     for fila in (1, 2, 4):
-        for columna in range(1, 5):
+        for columna in range(1, 6):
             celda = worksheet.cell(row=fila, column=columna)
             celda.fill = DARK_FILL
             celda.font = TITLE_FONT
             celda.alignment = CENTER
 
-    encabezados = ["N°", "CE O RR", "N° DE GUIA", "VALOR"]
+    encabezados = ["N°", "OPERADOR", "CE O RR", "N° DE GUIA", "VALOR"]
     for columna, encabezado in enumerate(encabezados, start=1):
         celda = worksheet.cell(row=5, column=columna, value=encabezado)
         celda.fill = DARK_FILL
@@ -104,27 +84,34 @@ def _escribir_hoja_operador(worksheet, operador, operator_rows, admin_name, ofic
 
     fila_actual = 6
     total = 0
-    for indice, (_, row) in enumerate(operator_rows.iterrows(), start=1):
+    for indice, (_, row) in enumerate(rows.iterrows(), start=1):
         valor = int(row["VALOR_NUMERICO"])
         total += valor
         worksheet.cell(row=fila_actual, column=1, value=indice).alignment = CENTER
-        worksheet.cell(row=fila_actual, column=2, value=row["SERVICIO"]).alignment = CENTER
-        guia_cell = worksheet.cell(row=fila_actual, column=3, value=row["GUIA"])
+        worksheet.cell(row=fila_actual, column=2, value=row["OPERADOR"]).alignment = CENTER
+        worksheet.cell(row=fila_actual, column=3, value=row["SERVICIO"]).alignment = CENTER
+        guia_cell = worksheet.cell(row=fila_actual, column=4, value=row["GUIA"])
         guia_cell.number_format = "@"
-        worksheet.cell(row=fila_actual, column=4, value=valor).number_format = '"$" #,##0'
+        worksheet.cell(row=fila_actual, column=5, value=valor).number_format = '"$" #,##0'
         fila_actual += 1
 
-    worksheet.merge_cells(start_row=fila_actual, start_column=1, end_row=fila_actual, end_column=3)
+    if fila_actual == 6:
+        worksheet.merge_cells(start_row=fila_actual, start_column=1, end_row=fila_actual, end_column=5)
+        worksheet.cell(row=fila_actual, column=1, value="Sin registros para esta fecha").alignment = CENTER
+        fila_actual += 1
+
+    worksheet.merge_cells(start_row=fila_actual, start_column=1, end_row=fila_actual, end_column=4)
     total_label_cell = worksheet.cell(row=fila_actual, column=1, value="TOTAL")
     total_label_cell.fill = DARK_FILL
     total_label_cell.font = HEADER_FONT
     total_label_cell.alignment = CENTER
-    total_value_cell = worksheet.cell(row=fila_actual, column=4, value=total)
+    total_value_cell = worksheet.cell(row=fila_actual, column=5, value=total)
     total_value_cell.fill = DARK_FILL
     total_value_cell.font = HEADER_FONT
     total_value_cell.number_format = '"$" #,##0'
 
     worksheet.column_dimensions["A"].width = 6
-    worksheet.column_dimensions["B"].width = 10
-    worksheet.column_dimensions["C"].width = 20
-    worksheet.column_dimensions["D"].width = 14
+    worksheet.column_dimensions["B"].width = 22
+    worksheet.column_dimensions["C"].width = 10
+    worksheet.column_dimensions["D"].width = 20
+    worksheet.column_dimensions["E"].width = 14
