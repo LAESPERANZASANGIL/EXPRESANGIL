@@ -26,8 +26,9 @@ MONTHS_ES = {
 }
 
 
-def output_filename(target_date: date) -> str:
-    return f"{target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
+def output_filename(target_date: date, estado: str = "") -> str:
+    sufijo = f" estado {estado.strip().upper()}" if estado.strip() else ""
+    return f"{target_date.day:02d} {MONTHS_ES[target_date.month]}{sufijo}.xlsx"
 
 
 def display_date(value: object) -> str:
@@ -66,9 +67,12 @@ def prepare_for_excel(dataframe: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def export_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date) -> Path:
+def export_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date, estado: str = "") -> Path:
+    if estado.strip() and "ESTADO" in dataframe.columns:
+        dataframe = dataframe[dataframe["ESTADO"].astype(str).str.strip().str.upper() == estado.strip().upper()]
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / output_filename(target_date)
+    output_path = output_dir / output_filename(target_date, estado)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         prepare_for_excel(dataframe).to_excel(writer, index=False, sheet_name="Hoja1")

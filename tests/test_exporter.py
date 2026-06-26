@@ -43,3 +43,22 @@ def test_export_dataframe_marca_columna_guia_como_texto(tmp_path: Path) -> None:
         cell.column for cell in worksheet[1] if str(cell.value).strip().upper() == "GUIA"
     )
     assert worksheet.cell(row=2, column=columna_guia).number_format == "@"
+
+
+def test_export_dataframe_filtra_por_estado(tmp_path: Path) -> None:
+    from datetime import date
+    from openpyxl import load_workbook
+
+    dataframe = pd.DataFrame(
+        [
+            {"GUIA": "1", "ESTADO": "N", "F_INGRESO": "2026-06-11"},
+            {"GUIA": "2", "ESTADO": "E", "F_INGRESO": "2026-06-11"},
+        ]
+    )
+
+    output_path = export_dataframe(dataframe, tmp_path, date(2026, 6, 11), estado="e")
+
+    assert output_path.name == "11 junio estado E.xlsx"
+    workbook = load_workbook(output_path)
+    worksheet = workbook["Hoja1"]
+    assert worksheet.max_row == 2  # encabezado + 1 fila

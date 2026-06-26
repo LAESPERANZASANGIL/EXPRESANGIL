@@ -516,9 +516,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not self._require_admin():
                 return
             fecha = str(data.get("fecha", "")).strip()
+            estado = str(data.get("estado", "")).strip()
             args = ["exportar"]
             if fecha:
                 args += ["--fecha", fecha]
+            if estado:
+                args += ["--estado", estado]
             self._send_json(run_command(args))
             return
 

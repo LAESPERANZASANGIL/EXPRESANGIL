@@ -96,10 +96,10 @@ def clear_data(confirm: bool) -> None:
     print("Informacion guardada borrada correctamente.")
 
 
-def export_existing(target_date: date) -> Path:
+def export_existing(target_date: date, estado: str = "") -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = export_dataframe(repository.to_dataframe(), settings.paths.output_dir, target_date)
+    output_path = export_dataframe(repository.to_dataframe(), settings.paths.output_dir, target_date, estado)
     print(f"Archivo generado: {output_path}")
     return output_path
 
@@ -225,6 +225,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     export_parser = subparsers.add_parser("exportar", help="Exporta a Excel las guias guardadas")
     export_parser.add_argument("--fecha", help="Fecha para nombrar el archivo en formato YYYY-MM-DD")
+    export_parser.add_argument(
+        "--estado", help="Filtra por estado de guia (ej. N, R, RO, D, E). Vacio = todos los movimientos"
+    )
 
     import_parser = subparsers.add_parser(
         "importar",
@@ -356,7 +359,7 @@ def main() -> None:
     if args.command == "consolidar":
         consolidate(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "exportar":
-        export_existing(parse_date(args.fecha, settings.gmail.timezone))
+        export_existing(parse_date(args.fecha, settings.gmail.timezone), args.estado or "")
     elif args.command in {"importar", "procesar-archivos"}:
         process_local_files(args.archivos, parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informes":

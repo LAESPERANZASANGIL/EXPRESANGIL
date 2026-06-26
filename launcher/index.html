@@ -80,9 +80,20 @@
 
         <div class="opcion opcion-compacta">
           <h3>3. Exportar consolidado</h3>
-          <p class="desc-opcion">Genera el archivo Excel con el consolidado de guias de la fecha indicada.</p>
+          <p class="desc-opcion">Genera el archivo Excel con las guias guardadas. Puedes filtrar por estado o exportar todo el movimiento.</p>
           <label>Fecha (opcional, vacio = hoy)</label>
           <input type="date" id="exportar-fecha" />
+          <label>Filtrar por estado</label>
+          <select id="exportar-estado-select">
+            <option value="">Todo el movimiento del dia</option>
+            <option value="N">Solo movimiento normal (N)</option>
+            <option value="R">Solo en reparto (R)</option>
+            <option value="RO">Solo reclama oficina (RO)</option>
+            <option value="D">Solo devoluciones (D)</option>
+            <option value="E">Solo entregadas/recaudadas (E)</option>
+            <option value="otro">Otro estado...</option>
+          </select>
+          <input type="text" id="exportar-estado-otro" class="oculto" placeholder="Escribe el estado, ej. T" />
           <button class="boton boton-accion boton-exportar" id="btn-exportar"><span class="icono">📤</span>Exportar</button>
         </div>
 

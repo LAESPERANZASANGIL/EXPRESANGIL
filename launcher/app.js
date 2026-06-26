@@ -212,9 +212,22 @@ document.getElementById("btn-importar").addEventListener("click", async () => {
   llamar("/api/importar", { archivos: rutas, fecha }, "Importar");
 });
 
+const exportarEstadoSelect = document.getElementById("exportar-estado-select");
+const exportarEstadoOtro = document.getElementById("exportar-estado-otro");
+
+exportarEstadoSelect.addEventListener("change", () => {
+  const esOtro = exportarEstadoSelect.value === "otro";
+  exportarEstadoOtro.classList.toggle("oculto", !esOtro);
+  if (!esOtro) exportarEstadoOtro.value = "";
+});
+
 document.getElementById("btn-exportar").addEventListener("click", () => {
   const fecha = document.getElementById("exportar-fecha").value.trim();
-  llamar("/api/exportar", { fecha }, "Exportar");
+  const estado =
+    exportarEstadoSelect.value === "otro"
+      ? exportarEstadoOtro.value.trim()
+      : exportarEstadoSelect.value;
+  llamar("/api/exportar", { fecha, estado }, "Exportar");
 });
 
 const informeTipo = document.getElementById("informe-tipo");
