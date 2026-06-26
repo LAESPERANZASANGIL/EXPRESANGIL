@@ -246,13 +246,18 @@ function mostrarResumen(resumen, simulado) {
   resumenCierre.classList.remove("oculto");
 }
 
+function sumarValores(texto) {
+  const numeros = String(texto || "").match(/-?\d+(\.\d+)?/g) || [];
+  return numeros.reduce((total, numero) => total + Number(numero), 0);
+}
+
 function datosCierre() {
   const fecha = fechaTrabajo.value.trim();
-  const bancos = document.getElementById("cierre-bancos").value;
-  const nequi = document.getElementById("cierre-nequi").value;
-  const envia = document.getElementById("cierre-envia").value;
-  const gastos = document.getElementById("cierre-gastos").value;
-  const adelanto_salario = document.getElementById("cierre-adelanto").value;
+  const bancos = sumarValores(document.getElementById("cierre-bancos").value);
+  const nequi = sumarValores(document.getElementById("cierre-nequi").value);
+  const envia = sumarValores(document.getElementById("cierre-envia").value);
+  const gastos = sumarValores(document.getElementById("cierre-gastos").value);
+  const adelanto_salario = sumarValores(document.getElementById("cierre-adelanto").value);
   const denominaciones = obtenerDenominaciones();
   return { fecha, bancos, nequi, envia, gastos, adelanto_salario, denominaciones };
 }
