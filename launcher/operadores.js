@@ -37,10 +37,19 @@ async function llamar(ruta, datos) {
   }
 }
 
+function limpiarCamposCierre() {
+  document.getElementById("cierre-bancos").value = "";
+  document.getElementById("cierre-nequi").value = "";
+  document.getElementById("cierre-envia").value = "";
+  document.getElementById("cierre-gastos").value = "";
+  document.getElementById("cierre-adelanto").value = "";
+}
+
 function mostrarPantallaOperador(nombre) {
   nombreOperador.textContent = nombre;
   pantallaLogin.classList.add("oculto");
   pantallaOperador.classList.remove("oculto");
+  limpiarCamposCierre();
 }
 
 function mostrarPantallaLogin() {
@@ -79,6 +88,7 @@ document.getElementById("btn-login").addEventListener("click", async () => {
 
 document.getElementById("btn-logout").addEventListener("click", async () => {
   await llamar("/api/operador/logout");
+  limpiarCamposCierre();
   mostrarPantallaLogin();
 });
 
@@ -245,6 +255,7 @@ document.getElementById("btn-cierre").addEventListener("click", async () => {
   if (resultado.ok && resultado.resumen) {
     mostrarResumen(resultado.resumen);
     construirTablaDenominaciones();
+    limpiarCamposCierre();
     if (resultado.archivo_entregas) {
       window.open(`/api/operador/descargar?archivo=${encodeURIComponent(resultado.archivo_entregas)}`, "_blank");
     }
