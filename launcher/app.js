@@ -349,6 +349,12 @@ construirTablaCierreGeneral();
 
 function mostrarResumenCierreGeneral(resumen) {
   const filas = [
+    ["Total recaudado (todos los operadores)", resumen.recaudado],
+    ["Total en bancos", resumen.bancos],
+    ["Total en Nequi", resumen.nequi],
+    ["Total en link Envia", resumen.envia],
+    ["Total gastos", resumen.gastos],
+    ["Total prestamos / adelantos de salario", resumen.adelanto_salario],
     ["Efectivo esperado (todos los operadores)", resumen.efectivo_esperado],
     ["Efectivo contado en caja", resumen.efectivo_contado],
     ["Diferencia", resumen.diferencia],

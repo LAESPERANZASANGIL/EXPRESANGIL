@@ -576,17 +576,22 @@ class LauncherHandler(BaseHTTPRequestHandler):
             daily = filter_by_date(dataframe, fecha)
             resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
             if resumen.empty:
+                recaudado_total = 0
+                bancos_total = 0
+                nequi_total = 0
+                envia_total = 0
+                gastos_total = 0
+                adelanto_total = 0
                 efectivo_esperado = 0
             else:
-                efectivo_esperado = int(
-                    (
-                        resumen["RECAUDADO"]
-                        - resumen["BANCOS"]
-                        - resumen["NEQUI"]
-                        - resumen["ENVIA"]
-                        - resumen["GASTOS"]
-                        - resumen["ADELANTO_SALARIO"]
-                    ).sum()
+                recaudado_total = int(resumen["RECAUDADO"].sum())
+                bancos_total = int(resumen["BANCOS"].sum())
+                nequi_total = int(resumen["NEQUI"].sum())
+                envia_total = int(resumen["ENVIA"].sum())
+                gastos_total = int(resumen["GASTOS"].sum())
+                adelanto_total = int(resumen["ADELANTO_SALARIO"].sum())
+                efectivo_esperado = (
+                    recaudado_total - bancos_total - nequi_total - envia_total - gastos_total - adelanto_total
                 )
 
             caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
@@ -595,6 +600,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "ok": True,
                     "output": "Cierre general calculado.",
                     "resumen": {
+                        "recaudado": recaudado_total,
+                        "bancos": bancos_total,
+                        "nequi": nequi_total,
+                        "envia": envia_total,
+                        "gastos": gastos_total,
+                        "adelanto_salario": adelanto_total,
                         "efectivo_esperado": efectivo_esperado,
                         "efectivo_contado": caja["efectivo_contado"],
                         "diferencia": caja["diferencia"],
