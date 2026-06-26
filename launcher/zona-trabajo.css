@@ -35,6 +35,23 @@
   letter-spacing: 0.5px;
   position: sticky;
   top: 0;
+  z-index: 2;
+}
+
+.fila-filtros-columna th {
+  top: 46px;
+  padding: 8px 10px;
+}
+
+.fila-filtros-columna select {
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--gris-borde);
+  font-size: 0.85rem;
+  text-transform: none;
+  color: #1a1a1a;
 }
 
 .tabla-guias tbody tr:nth-child(even) {

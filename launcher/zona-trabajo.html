@@ -35,7 +35,11 @@
         <button class="boton boton-buscar" id="btn-actualizar">Actualizar</button>
       </div>
       <p class="ayuda">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar varias columnas, ej. Operador, Fecha de ingreso y Estado. Sin ninguna seleccionada se busca en todos los campos.</p>
+      <p class="ayuda">Usa los filtros de Municipio, Operador, Estado o Causal en la cabecera de la tabla para ver solo esas guias, y el boton "Marcar todas las visibles" para aplicarles un cambio masivo.</p>
       <p id="contador" class="contador">Cargando...</p>
+      <div class="fila-botones">
+        <button class="boton boton-buscar" id="btn-marcar-visibles">Marcar todas las visibles</button>
+      </div>
     </section>
 
     <section class="opcion tabla-contenedor">
@@ -54,6 +58,20 @@
             <th>CAUSAL</th>
             <th>F. IMPORTACION</th>
             <th>F. ENTREGA</th>
+          </tr>
+          <tr class="fila-filtros-columna">
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th><select id="filtro-municipio"><option value="">Todos</option></select></th>
+            <th></th>
+            <th><select id="filtro-operador"><option value="">Todos</option></select></th>
+            <th><select id="filtro-estado"><option value="">Todos</option></select></th>
+            <th><select id="filtro-causal"><option value="">Todos</option></select></th>
+            <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="tabla-body"></tbody>

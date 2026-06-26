@@ -3,6 +3,10 @@ const tablaBody = document.getElementById("tabla-body");
 const contador = document.getElementById("contador");
 const buscar = document.getElementById("buscar");
 const buscarCampo = document.getElementById("buscar-campo");
+const filtroMunicipio = document.getElementById("filtro-municipio");
+const filtroOperador = document.getElementById("filtro-operador");
+const filtroEstado = document.getElementById("filtro-estado");
+const filtroCausal = document.getElementById("filtro-causal");
 
 const formGuia = document.getElementById("form-guia");
 const formPlanilla = document.getElementById("form-planilla");
@@ -95,30 +99,80 @@ async function cargarGuias() {
     mostrarLog("No se pudieron cargar las guias: " + error);
     guias = [];
   }
+  poblarFiltrosColumna();
   renderizarTabla();
+}
+
+function poblarSelectFiltro(select, valores) {
+  const actual = select.value;
+  select.innerHTML = "";
+  const opcionTodos = document.createElement("option");
+  opcionTodos.value = "";
+  opcionTodos.textContent = "Todos";
+  select.appendChild(opcionTodos);
+  for (const valor of valores) {
+    const opcion = document.createElement("option");
+    opcion.value = valor;
+    opcion.textContent = valor;
+    select.appendChild(opcion);
+  }
+  if (valores.includes(actual)) {
+    select.value = actual;
+  }
+}
+
+function valoresUnicos(campo) {
+  const valores = new Set();
+  for (const fila of guias) {
+    const valor = String(fila[campo] || "").trim();
+    if (valor) valores.add(valor);
+  }
+  return Array.from(valores).sort((a, b) => a.localeCompare(b));
+}
+
+function poblarFiltrosColumna() {
+  poblarSelectFiltro(filtroMunicipio, valoresUnicos("municipio"));
+  poblarSelectFiltro(filtroOperador, valoresUnicos("operador"));
+  poblarSelectFiltro(filtroEstado, valoresUnicos("estado"));
+  poblarSelectFiltro(filtroCausal, valoresUnicos("causal"));
 }
 
 function filasFiltradas() {
   const texto = buscar.value.trim().toUpperCase();
-  if (!texto) {
-    return guias;
+  let filas = guias;
+
+  if (texto) {
+    // Las guias se guardan siempre con 12 digitos (normalize_guide), pero el
+    // usuario puede buscar sin los ceros iniciales.
+    const textoSinCero = texto.replace(/^0+(?=\d)/, "");
+    const camposSeleccionados = Array.from(buscarCampo.selectedOptions).map((opcion) => opcion.value);
+    const campos = camposSeleccionados.length
+      ? camposSeleccionados
+      : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal", "fecha", "ingreso"];
+    filas = filas.filter((fila) =>
+      campos.some((campo) => {
+        const valor = String(fila[campo] || "").toUpperCase();
+        if (campo === "guia") {
+          return valor.includes(texto) || valor.includes(textoSinCero);
+        }
+        return valor.includes(texto);
+      })
+    );
   }
-  // Las guias se guardan siempre con 12 digitos (normalize_guide), pero el
-  // usuario puede buscar sin los ceros iniciales.
-  const textoSinCero = texto.replace(/^0+(?=\d)/, "");
-  const camposSeleccionados = Array.from(buscarCampo.selectedOptions).map((opcion) => opcion.value);
-  const campos = camposSeleccionados.length
-    ? camposSeleccionados
-    : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal", "fecha", "ingreso"];
-  return guias.filter((fila) =>
-    campos.some((campo) => {
-      const valor = String(fila[campo] || "").toUpperCase();
-      if (campo === "guia") {
-        return valor.includes(texto) || valor.includes(textoSinCero);
-      }
-      return valor.includes(texto);
-    })
-  );
+
+  const filtrosColumna = [
+    ["municipio", filtroMunicipio.value],
+    ["operador", filtroOperador.value],
+    ["estado", filtroEstado.value],
+    ["causal", filtroCausal.value],
+  ];
+  for (const [campo, valor] of filtrosColumna) {
+    if (valor) {
+      filas = filas.filter((fila) => String(fila[campo] || "") === valor);
+    }
+  }
+
+  return filas;
 }
 
 function renderizarTabla() {
@@ -203,11 +257,30 @@ function guiasObjetivo() {
 
 buscar.addEventListener("input", renderizarTabla);
 buscarCampo.addEventListener("change", renderizarTabla);
+filtroMunicipio.addEventListener("change", renderizarTabla);
+filtroOperador.addEventListener("change", renderizarTabla);
+filtroEstado.addEventListener("change", renderizarTabla);
+filtroCausal.addEventListener("change", renderizarTabla);
 
 document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
   buscar.value = "";
   Array.from(buscarCampo.options).forEach((opcion) => (opcion.selected = false));
+  filtroMunicipio.value = "";
+  filtroOperador.value = "";
+  filtroEstado.value = "";
+  filtroCausal.value = "";
   renderizarTabla();
+});
+
+document.getElementById("btn-marcar-visibles").addEventListener("click", () => {
+  const filas = filasFiltradas();
+  if (!filas.length) {
+    mostrarLog("No hay guias visibles para marcar.");
+    return;
+  }
+  marcadas = new Set(filas.map((fila) => fila.guia));
+  renderizarTabla();
+  mostrarLog(`Se marcaron ${marcadas.size} guia(s) visibles. Usa "Aplicar a marcadas" para hacer el cambio masivo.`);
 });
 
 document.getElementById("btn-actualizar").addEventListener("click", cargarGuias);
