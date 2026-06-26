@@ -100,6 +100,10 @@ STATIC_FILES = {
     "/zona-trabajo.html": ("zona-trabajo.html", "text/html; charset=utf-8"),
     "/zona-trabajo.css": ("zona-trabajo.css", "text/css; charset=utf-8"),
     "/zona-trabajo.js": ("zona-trabajo.js", "application/javascript; charset=utf-8"),
+    "/dashboard": ("dashboard.html", "text/html; charset=utf-8"),
+    "/dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
+    "/dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
+    "/dashboard.js": ("dashboard.js", "application/javascript; charset=utf-8"),
 }
 
 
@@ -249,6 +253,67 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not self._require_admin():
                 return
             self._send_json({"ok": True, "guias": REPOSITORY.list_all()})
+            return
+
+        if route == "/api/dashboard":
+            if not self._require_admin():
+                return
+
+            from urllib.parse import parse_qs, urlsplit
+
+            query = parse_qs(urlsplit(self.path).query)
+            fecha_texto = (query.get("fecha") or [""])[0].strip()
+            try:
+                fecha = date.fromisoformat(fecha_texto) if fecha_texto else date.today()
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+
+            dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
+
+            estados = [
+                {"estado": fila["ESTADO"], "cantidad": int(fila["count"])}
+                for fila in dataframe["ESTADO"].value_counts().reset_index(name="count").to_dict(orient="records")
+            ]
+
+            en_reparto = dataframe[dataframe["ESTADO"].str.upper() == ESTADO_SALIDA]
+            operadores_en_reparto = [
+                {"operador": fila["OPERADOR"], "cantidad": int(fila["count"])}
+                for fila in en_reparto["OPERADOR"].value_counts().reset_index(name="count").to_dict(orient="records")
+            ]
+
+            daily = filter_by_date(dataframe, fecha)
+            resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
+            if resumen.empty:
+                recaudado_total = bancos_total = nequi_total = envia_total = 0
+                gastos_total = adelanto_total = efectivo_total = 0
+            else:
+                recaudado_total = int(resumen["RECAUDADO"].sum())
+                bancos_total = int(resumen["BANCOS"].sum())
+                nequi_total = int(resumen["NEQUI"].sum())
+                envia_total = int(resumen["ENVIA"].sum())
+                gastos_total = int(resumen["GASTOS"].sum())
+                adelanto_total = int(resumen["ADELANTO_SALARIO"].sum())
+                efectivo_total = int(resumen["EFECTIVO"].sum())
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "fecha": fecha.isoformat(),
+                    "total_guias": len(dataframe),
+                    "estados": estados,
+                    "operadores_en_reparto": operadores_en_reparto,
+                    "resumen_financiero": {
+                        "recaudado": recaudado_total,
+                        "bancos": bancos_total,
+                        "nequi": nequi_total,
+                        "envia": envia_total,
+                        "gastos": gastos_total,
+                        "adelanto_salario": adelanto_total,
+                        "efectivo": efectivo_total,
+                    },
+                }
+            )
             return
 
         if route == "/api/consultar-guia":

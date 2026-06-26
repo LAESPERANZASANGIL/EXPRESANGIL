@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+      <h1>DASHBOARD</h1>
+      <p class="subtitulo">Resumen general de la operacion</p>
+    </header>
+
+    <section class="opcion">
+      <div class="fila-archivo">
+        <label>Fecha del resumen financiero</label>
+        <input type="date" id="dash-fecha" />
+        <button class="boton boton-buscar" id="btn-dash-actualizar">Actualizar</button>
+      </div>
+    </section>
+
+    <section class="opcion">
+      <h3>Resumen general</h3>
+      <div class="tarjetas">
+        <div class="tarjeta">
+          <span class="tarjeta-valor" id="dash-total-guias">0</span>
+          <span class="tarjeta-etiqueta">Guias totales</span>
+        </div>
+        <div class="tarjeta">
+          <span class="tarjeta-valor" id="dash-total-reparto">0</span>
+          <span class="tarjeta-etiqueta">Guias en reparto (R)</span>
+        </div>
+        <div class="tarjeta">
+          <span class="tarjeta-valor" id="dash-efectivo-esperado">$ 0</span>
+          <span class="tarjeta-etiqueta">Efectivo esperado del dia</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="opcion">
+      <h3>Guias por estado</h3>
+      <table class="tabla-dashboard">
+        <thead>
+          <tr><th>Estado</th><th>Cantidad</th></tr>
+        </thead>
+        <tbody id="dash-estados-body"></tbody>
+      </table>
+    </section>
+
+    <section class="opcion">
+      <h3>Guias en estado "R" (en reparto) por operador</h3>
+      <table class="tabla-dashboard">
+        <thead>
+          <tr><th>Operador</th><th>Cantidad</th></tr>
+        </thead>
+        <tbody id="dash-reparto-body"></tbody>
+      </table>
+    </section>
+
+    <section class="opcion">
+      <h3>Resumen de ingresos y gastos del dia</h3>
+      <table class="tabla-dashboard">
+        <tbody id="dash-financiero-body"></tbody>
+      </table>
+    </section>
+
+    <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
