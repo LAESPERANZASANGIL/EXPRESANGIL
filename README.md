@@ -145,6 +145,18 @@ EXPRESANGIL/
 2. **Novedades**: durante el dia reporta guias `RO`, `N` o `D`.
 3. **Cierre**: al final registra recaudo por banco, Nequi y Envia; el sistema calcula el efectivo y guarda el cierre del dia.
 
+## Cierre diario (administrador)
+
+Cada dia, al cerrar la oficina, el administrador debe verificar que el efectivo de todos los operadores cuadre antes de dar el dia por terminado:
+
+1. Entrar a Inicio -> **"5. Cierre del dia general"**.
+2. Escribir la **fecha del dia que se esta cerrando** (el campo se precarga con la fecha de hoy; corregirla si se cierra un dia distinto, por ejemplo el dia anterior).
+3. Contar el efectivo fisico por denominacion y pulsar **"Verificar cierre general"**.
+4. Revisar el desglose que muestra: total recaudado, total en bancos, total en Nequi, total en link Envia, total gastos, total prestamos/adelantos de salario, efectivo esperado, efectivo contado y la diferencia.
+5. Si algun operador tiene datos incorrectos (por ejemplo porque le asignaron mas guias despues de haber cerrado, o se equivoco al escribir bancos/Nequi/gastos), usar **"6. Recalcular cierre de operador"** para corregirlo y volver a verificar el cierre general.
+
+> El campo de fecha vacio se interpreta como "hoy": si se deja en blanco al revisar un dia anterior, el cierre general mostrara todo en cero.
+
 ## Estructura del consolidado diario
 
 El archivo diario conserva exactamente estas columnas:
