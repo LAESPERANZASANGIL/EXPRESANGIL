@@ -281,6 +281,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 {"operador": fila["OPERADOR"], "cantidad": int(fila["count"])}
                 for fila in en_reparto["OPERADOR"].value_counts().reset_index(name="count").to_dict(orient="records")
             ]
+            valor_en_reparto = int(en_reparto["VALOR_NUMERICO"].sum())
 
             daily = filter_by_date(dataframe, fecha)
             resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
@@ -295,6 +296,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 gastos_total = int(resumen["GASTOS"].sum())
                 adelanto_total = int(resumen["ADELANTO_SALARIO"].sum())
                 efectivo_total = int(resumen["EFECTIVO"].sum())
+
+            # El efectivo esperado del dia incluye lo ya recaudado mas lo que
+            # todavia esta en la calle (estado R), para que se vea el total
+            # que deberia entrar y se actualice solo a medida que el operador
+            # entrega y recauda las guias que tiene en reparto.
+            efectivo_esperado_total = efectivo_total + valor_en_reparto
 
             self._send_json(
                 {
@@ -311,6 +318,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
                         "gastos": gastos_total,
                         "adelanto_salario": adelanto_total,
                         "efectivo": efectivo_total,
+                        "valor_en_reparto": valor_en_reparto,
+                        "efectivo_esperado": efectivo_esperado_total,
                     },
                 }
             )

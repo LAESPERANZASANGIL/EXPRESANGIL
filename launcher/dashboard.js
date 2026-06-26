@@ -60,7 +60,9 @@ function renderizarFinanciero(resumen) {
     ["Envia", resumen.envia],
     ["Gastos", resumen.gastos],
     ["Adelanto de salario", resumen.adelanto_salario],
-    ["Efectivo esperado", resumen.efectivo],
+    ["Efectivo recaudado (cierres del dia)", resumen.efectivo],
+    ["Valor en guias todavia en reparto (R)", resumen.valor_en_reparto],
+    ["Efectivo esperado del dia (recaudado + en reparto)", resumen.efectivo_esperado],
   ];
   for (const [etiqueta, valor] of filas) {
     const tr = document.createElement("tr");
@@ -72,7 +74,7 @@ function renderizarFinanciero(resumen) {
     tr.appendChild(tdValor);
     cuerpo.appendChild(tr);
   }
-  document.getElementById("dash-efectivo-esperado").textContent = formatoPesos(resumen.efectivo);
+  document.getElementById("dash-efectivo-esperado").textContent = formatoPesos(resumen.efectivo_esperado);
 }
 
 async function cargarDashboard() {
