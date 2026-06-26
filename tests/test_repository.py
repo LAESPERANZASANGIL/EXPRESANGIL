@@ -43,7 +43,7 @@ def test_import_preserves_existing_data_and_tracking_fields(tmp_path: Path) -> N
     assert dataframe.loc[0, "CAUSAL"] == "Sin causal"
 
 
-def test_import_deja_operador_y_estado_vacios_por_defecto(tmp_path: Path) -> None:
+def test_import_deja_guias_nuevas_en_planillada_con_estado_vacio(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "Persona A"))
@@ -52,11 +52,27 @@ def test_import_deja_operador_y_estado_vacios_por_defecto(tmp_path: Path) -> Non
 
     dataframe = repository.to_dataframe().set_index("GUIA")
 
-    assert dataframe.loc["200", "OPERADOR"] == ""
+    # Una guia nueva (sin seguimiento previo) queda "en planilla" en vez de en blanco.
+    assert dataframe.loc["200", "OPERADOR"] == "PLANILLADA"
     assert dataframe.loc["200", "ESTADO"] == ""
     # Las guias con seguimiento existente no se tocan.
     assert dataframe.loc["100", "OPERADOR"] == "KEVIN"
     assert dataframe.loc["100", "ESTADO"] == "E"
+
+
+def test_import_no_pisa_operador_de_guia_ya_existente_al_reimportar(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.update_tracking_fields("100", "KEVIN", "R", "")
+    # Reimportar la misma planilla (ej. el usuario vuelve a subir el archivo)
+    # no debe pisar el operador/estado ya asignado con "PLANILLADA".
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+
+    assert dataframe.loc["100", "OPERADOR"] == "KEVIN"
+    assert dataframe.loc["100", "ESTADO"] == "R"
 
 
 def test_clear_all_removes_saved_data(tmp_path: Path) -> None:

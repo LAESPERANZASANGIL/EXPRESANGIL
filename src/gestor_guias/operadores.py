@@ -8,15 +8,12 @@ import secrets
 
 from .excel_processor import normalize_guide
 from .reports import ESTADO_RECAUDO, value_to_number
-from .repository import GuiaRepository
+from .repository import OPERADOR_PLANILLADA, GuiaRepository
 
 
 # Estado que marca una guia como "en reparto" (salio con el operador, aun sin cerrar).
 ESTADO_SALIDA = "R"
 
-# La bodega no reparte: una salida registrada a su nombre solo cambia el
-# operador y deja el estado en blanco (no entra a "en reparto").
-OPERADOR_BODEGA = "BODEGA"
 
 # Documentos de un operador con fecha de vencimiento; campo en la tabla -> etiqueta para el usuario.
 DOCUMENTOS_OPERADOR = (
@@ -84,7 +81,7 @@ def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]
 
 def registrar_salidas(repository: GuiaRepository, operador: str, guias_texto: str) -> dict:
     guias = parse_guides(guias_texto)
-    estado = "" if operador.strip().upper() == OPERADOR_BODEGA else ESTADO_SALIDA
+    estado = "" if operador.strip().upper() == OPERADOR_PLANILLADA else ESTADO_SALIDA
     actualizadas, no_encontradas = repository.asignar_salida(guias, operador, estado)
     return {"recibidas": len(guias), "actualizadas": actualizadas, "no_encontradas": no_encontradas}
 

@@ -10,6 +10,10 @@ import pandas as pd
 
 TABLE_NAME = "guias"
 
+# Operador por defecto de las guias recien importadas que aun no se le
+# asignan a un repartidor: siguen "en planilla", esperando salida.
+OPERADOR_PLANILLADA = "PLANILLADA"
+
 
 
 class GuiaRepository:
@@ -92,11 +96,32 @@ class GuiaRepository:
 
     def save_consolidated(self, dataframe: pd.DataFrame) -> None:
         self.initialize()
+        guias = [row for row in dataframe["GUIA"].astype(str) if row]
+        with self._connect() as connection:
+            placeholders = ",".join("?" * len(guias)) if guias else ""
+            existentes = (
+                {
+                    row[0]
+                    for row in connection.execute(
+                        f"SELECT guia FROM guias WHERE guia IN ({placeholders})", guias
+                    ).fetchall()
+                }
+                if guias
+                else set()
+            )
+
         records = []
         for row in dataframe.to_dict(orient="records"):
             guia = row.get("GUIA", "")
             if not guia:
                 continue
+
+            operador = row.get("OPERADOR", "")
+            # Una guia que llega por primera vez (no estaba en la base) y sin
+            # operador asignado queda "en planilla" en vez de en blanco; si ya
+            # existia, se conserva lo que tenga (no se pisa con este valor).
+            if not operador and guia not in existentes:
+                operador = OPERADOR_PLANILLADA
 
             records.append(
                 (
@@ -109,7 +134,7 @@ class GuiaRepository:
                     row.get("DIRECCION", ""),
                     row.get("MUNICIPIO", ""),
                     row.get("VALOR", ""),
-                    row.get("OPERADOR", ""),
+                    operador,
                     row.get("ESTADO", ""),
                     row.get("CAUSAL", ""),
                     row.get("F_INGRESO", ""),
@@ -353,7 +378,7 @@ class GuiaRepository:
     def listar_operadores_en_guias(self) -> list[str]:
         # Los nombres de operador en la columna OPERADOR de guias no siempre
         # coinciden con un usuario de login en la tabla operadores (por
-        # ejemplo BODEGA o un repartidor sin acceso al panel), por eso se
+        # ejemplo PLANILLADA o un repartidor sin acceso al panel), por eso se
         # listan aparte para los selectores de informes.
         self.initialize()
         with self._connect() as connection:

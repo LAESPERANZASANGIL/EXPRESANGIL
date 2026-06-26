@@ -18,6 +18,7 @@ from pathlib import Path
 from .config import load_settings
 from .consulta_publica import describir_estado
 from .operadores import (
+    ESTADO_SALIDA,
     calcular_diferencia_caja,
     cerrar_dia,
     documentos_vencidos,
@@ -577,6 +578,19 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
             dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
             daily = filter_by_date(dataframe, fecha)
+            en_reparto = int((daily["ESTADO"].astype(str).str.strip().str.upper() == ESTADO_SALIDA).sum())
+            if en_reparto:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "output": (
+                            f"No se puede cerrar el dia: hay {en_reparto} guia(s) en estado "
+                            "R (en reparto) sin novedad ni recaudo registrado."
+                        ),
+                    }
+                )
+                return
+
             resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
             if resumen.empty:
                 recaudado_total = 0
