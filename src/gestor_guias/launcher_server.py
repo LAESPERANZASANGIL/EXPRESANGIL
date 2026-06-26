@@ -579,7 +579,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 efectivo_esperado = 0
             else:
                 efectivo_esperado = int(
-                    (resumen["RECAUDADO"] - resumen["BANCOS"] - resumen["NEQUI"] - resumen["ENVIA"] - resumen["GASTOS"]).sum()
+                    (
+                        resumen["RECAUDADO"]
+                        - resumen["BANCOS"]
+                        - resumen["NEQUI"]
+                        - resumen["ENVIA"]
+                        - resumen["GASTOS"]
+                        - resumen["ADELANTO_SALARIO"]
+                    ).sum()
                 )
 
             caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
