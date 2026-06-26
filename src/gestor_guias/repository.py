@@ -217,19 +217,26 @@ class GuiaRepository:
         operador: str,
         estado: str,
         causal: str,
+        fecha: str | None = None,
+        entrega: str | None = None,
     ) -> None:
         self.initialize()
+        # F_INGRESO (columna "fecha") y F_ENTREGA (columna "ingreso") solo se
+        # tocan si el editor envia un valor explicito; en caso contrario se
+        # conserva el que ya tenia la guia.
         with self._connect() as connection:
             connection.execute(
                 """
                 UPDATE guias
                 SET planilla = ?, destinatario = ?, direccion = ?, municipio = ?,
-                    valor = ?, operador = ?, estado = ?, causal = ?, ingreso = ?
+                    valor = ?, operador = ?, estado = ?, causal = ?,
+                    fecha = COALESCE(?, fecha),
+                    ingreso = COALESCE(?, ingreso)
                 WHERE guia = ?
                 """,
                 (
                     planilla, destinatario, direccion, municipio, valor,
-                    operador, estado, causal, date.today().isoformat(), guia,
+                    operador, estado, causal, fecha, entrega, guia,
                 ),
             )
 

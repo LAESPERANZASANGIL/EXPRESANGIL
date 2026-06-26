@@ -28,6 +28,8 @@
           <option value="operador">Operador</option>
           <option value="estado">Estado</option>
           <option value="causal">Causal</option>
+          <option value="fecha">Fecha de ingreso</option>
+          <option value="ingreso">Fecha de entrega</option>
         </select>
         <input type="text" id="buscar" placeholder="Buscar por guia, destinatario, direccion, municipio, operador, estado..." />
         <button class="boton boton-buscar" id="btn-limpiar-filtro">Limpiar filtro</button>
@@ -96,6 +98,14 @@
         <div class="campo">
           <label>CAUSAL</label>
           <input type="text" id="form-causal" />
+        </div>
+        <div class="campo">
+          <label>FECHA DE INGRESO</label>
+          <input type="date" id="form-fecha" />
+        </div>
+        <div class="campo">
+          <label>FECHA DE ENTREGA</label>
+          <input type="date" id="form-entrega" />
         </div>
       </div>
       <p class="ayuda">Nota: estos campos solo aplican a "Guardar guia seleccionada", no a "Aplicar a marcadas" ni a la edicion masiva por lista.</p>

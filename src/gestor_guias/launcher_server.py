@@ -408,6 +408,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not guia:
                 self._send_json({"ok": False, "output": "Indica la guia a guardar."})
                 return
+            fecha = str(data.get("fecha", "")).strip()
+            entrega = str(data.get("entrega", "")).strip()
             REPOSITORY.update_guide_details(
                 guia=guia,
                 planilla=str(data.get("planilla", "")).strip(),
@@ -418,6 +420,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 operador=str(data.get("operador", "")).strip(),
                 estado=str(data.get("estado", "")).strip(),
                 causal=str(data.get("causal", "")).strip(),
+                fecha=fecha or None,
+                entrega=entrega or None,
             )
             self._send_json({"ok": True, "output": f"Se actualizo la guia {guia}."})
             return

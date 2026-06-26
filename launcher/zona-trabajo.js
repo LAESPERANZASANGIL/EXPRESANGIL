@@ -13,6 +13,8 @@ const formValor = document.getElementById("form-valor");
 const formOperador = document.getElementById("form-operador");
 const formEstado = document.getElementById("form-estado");
 const formCausal = document.getElementById("form-causal");
+const formFecha = document.getElementById("form-fecha");
+const formEntrega = document.getElementById("form-entrega");
 
 let guias = [];
 let marcadas = new Set();
@@ -63,6 +65,12 @@ function formatoFecha(valor) {
   return String(valor || "").split(" ")[0];
 }
 
+function fechaParaInput(valor) {
+  // El input type="date" necesita YYYY-MM-DD; la base ya guarda las fechas
+  // en ese formato (con u sin hora), asi que basta con quitar la hora.
+  return formatoFecha(valor);
+}
+
 function formatoPesos(valor) {
   const numero = Number(String(valor || "0").replace(/[^0-9.-]/g, "")) || 0;
   return "$ " + numero.toLocaleString("es-CO");
@@ -101,7 +109,7 @@ function filasFiltradas() {
   const campoSeleccionado = buscarCampo.value;
   const campos = campoSeleccionado
     ? [campoSeleccionado]
-    : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal"];
+    : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal", "fecha", "ingreso"];
   return guias.filter((fila) =>
     campos.some((campo) => {
       const valor = String(fila[campo] || "").toUpperCase();
@@ -177,6 +185,8 @@ function seleccionarFila(fila) {
   formOperador.value = fila.operador || "";
   formEstado.value = fila.estado || "";
   formCausal.value = fila.causal || "";
+  formFecha.value = fechaParaInput(fila.fecha);
+  formEntrega.value = fechaParaInput(fila.ingreso);
   renderizarTabla();
 }
 
@@ -218,6 +228,8 @@ document.getElementById("btn-guardar-una").addEventListener("click", async () =>
     operador: formOperador.value,
     estado: formEstado.value,
     causal: formCausal.value,
+    fecha: formFecha.value,
+    entrega: formEntrega.value,
   });
   if (resultado.ok) await cargarGuias();
 });
@@ -233,6 +245,8 @@ document.getElementById("btn-limpiar-campos").addEventListener("click", () => {
   formOperador.value = "";
   formEstado.value = "";
   formCausal.value = "";
+  formFecha.value = "";
+  formEntrega.value = "";
   renderizarTabla();
 });
 

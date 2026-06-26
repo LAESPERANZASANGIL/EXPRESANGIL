@@ -75,6 +75,45 @@ def test_import_no_pisa_operador_de_guia_ya_existente_al_reimportar(tmp_path: Pa
     assert dataframe.loc["100", "ESTADO"] == "R"
 
 
+def test_update_guide_details_permite_editar_fecha_y_entrega(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    repository.update_guide_details(
+        guia="100",
+        planilla="1",
+        destinatario="Persona A",
+        direccion="",
+        municipio="SAN GIL",
+        valor="$ -",
+        operador="KEVIN",
+        estado="E",
+        causal="",
+        fecha="2026-06-01",
+        entrega="2026-06-03",
+    )
+
+    registro = repository.obtener_guia("100")
+    assert registro["fecha"] == "2026-06-01"
+    assert registro["ingreso"] == "2026-06-03"
+
+    # Si no se envia fecha/entrega, se conserva lo que ya tenia la guia.
+    repository.update_guide_details(
+        guia="100",
+        planilla="1",
+        destinatario="Persona A",
+        direccion="",
+        municipio="SAN GIL",
+        valor="$ -",
+        operador="KEVIN",
+        estado="E",
+        causal="",
+    )
+    registro = repository.obtener_guia("100")
+    assert registro["fecha"] == "2026-06-01"
+    assert registro["ingreso"] == "2026-06-03"
+
+
 def test_clear_all_removes_saved_data(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
