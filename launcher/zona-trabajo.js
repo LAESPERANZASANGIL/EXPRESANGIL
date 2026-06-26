@@ -356,6 +356,18 @@ document.getElementById("btn-eliminar-marcadas").addEventListener("click", async
   }
 });
 
+document.getElementById("btn-exportar-marcadas").addEventListener("click", async () => {
+  const objetivo = guiasObjetivo();
+  if (!objetivo.length) {
+    mostrarLog("Marca o selecciona una o varias guias.");
+    return;
+  }
+  const resultado = await llamar("/api/guias/exportar-marcadas", { guias: objetivo });
+  if (resultado.ok && resultado.archivo) {
+    window.open(`/api/descargar?archivo=${encodeURIComponent(resultado.archivo)}`, "_blank");
+  }
+});
+
 document.getElementById("btn-marcar-lista").addEventListener("click", () => {
   const lista = guiasDeTexto(document.getElementById("bulk-text").value);
   if (!lista.length) {

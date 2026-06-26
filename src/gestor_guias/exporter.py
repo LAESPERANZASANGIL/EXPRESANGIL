@@ -82,6 +82,18 @@ def export_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: dat
     return output_path
 
 
+def export_marked_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"guias marcadas {output_filename(target_date)}"
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        prepare_for_excel(dataframe).to_excel(writer, index=False, sheet_name="Hoja1")
+        worksheet = writer.sheets["Hoja1"]
+        apply_master_format(worksheet)
+
+    return output_path
+
+
 def export_movements_copy(dataframe: pd.DataFrame, output_dir: Path, target_date: date) -> Path | None:
     if dataframe.empty:
         return None

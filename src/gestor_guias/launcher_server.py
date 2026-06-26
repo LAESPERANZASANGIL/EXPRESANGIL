@@ -29,6 +29,7 @@ from .operadores import (
     verify_password,
 )
 from .excel_processor import normalize_guide
+from .exporter import export_marked_dataframe
 from .reports import (
     build_cierre_breakdown,
     filter_by_date,
@@ -514,6 +515,24 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 causal=str(data.get("causal", "")).strip(),
             )
             self._send_json({"ok": True, "output": f"Se actualizaron {actualizadas} guia(s)."})
+            return
+
+        if self.path == "/api/guias/exportar-marcadas":
+            if not self._require_admin():
+                return
+            guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
+            if not guias:
+                self._send_json({"ok": False, "output": "Marca una o varias guias para descargar."})
+                return
+            dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
+            seleccion = dataframe[dataframe["GUIA"].isin(guias)]
+            if seleccion.empty:
+                self._send_json({"ok": False, "output": "No se encontraron guias para exportar."})
+                return
+            archivo = export_marked_dataframe(seleccion, SETTINGS.paths.output_dir, date.today())
+            self._send_json(
+                {"ok": True, "output": f"Se exportaron {len(seleccion)} guia(s).", "archivo": archivo.name}
+            )
             return
 
         if self.path == "/api/guias/eliminar":
