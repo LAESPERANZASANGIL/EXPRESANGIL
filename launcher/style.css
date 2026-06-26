@@ -205,6 +205,7 @@ header .subtitulo {
 .opcion input[type="text"],
 .opcion input[type="password"],
 .opcion input[type="date"],
+.opcion input[type="month"],
 .opcion select {
   width: 100%;
   min-height: 55px;
@@ -247,7 +248,8 @@ header .subtitulo {
   margin: 20px 0 10px;
 }
 
-.opcion-compacta input[type="date"] {
+.opcion-compacta input[type="date"],
+.opcion-compacta input[type="month"] {
   min-height: 55px;
 }
 
@@ -353,6 +355,7 @@ header .subtitulo {
 .opcion input[type="text"]:focus,
 .opcion input[type="password"]:focus,
 .opcion input[type="date"]:focus,
+.opcion input[type="month"]:focus,
 .opcion select:focus {
   outline: none;
   border-color: var(--azul-info);
