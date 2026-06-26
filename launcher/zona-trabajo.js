@@ -73,6 +73,14 @@ async function cargarGuias() {
   try {
     const respuesta = await fetch("/api/guias", { credentials: "same-origin" });
     const resultado = await respuesta.json();
+    if (respuesta.status === 401 || !resultado.ok) {
+      guias = [];
+      mostrarLog(
+        "Sesion expirada o sin permisos de administrador. Vuelve a iniciar sesion desde el panel principal y vuelve a entrar a Zona de Trabajo."
+      );
+      renderizarTabla();
+      return;
+    }
     guias = resultado.guias || [];
     mostrarLog("Listo.");
   } catch (error) {
