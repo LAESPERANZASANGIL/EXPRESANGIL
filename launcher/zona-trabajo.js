@@ -458,6 +458,45 @@ document.getElementById("btn-eliminar-operador").addEventListener("click", async
   }
 });
 
+const salidaOperador = document.getElementById("salida-operador");
+
+async function cargarOperadoresSalida() {
+  try {
+    const respuesta = await fetch("/api/operadores-guias", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    salidaOperador.innerHTML = "";
+    for (const nombre of resultado.operadores) {
+      const opcion = document.createElement("option");
+      opcion.value = nombre;
+      opcion.textContent = nombre;
+      salidaOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+cargarOperadoresSalida();
+
+document.getElementById("btn-asignar-salida").addEventListener("click", async () => {
+  const operador = salidaOperador.value;
+  const guias = document.getElementById("salida-guias").value;
+  if (!operador) {
+    mostrarLog("Selecciona un operador.");
+    return;
+  }
+  if (!guiasDeTexto(guias).length) {
+    mostrarLog("Pega o escribe una o varias guias.");
+    return;
+  }
+  const resultado = await llamar("/api/guias/asignar-salida", { operador, guias });
+  if (resultado.ok) {
+    document.getElementById("salida-guias").value = "";
+    await cargarGuias();
+  }
+});
+
 const informeTipo = document.getElementById("informe-tipo");
 const informeOperadorCampo = document.getElementById("informe-operador-campo");
 const informeOperador = document.getElementById("informe-operador");

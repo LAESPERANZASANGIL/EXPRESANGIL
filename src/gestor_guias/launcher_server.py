@@ -501,6 +501,31 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "output": f"Se actualizo la guia {guia}."})
             return
 
+        if self.path == "/api/guias/asignar-salida":
+            if not self._require_admin():
+                return
+            operador = str(data.get("operador", "")).strip()
+            guias_texto = str(data.get("guias", ""))
+            if not operador:
+                self._send_json({"ok": False, "output": "Indica el operador."})
+                return
+            resultado = registrar_salidas(REPOSITORY, operador, guias_texto)
+            self._send_json(
+                {
+                    "ok": True,
+                    "output": (
+                        f"Se asignaron {resultado['actualizadas']} guia(s) en estado R a {operador}."
+                        + (
+                            f" No se encontraron: {', '.join(resultado['no_encontradas'])}."
+                            if resultado["no_encontradas"]
+                            else ""
+                        )
+                    ),
+                    **resultado,
+                }
+            )
+            return
+
         if self.path == "/api/guias/guardar-muchas":
             if not self._require_admin():
                 return
