@@ -17,8 +17,7 @@
 
     <section class="opcion">
       <div class="fila-archivo">
-        <select id="buscar-campo">
-          <option value="">Todos los campos</option>
+        <select id="buscar-campo" multiple size="4">
           <option value="planilla">Planilla</option>
           <option value="guia">Guia</option>
           <option value="destinatario">Destinatario</option>
@@ -35,6 +34,7 @@
         <button class="boton boton-buscar" id="btn-limpiar-filtro">Limpiar filtro</button>
         <button class="boton boton-buscar" id="btn-actualizar">Actualizar</button>
       </div>
+      <p class="ayuda">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar varias columnas, ej. Operador, Fecha de ingreso y Estado. Sin ninguna seleccionada se busca en todos los campos.</p>
       <p id="contador" class="contador">Cargando...</p>
     </section>
 

@@ -106,9 +106,9 @@ function filasFiltradas() {
   // Las guias se guardan siempre con 12 digitos (normalize_guide), pero el
   // usuario puede buscar sin los ceros iniciales.
   const textoSinCero = texto.replace(/^0+(?=\d)/, "");
-  const campoSeleccionado = buscarCampo.value;
-  const campos = campoSeleccionado
-    ? [campoSeleccionado]
+  const camposSeleccionados = Array.from(buscarCampo.selectedOptions).map((opcion) => opcion.value);
+  const campos = camposSeleccionados.length
+    ? camposSeleccionados
     : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal", "fecha", "ingreso"];
   return guias.filter((fila) =>
     campos.some((campo) => {
@@ -206,7 +206,7 @@ buscarCampo.addEventListener("change", renderizarTabla);
 
 document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
   buscar.value = "";
-  buscarCampo.value = "";
+  Array.from(buscarCampo.options).forEach((opcion) => (opcion.selected = false));
   renderizarTabla();
 });
 
