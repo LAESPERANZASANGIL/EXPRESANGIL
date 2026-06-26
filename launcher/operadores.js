@@ -43,6 +43,7 @@ function limpiarCamposCierre() {
   document.getElementById("cierre-envia").value = "";
   document.getElementById("cierre-gastos").value = "";
   document.getElementById("cierre-adelanto").value = "";
+  document.getElementById("btn-cierre").disabled = true;
 }
 
 function mostrarPantallaOperador(nombre) {
@@ -217,7 +218,11 @@ function formatoMoneda(valor) {
   return "$ " + Number(valor || 0).toLocaleString("es-CO");
 }
 
-function mostrarResumen(resumen) {
+const tituloResumenCierre = document.getElementById("titulo-resumen-cierre");
+const btnCierre = document.getElementById("btn-cierre");
+
+function mostrarResumen(resumen, simulado) {
+  tituloResumenCierre.textContent = simulado ? "Resumen del dia (simulacion, aun no se ha guardado)" : "Resumen del dia";
   tablaResumenBody.innerHTML = "";
   for (const [clave, etiqueta] of FILAS_RESUMEN) {
     if (clave === "nota" && !resumen[clave]) continue;
@@ -241,7 +246,7 @@ function mostrarResumen(resumen) {
   resumenCierre.classList.remove("oculto");
 }
 
-document.getElementById("btn-cierre").addEventListener("click", async () => {
+function datosCierre() {
   const fecha = fechaTrabajo.value.trim();
   const bancos = document.getElementById("cierre-bancos").value;
   const nequi = document.getElementById("cierre-nequi").value;
@@ -249,13 +254,25 @@ document.getElementById("btn-cierre").addEventListener("click", async () => {
   const gastos = document.getElementById("cierre-gastos").value;
   const adelanto_salario = document.getElementById("cierre-adelanto").value;
   const denominaciones = obtenerDenominaciones();
-  const resultado = await llamar("/api/operador/cierre", {
-    fecha, bancos, nequi, envia, gastos, adelanto_salario, denominaciones,
-  });
+  return { fecha, bancos, nequi, envia, gastos, adelanto_salario, denominaciones };
+}
+
+document.getElementById("btn-simular-cierre").addEventListener("click", async () => {
+  const resultado = await llamar("/api/operador/cierre", { ...datosCierre(), simular: true });
   if (resultado.ok && resultado.resumen) {
-    mostrarResumen(resultado.resumen);
+    mostrarResumen(resultado.resumen, true);
+    btnCierre.disabled = false;
+  }
+});
+
+btnCierre.addEventListener("click", async () => {
+  if (!confirm("¿Confirmas que quieres generar el cierre del dia? Esta accion no se puede deshacer.")) return;
+  const resultado = await llamar("/api/operador/cierre", { ...datosCierre(), simular: false });
+  if (resultado.ok && resultado.resumen) {
+    mostrarResumen(resultado.resumen, false);
     construirTablaDenominaciones();
     limpiarCamposCierre();
+    btnCierre.disabled = true;
     if (resultado.archivo_entregas) {
       window.open(`/api/operador/descargar?archivo=${encodeURIComponent(resultado.archivo_entregas)}`, "_blank");
     }

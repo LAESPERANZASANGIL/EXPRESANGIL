@@ -945,11 +945,24 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 int(denominacion): value_to_number(cantidad)
                 for denominacion, cantidad in denominaciones_raw.items()
             }
+            simular = bool(data.get("simular"))
 
             resumen = cerrar_dia(
                 REPOSITORY, session["nombre"], fecha, bancos, nequi, envia,
-                denominaciones, gastos, adelanto_salario,
+                denominaciones, gastos, adelanto_salario, simular=simular,
             )
+
+            if simular:
+                self._send_json(
+                    {
+                        "ok": True,
+                        "output": "Simulacion de cierre generada. Nada se ha guardado todavia.",
+                        "resumen": resumen,
+                        "simulado": True,
+                    }
+                )
+                return
+
             ruta_entregas = generate_entregadas_operador_excel(
                 REPOSITORY, SETTINGS.paths.output_dir, session["nombre"], date.fromisoformat(fecha)
             )

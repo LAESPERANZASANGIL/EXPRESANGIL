@@ -84,11 +84,14 @@
           </tfoot>
         </table>
 
-        <button class="boton boton-accion" id="btn-cierre">Generar cierre del dia</button>
+        <div class="fila-botones">
+          <button class="boton boton-buscar" id="btn-simular-cierre">Simular cierre</button>
+          <button class="boton boton-accion" id="btn-cierre" disabled>Generar cierre del dia</button>
+        </div>
       </div>
 
       <div class="opcion oculto" id="resumen-cierre">
-        <h3>Resumen del dia</h3>
+        <h3 id="titulo-resumen-cierre">Resumen del dia</h3>
         <table class="tabla-resumen">
           <tbody id="tabla-resumen-body"></tbody>
         </table>

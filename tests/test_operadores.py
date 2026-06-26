@@ -215,6 +215,29 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     assert cierre["efectivo"] == 35_000
 
 
+def test_cerrar_dia_simular_no_persiste_ni_modifica_guias(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = date.today().isoformat()
+
+    resumen = cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0, simular=True)
+
+    assert resumen["gestionadas"] == 2
+    assert resumen["e"] == 2
+    assert resumen["recaudado"] == 30_000
+
+    assert repository.obtener_cierre(fecha, "KEVIN") is None
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "R"
+    assert dataframe.loc["100000000001", "ESTADO"] == "R"
+
+    resumen_real = cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
+    assert resumen_real["recaudado"] == 30_000
+    assert repository.obtener_cierre(fecha, "KEVIN") is not None
+
+
 def test_recalcular_cierre_incluye_guias_asignadas_despues_del_cierre(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))

@@ -34,6 +34,18 @@
   padding: 12px 22px;
 }
 
+.fila-botones {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.fila-botones .boton {
+  flex: 1 1 220px;
+  margin-top: 0;
+}
+
 .nota-campo {
   font-size: 0.85rem;
   font-weight: normal;

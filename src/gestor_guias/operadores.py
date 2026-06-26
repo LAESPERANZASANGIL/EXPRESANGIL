@@ -146,31 +146,45 @@ def cerrar_dia(
     denominaciones: dict[int, int] | None = None,
     gastos: int = 0,
     adelanto_salario: int = 0,
+    simular: bool = False,
 ) -> dict:
-    repository.cerrar_dia_operador(operador, fecha, ESTADO_SALIDA, ESTADO_RECAUDO)
+    if not simular:
+        repository.cerrar_dia_operador(operador, fecha, ESTADO_SALIDA, ESTADO_RECAUDO)
 
     guias = repository.guias_de_operador(operador, fecha)
+    if simular:
+        # En modo simulacion las guias en reparto (R) todavia no se movieron a
+        # recaudado (E) en la base de datos, asi que se proyecta el resultado
+        # sin escribir nada, para que el operador pueda revisar antes de
+        # confirmar el cierre real.
+        guias = [
+            {**guia, "estado": ESTADO_RECAUDO}
+            if (guia["estado"] or "").strip().upper() == ESTADO_SALIDA
+            else guia
+            for guia in guias
+        ]
     conteos, recaudado = _contar_guias_operador(guias)
 
     gestionadas = len(guias)
     efectivo = recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
 
-    repository.guardar_cierre(
-        fecha=fecha,
-        operador=operador,
-        gestionadas=gestionadas,
-        ro=conteos["RO"],
-        n=conteos["N"],
-        d=conteos["D"],
-        e=conteos[ESTADO_RECAUDO],
-        recaudado=recaudado,
-        bancos=bancos,
-        nequi=nequi,
-        envia=envia,
-        efectivo=efectivo,
-        gastos=gastos,
-        adelanto_salario=adelanto_salario,
-    )
+    if not simular:
+        repository.guardar_cierre(
+            fecha=fecha,
+            operador=operador,
+            gestionadas=gestionadas,
+            ro=conteos["RO"],
+            n=conteos["N"],
+            d=conteos["D"],
+            e=conteos[ESTADO_RECAUDO],
+            recaudado=recaudado,
+            bancos=bancos,
+            nequi=nequi,
+            envia=envia,
+            efectivo=efectivo,
+            gastos=gastos,
+            adelanto_salario=adelanto_salario,
+        )
 
     caja = calcular_diferencia_caja(efectivo, denominaciones)
 

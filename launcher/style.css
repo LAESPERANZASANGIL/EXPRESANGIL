@@ -119,6 +119,13 @@ header .subtitulo {
   transform: translateY(-1px);
 }
 
+.boton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+
 .boton:active {
   filter: brightness(0.95);
   transform: translateY(1px);
