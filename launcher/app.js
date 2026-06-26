@@ -8,6 +8,13 @@ function mostrarLog(texto) {
   log.textContent = texto;
 }
 
+function hoy() {
+  const ahora = new Date();
+  const mes = String(ahora.getMonth() + 1).padStart(2, "0");
+  const dia = String(ahora.getDate()).padStart(2, "0");
+  return `${ahora.getFullYear()}-${mes}-${dia}`;
+}
+
 function mostrarAviso(texto, tipo) {
   let contenedor = document.getElementById("avisos");
   if (!contenedor) {
@@ -153,6 +160,11 @@ document.getElementById("btn-iniciar").addEventListener("click", () => {
   pantallaIniciar.classList.remove("oculto");
   mostrarLog("Listo.");
   actualizarCampoOperadorInforme();
+
+  const campoCierreGeneralFecha = document.getElementById("cierre-general-fecha");
+  if (campoCierreGeneralFecha && !campoCierreGeneralFecha.value) campoCierreGeneralFecha.value = hoy();
+  const campoRecalcularFecha = document.getElementById("recalcular-fecha");
+  if (campoRecalcularFecha && !campoRecalcularFecha.value) campoRecalcularFecha.value = hoy();
 });
 
 document.getElementById("btn-volver").addEventListener("click", () => {
