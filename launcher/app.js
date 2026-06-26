@@ -400,3 +400,80 @@ document.getElementById("btn-cierre-general").addEventListener("click", async ()
     mostrarLog("No se pudo conectar con el panel: " + error);
   }
 });
+
+const recalcularOperador = document.getElementById("recalcular-operador");
+const resumenRecalcularCierre = document.getElementById("resumen-recalcular-cierre");
+const tablaResumenRecalcularCierreBody = document.getElementById("tabla-resumen-recalcular-cierre-body");
+
+async function cargarOperadoresRecalcular() {
+  try {
+    const respuesta = await fetch("/api/operadores-guias", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    recalcularOperador.innerHTML = "";
+    for (const nombre of resultado.operadores) {
+      const opcion = document.createElement("option");
+      opcion.value = nombre;
+      opcion.textContent = nombre;
+      recalcularOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+cargarOperadoresRecalcular();
+
+function mostrarResumenRecalcularCierre(resumen) {
+  const filas = [
+    ["Guias gestionadas", resumen.gestionadas],
+    ["RO", resumen.ro],
+    ["N", resumen.n],
+    ["D", resumen.d],
+    ["Entregadas/recaudadas (E)", resumen.e],
+    ["Recaudado", formatoMonedaCierreGeneral(resumen.recaudado)],
+    ["Bancos", formatoMonedaCierreGeneral(resumen.bancos)],
+    ["Nequi", formatoMonedaCierreGeneral(resumen.nequi)],
+    ["Link de envia", formatoMonedaCierreGeneral(resumen.envia)],
+    ["Gastos", formatoMonedaCierreGeneral(resumen.gastos)],
+    ["Adelanto de salario", formatoMonedaCierreGeneral(resumen.adelanto_salario)],
+    ["Efectivo", formatoMonedaCierreGeneral(resumen.efectivo)],
+  ];
+  tablaResumenRecalcularCierreBody.innerHTML = "";
+  for (const [etiqueta, valor] of filas) {
+    const fila = document.createElement("tr");
+    fila.classList.add("fila-efectivo");
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = etiqueta;
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = valor;
+    fila.appendChild(celdaEtiqueta);
+    fila.appendChild(celdaValor);
+    tablaResumenRecalcularCierreBody.appendChild(fila);
+  }
+  resumenRecalcularCierre.classList.remove("oculto");
+}
+
+document.getElementById("btn-recalcular-cierre").addEventListener("click", async () => {
+  const operador = recalcularOperador.value.trim();
+  const fecha = document.getElementById("recalcular-fecha").value.trim();
+  if (!operador || !fecha) {
+    mostrarLog("Selecciona un operador y una fecha.");
+    return;
+  }
+  mostrarLog("Procesando...");
+  try {
+    const respuesta = await fetch("/api/cierre-recalcular", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operador, fecha }),
+    });
+    const resultado = await respuesta.json();
+    mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    if (resultado.ok && resultado.resumen) {
+      mostrarResumenRecalcularCierre(resultado.resumen);
+    }
+  } catch (error) {
+    mostrarLog("No se pudo conectar con el panel: " + error);
+  }
+});

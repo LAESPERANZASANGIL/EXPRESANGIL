@@ -9,6 +9,7 @@ from gestor_guias.operadores import (
     documentos_vencidos,
     hash_password,
     parse_guides,
+    recalcular_cierre,
     registrar_novedades,
     registrar_salidas,
     verify_password,
@@ -212,6 +213,31 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["recaudado"] == 50_000
     assert cierre["efectivo"] == 35_000
+
+
+def test_recalcular_cierre_incluye_guias_asignadas_despues_del_cierre(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    registrar_salidas(repository, "MARGARITA", "100000000000")
+    fecha = date.today().isoformat()
+
+    resumen_inicial = cerrar_dia(repository, "MARGARITA", fecha, bancos=0, nequi=0, envia=0)
+    assert resumen_inicial["gestionadas"] == 1
+    assert resumen_inicial["e"] == 1
+    assert resumen_inicial["recaudado"] == 10_000
+
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "MARGARITA", "100000000001")
+    repository.update_tracking_fields("100000000001", "MARGARITA", "E", "")
+
+    resumen = recalcular_cierre(repository, "MARGARITA", fecha)
+
+    assert resumen["gestionadas"] == 2
+    assert resumen["e"] == 2
+    assert resumen["recaudado"] == 30_000
+
+    cierre = repository.obtener_cierre(fecha, "MARGARITA")
+    assert cierre["recaudado"] == 30_000
 
 
 def test_calcular_diferencia_caja() -> None:

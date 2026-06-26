@@ -138,6 +138,22 @@
             </table>
           </div>
         </div>
+
+        <div class="opcion opcion-compacta opcion-ancha">
+          <h3>6. Recalcular cierre de operador</h3>
+          <p class="desc-opcion">Vuelve a calcular el cierre ya guardado de un operador con las guias actuales. Util cuando le asignaron o entregaron mas guias despues de haber cerrado el dia.</p>
+          <label>Operador</label>
+          <select id="recalcular-operador"></select>
+          <label>Fecha</label>
+          <input type="date" id="recalcular-fecha" />
+          <button class="boton boton-accion" id="btn-recalcular-cierre"><span class="icono">🔄</span>Recalcular cierre</button>
+
+          <div class="opcion oculto" id="resumen-recalcular-cierre">
+            <table class="tabla-resumen">
+              <tbody id="tabla-resumen-recalcular-cierre-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <button class="boton boton-volver" id="btn-volver"><span class="icono">🏠</span>VOLVER AL MENU PRINCIPAL</button>

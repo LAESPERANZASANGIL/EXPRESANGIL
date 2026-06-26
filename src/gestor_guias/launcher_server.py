@@ -22,6 +22,7 @@ from .operadores import (
     cerrar_dia,
     documentos_vencidos,
     hash_password,
+    recalcular_cierre,
     registrar_novedades,
     registrar_salidas,
     verify_password,
@@ -592,6 +593,31 @@ class LauncherHandler(BaseHTTPRequestHandler):
                         "diferencia": caja["diferencia"],
                         "nota": caja["nota"],
                     },
+                }
+            )
+            return
+
+        if self.path == "/api/cierre-recalcular":
+            if not self._require_admin():
+                return
+
+            operador = str(data.get("operador", "")).strip()
+            fecha_texto = str(data.get("fecha", "")).strip()
+            if not operador or not fecha_texto:
+                self._send_json({"ok": False, "output": "Falta operador o fecha."})
+                return
+            try:
+                date.fromisoformat(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+
+            resumen = recalcular_cierre(REPOSITORY, operador, fecha_texto)
+            self._send_json(
+                {
+                    "ok": True,
+                    "output": "Cierre recalculado.",
+                    "resumen": resumen,
                 }
             )
             return

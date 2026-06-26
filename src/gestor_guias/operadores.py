@@ -127,6 +127,18 @@ def calcular_diferencia_caja(efectivo_esperado: int, denominaciones: dict[int, i
     return {"efectivo_contado": efectivo_contado, "diferencia": diferencia, "nota": nota}
 
 
+def _contar_guias_operador(guias: list[dict]) -> tuple[dict[str, int], int]:
+    conteos = {"RO": 0, "N": 0, "D": 0, ESTADO_RECAUDO: 0}
+    recaudado = 0
+    for guia in guias:
+        estado = (guia["estado"] or "").strip().upper()
+        if estado in conteos:
+            conteos[estado] += 1
+        if estado == ESTADO_RECAUDO:
+            recaudado += value_to_number(guia["valor"])
+    return conteos, recaudado
+
+
 def cerrar_dia(
     repository: GuiaRepository,
     operador: str,
@@ -141,14 +153,7 @@ def cerrar_dia(
     repository.cerrar_dia_operador(operador, fecha, ESTADO_SALIDA, ESTADO_RECAUDO)
 
     guias = repository.guias_de_operador(operador, fecha)
-    conteos = {"RO": 0, "N": 0, "D": 0, ESTADO_RECAUDO: 0}
-    recaudado = 0
-    for guia in guias:
-        estado = (guia["estado"] or "").strip().upper()
-        if estado in conteos:
-            conteos[estado] += 1
-        if estado == ESTADO_RECAUDO:
-            recaudado += value_to_number(guia["valor"])
+    conteos, recaudado = _contar_guias_operador(guias)
 
     gestionadas = len(guias)
     efectivo = recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
@@ -188,4 +193,56 @@ def cerrar_dia(
         "efectivo_contado": caja["efectivo_contado"],
         "diferencia": caja["diferencia"],
         "nota": caja["nota"],
+    }
+
+
+def recalcular_cierre(repository: GuiaRepository, operador: str, fecha: str) -> dict:
+    """Vuelve a calcular un cierre ya guardado con el estado actual de las guias.
+
+    Util cuando a un operador le asignan o le entregan mas guias despues de
+    haber cerrado el dia, dejando su cierre guardado desactualizado.
+    """
+    cierre_anterior = repository.obtener_cierre(fecha, operador)
+    bancos = cierre_anterior["bancos"] if cierre_anterior else 0
+    nequi = cierre_anterior["nequi"] if cierre_anterior else 0
+    envia = cierre_anterior["envia"] if cierre_anterior else 0
+    gastos = cierre_anterior["gastos"] if cierre_anterior else 0
+    adelanto_salario = cierre_anterior["adelanto_salario"] if cierre_anterior else 0
+
+    guias = repository.guias_de_operador(operador, fecha)
+    conteos, recaudado = _contar_guias_operador(guias)
+
+    gestionadas = len(guias)
+    efectivo = recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
+
+    repository.guardar_cierre(
+        fecha=fecha,
+        operador=operador,
+        gestionadas=gestionadas,
+        ro=conteos["RO"],
+        n=conteos["N"],
+        d=conteos["D"],
+        e=conteos[ESTADO_RECAUDO],
+        recaudado=recaudado,
+        bancos=bancos,
+        nequi=nequi,
+        envia=envia,
+        efectivo=efectivo,
+        gastos=gastos,
+        adelanto_salario=adelanto_salario,
+    )
+
+    return {
+        "gestionadas": gestionadas,
+        "ro": conteos["RO"],
+        "n": conteos["N"],
+        "d": conteos["D"],
+        "e": conteos[ESTADO_RECAUDO],
+        "recaudado": recaudado,
+        "bancos": bancos,
+        "nequi": nequi,
+        "envia": envia,
+        "gastos": gastos,
+        "adelanto_salario": adelanto_salario,
+        "efectivo": efectivo,
     }
