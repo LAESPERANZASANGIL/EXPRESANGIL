@@ -320,6 +320,35 @@ def test_generate_relacion_ce_rr_report(tmp_path: Path) -> None:
     assert output_path.stat().st_size > 0
 
 
+def test_generate_relacion_ce_rr_report_resta_link_envia(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "15000", "RR"))
+    repository.update_tracking_fields("100", "JOHAN ORTIZ", "E", "")
+
+    repository.save_consolidated(build_dataframe("200", "", "", "19900", "CE"))
+    repository.update_tracking_fields("200", "JOHAN ORTIZ", "E", "")
+
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="JOHAN ORTIZ", gestionadas=2, ro=0, n=0, d=0, e=2,
+        recaudado=34_900, bancos=0, nequi=0, envia=10_000, efectivo=24_900,
+    )
+
+    output_path = generate_relacion_ce_rr_report(repository, tmp_path / "output", date(2026, 6, 10))
+
+    workbook = load_workbook(output_path)
+    sheet = workbook["RELACION CE Y RR"]
+
+    fila_total = next(fila for fila in sheet.iter_rows() if fila[0].value == "TOTAL")
+    assert sheet.cell(row=fila_total[0].row, column=4).value == 34_900
+
+    fila_link = next(fila for fila in sheet.iter_rows() if fila[0].value == "(-) LINK ENVIA")
+    assert sheet.cell(row=fila_link[0].row, column=4).value == 10_000
+
+    fila_total_recaudar = next(fila for fila in sheet.iter_rows() if fila[0].value == "TOTAL A RECAUDAR")
+    assert sheet.cell(row=fila_total_recaudar[0].row, column=4).value == 24_900
+
+
 def test_generate_relacion_ce_rr_report_no_data(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

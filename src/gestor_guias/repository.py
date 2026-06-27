@@ -642,6 +642,15 @@ class GuiaRepository:
             ).fetchall()
             return [row[0] for row in rows]
 
+    def sumar_envia_dia(self, fecha: str) -> int:
+        self.initialize()
+        with self._connect() as connection:
+            total = connection.execute(
+                "SELECT SUM(envia) FROM cierres_operador WHERE fecha = ?",
+                (fecha,),
+            ).fetchone()[0]
+            return total or 0
+
     def sumar_gastos_adelantos_mes(self, anio: int, mes: int) -> dict[str, dict]:
         self.initialize()
         prefijo = f"{anio:04d}-{mes:02d}"

@@ -47,17 +47,19 @@ def generate_relacion_ce_rr_report(
     else:
         relevant = daily
 
+    link_envia = repository.sumar_envia_dia(target_date.isoformat())
+
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = "RELACION CE Y RR"
-    _escribir_hoja_relacion(worksheet, relevant, admin_name, oficina_nombre, fecha_label)
+    _escribir_hoja_relacion(worksheet, relevant, admin_name, oficina_nombre, fecha_label, link_envia)
 
     workbook.save(output_path)
 
     return output_path
 
 
-def _escribir_hoja_relacion(worksheet, rows, admin_name, oficina_nombre, fecha_label) -> None:
+def _escribir_hoja_relacion(worksheet, rows, admin_name, oficina_nombre, fecha_label, link_envia: int = 0) -> None:
     worksheet.merge_cells("A1:D1")
     worksheet["A1"] = "RELACION DE GUIAS CE Y RR " + oficina_nombre
     worksheet.merge_cells("A2:D2")
@@ -108,6 +110,22 @@ def _escribir_hoja_relacion(worksheet, rows, admin_name, oficina_nombre, fecha_l
     total_value_cell.fill = DARK_FILL
     total_value_cell.font = HEADER_FONT
     total_value_cell.number_format = '"$" #,##0'
+    fila_actual += 1
+
+    worksheet.merge_cells(start_row=fila_actual, start_column=1, end_row=fila_actual, end_column=3)
+    worksheet.cell(row=fila_actual, column=1, value="(-) LINK ENVIA").alignment = CENTER
+    worksheet.cell(row=fila_actual, column=4, value=link_envia).number_format = '"$" #,##0'
+    fila_actual += 1
+
+    worksheet.merge_cells(start_row=fila_actual, start_column=1, end_row=fila_actual, end_column=3)
+    total_recaudar_label_cell = worksheet.cell(row=fila_actual, column=1, value="TOTAL A RECAUDAR")
+    total_recaudar_label_cell.fill = DARK_FILL
+    total_recaudar_label_cell.font = HEADER_FONT
+    total_recaudar_label_cell.alignment = CENTER
+    total_recaudar_value_cell = worksheet.cell(row=fila_actual, column=4, value=total - link_envia)
+    total_recaudar_value_cell.fill = DARK_FILL
+    total_recaudar_value_cell.font = HEADER_FONT
+    total_recaudar_value_cell.number_format = '"$" #,##0'
 
     worksheet.column_dimensions["A"].width = 6
     worksheet.column_dimensions["B"].width = 10
