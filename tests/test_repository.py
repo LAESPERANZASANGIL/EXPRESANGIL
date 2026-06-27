@@ -246,7 +246,7 @@ def test_asignar_salida_y_registrar_novedad(tmp_path: Path) -> None:
     assert dataframe.loc[dataframe["GUIA"] == "999", "PLANILLA"].iloc[0] == "Sin planilla"
 
     fecha = date.today().isoformat()
-    actualizadas = repository.registrar_novedad(["100"], "KEVIN", fecha, "R", "RO")
+    actualizadas = repository.registrar_novedad(["100"], "KEVIN", fecha, ["R"], "RO")
     dataframe = repository.to_dataframe()
 
     assert actualizadas == 1

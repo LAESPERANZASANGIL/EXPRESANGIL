@@ -472,7 +472,7 @@ class GuiaRepository:
         guias: list[str],
         operador: str,
         fecha: str,
-        estado_actual: str,
+        estados_actuales: list[str],
         nuevo_estado: str,
     ) -> int:
         self.initialize()
@@ -480,14 +480,15 @@ class GuiaRepository:
         if not clean_guides:
             return 0
 
+        placeholders_estado = ",".join("?" * len(estados_actuales))
         with self._connect() as connection:
             cursor = connection.executemany(
-                """
+                f"""
                 UPDATE guias SET estado = ?, ingreso = ?
-                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado = ?
+                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado IN ({placeholders_estado})
                 """,
                 [
-                    (nuevo_estado, fecha, guia, operador, f"{fecha}%", estado_actual)
+                    (nuevo_estado, fecha, guia, operador, f"{fecha}%", *estados_actuales)
                     for guia in clean_guides
                 ],
             )
@@ -498,7 +499,7 @@ class GuiaRepository:
         items: list[tuple[str, str]],
         operador: str,
         fecha: str,
-        estado_actual: str,
+        estados_actuales: list[str],
         nuevo_estado: str,
     ) -> int:
         self.initialize()
@@ -506,14 +507,16 @@ class GuiaRepository:
         if not clean_items:
             return 0
 
+        estados_permitidos = [*estados_actuales, nuevo_estado]
+        placeholders_estado = ",".join("?" * len(estados_permitidos))
         with self._connect() as connection:
             cursor = connection.executemany(
-                """
+                f"""
                 UPDATE guias SET estado = ?, causal = ?, ingreso = ?
-                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado IN (?, ?)
+                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado IN ({placeholders_estado})
                 """,
                 [
-                    (nuevo_estado, causal, fecha, guia, operador, f"{fecha}%", estado_actual, nuevo_estado)
+                    (nuevo_estado, causal, fecha, guia, operador, f"{fecha}%", *estados_permitidos)
                     for guia, causal in clean_items
                 ],
             )

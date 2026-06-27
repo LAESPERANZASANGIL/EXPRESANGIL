@@ -191,6 +191,40 @@ def test_registrar_novedades_corrige_causal_de_guia_ya_en_devolucion(tmp_path: P
     assert dataframe.loc["100000000000", "CAUSAL"] == "10"
 
 
+def test_registrar_novedades_funciona_despues_de_cerrar_el_dia(tmp_path: Path) -> None:
+    # Al cerrar el dia, cerrar_dia_operador mueve las guias que quedaron en R
+    # a E (recaudada). El operador debe poder seguir gestionando novedades
+    # sobre esas guias sin reabrir su cierre individual ya guardado.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = date.today().isoformat()
+
+    cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
+    cierre_previo = repository.obtener_cierre(fecha, "KEVIN")
+
+    resultado = registrar_novedades(
+        repository,
+        "KEVIN",
+        fecha,
+        ro_texto="100000000000",
+        n_texto="",
+        d_texto="100000000001 10",
+    )
+
+    assert resultado["ro"] == {"recibidas": 1, "actualizadas": 1}
+    assert resultado["d"]["actualizadas"] == 1
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "RO"
+    assert dataframe.loc["100000000001", "ESTADO"] == "D"
+    assert dataframe.loc["100000000001", "CAUSAL"] == "10"
+
+    # El cierre individual ya guardado no se altera por las novedades posteriores.
+    assert repository.obtener_cierre(fecha, "KEVIN") == cierre_previo
+
+
 def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))

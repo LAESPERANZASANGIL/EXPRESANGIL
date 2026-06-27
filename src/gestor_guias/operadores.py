@@ -94,15 +94,20 @@ def registrar_novedades(
     n_texto: str,
     d_texto: str,
 ) -> dict:
+    # Se acepta tanto R (en reparto) como E (recaudada) como punto de partida:
+    # si el operador ya cerro el dia, sus guias en reparto quedaron en E, pero
+    # debe poder seguir corrigiendolas con una novedad sin reabrir el cierre.
+    estados_gestionables = [ESTADO_SALIDA, ESTADO_RECAUDO]
+
     textos = {"ro": ro_texto, "n": n_texto}
     resultado = {}
     for clave, estado in (("ro", "RO"), ("n", "N")):
         guias = parse_guides(textos[clave])
-        actualizadas = repository.registrar_novedad(guias, operador, fecha, ESTADO_SALIDA, estado)
+        actualizadas = repository.registrar_novedad(guias, operador, fecha, estados_gestionables, estado)
         resultado[clave] = {"recibidas": len(guias), "actualizadas": actualizadas}
 
     items_d, errores_d = parse_guides_con_causal(d_texto)
-    actualizadas_d = repository.registrar_devolucion(items_d, operador, fecha, ESTADO_SALIDA, "D")
+    actualizadas_d = repository.registrar_devolucion(items_d, operador, fecha, estados_gestionables, "D")
     resultado["d"] = {"recibidas": len(items_d), "actualizadas": actualizadas_d, "errores": errores_d}
     return resultado
 
