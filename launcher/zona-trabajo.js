@@ -9,6 +9,11 @@ const filtrosExcel = {};
 const CAMPOS_FILTRO_EXCEL = ["planilla", "guia", "municipio", "operador", "estado", "causal"];
 let panelFiltroActual = null;
 
+// Orden de columna: null = sin orden; "asc"/"desc" segun la ultima columna clickeada.
+let ordenColumna = null;
+let ordenDireccion = null;
+let ordenTipo = null;
+
 const formGuia = document.getElementById("form-guia");
 const formPlanilla = document.getElementById("form-planilla");
 const formDestinatario = document.getElementById("form-destinatario");
@@ -238,6 +243,27 @@ document.querySelectorAll(".btn-filtro-excel").forEach((boton) => {
   });
 });
 
+document.querySelectorAll(".btn-orden").forEach((boton) => {
+  boton.addEventListener("click", (evento) => {
+    evento.stopPropagation();
+    const campo = boton.dataset.campo;
+    const tipo = boton.dataset.tipo;
+    if (ordenColumna === campo) {
+      ordenDireccion = ordenDireccion === "asc" ? "desc" : ordenDireccion === "desc" ? null : "asc";
+      if (!ordenDireccion) ordenColumna = null;
+    } else {
+      ordenColumna = campo;
+      ordenDireccion = "asc";
+      ordenTipo = tipo;
+    }
+    document.querySelectorAll(".btn-orden").forEach((b) => {
+      b.classList.toggle("activo", b === boton && Boolean(ordenDireccion));
+      b.innerHTML = b === boton && ordenDireccion === "asc" ? "&#8593;" : b === boton && ordenDireccion === "desc" ? "&#8595;" : "&#8645;";
+    });
+    renderizarTabla();
+  });
+});
+
 function filasFiltradas() {
   const texto = buscar.value.trim().toUpperCase();
   let filas = guias;
@@ -266,6 +292,19 @@ function filasFiltradas() {
     if (seleccion) {
       filas = filas.filter((fila) => seleccion.has(String(fila[campo] || "")));
     }
+  }
+
+  if (ordenColumna && ordenDireccion) {
+    const valorOrden = (fila) =>
+      ordenTipo === "numero"
+        ? Number(String(fila[ordenColumna] || "0").replace(/[^0-9.-]/g, "")) || 0
+        : String(fila[ordenColumna] || "");
+    filas = [...filas].sort((a, b) => {
+      const va = valorOrden(a);
+      const vb = valorOrden(b);
+      const comparacion = ordenTipo === "numero" ? va - vb : va.localeCompare(vb);
+      return ordenDireccion === "asc" ? comparacion : -comparacion;
+    });
   }
 
   return filas;
@@ -360,6 +399,13 @@ document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
   for (const campo of CAMPOS_FILTRO_EXCEL) {
     filtrosExcel[campo] = null;
   }
+  ordenColumna = null;
+  ordenDireccion = null;
+  ordenTipo = null;
+  document.querySelectorAll(".btn-orden").forEach((b) => {
+    b.classList.remove("activo");
+    b.innerHTML = "&#8645;";
+  });
   actualizarIconosFiltro();
   renderizarTabla();
 });
