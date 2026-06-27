@@ -992,7 +992,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
 
             ruta_entregas = generate_entregadas_operador_excel(
-                REPOSITORY, SETTINGS.paths.output_dir, session["nombre"], date.fromisoformat(fecha)
+                REPOSITORY,
+                SETTINGS.paths.output_dir,
+                session["nombre"],
+                date.fromisoformat(fecha),
+                resumen=resumen,
+                denominaciones=denominaciones,
             )
             self._send_json(
                 {

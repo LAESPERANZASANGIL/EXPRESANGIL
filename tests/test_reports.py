@@ -188,6 +188,31 @@ def test_generate_entregadas_operador_excel_solo_incluye_guias_entregadas(tmp_pa
     assert "300" not in guias
 
 
+def test_generate_entregadas_operador_excel_incluye_hoja_de_cierre_con_denominaciones(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    output_path = generate_entregadas_operador_excel(
+        repository,
+        tmp_path / "output",
+        "KEVIN",
+        hoy_colombia(),
+        resumen={"gestionadas": 2, "recaudado": 30_000, "efectivo": 30_000, "efectivo_contado": 30_000},
+        denominaciones={"20000": 1, "10000": 1},
+    )
+
+    worksheet = load_workbook(output_path)["CIERRE"]
+    valores = [
+        cell.value
+        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, max_col=3)
+        for cell in row
+        if cell.value is not None
+    ]
+    assert "CONTEO DE EFECTIVO EN CAJA" in valores
+    assert 20000 in valores
+    assert 10000 in valores
+    assert 20000 * 1 in valores
+
+
 def test_generate_entregadas_operador_excel_sin_guias(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

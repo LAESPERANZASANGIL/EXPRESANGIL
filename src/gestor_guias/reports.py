@@ -327,8 +327,92 @@ def generate_salidas_operador_excel(
     return output_path
 
 
+RESUMEN_CIERRE_ETIQUETAS = (
+    ("gestionadas", "Guias gestionadas (salidas del dia)"),
+    ("ro", "Reclama oficina (RO)"),
+    ("n", "Novedades operativas (N)"),
+    ("d", "Devoluciones (D)"),
+    ("e", "Entregadas y recaudadas (E)"),
+    ("recaudado", "Dinero recaudado"),
+    ("bancos", "Dinero en bancos"),
+    ("nequi", "Dinero en Nequi"),
+    ("envia", "Dinero en link Envia"),
+    ("gastos", "Gastos"),
+    ("adelanto_salario", "Adelanto de salario"),
+    ("efectivo", "Efectivo a entregar"),
+    ("efectivo_contado", "Efectivo contado en caja"),
+    ("diferencia", "Diferencia"),
+)
+RESUMEN_CIERRE_CAMPOS_MONEDA = {
+    "recaudado", "bancos", "nequi", "envia", "gastos", "adelanto_salario",
+    "efectivo", "efectivo_contado", "diferencia",
+}
+
+
+def build_cierre_sheet(worksheet, resumen: dict, denominaciones: dict) -> None:
+    header_fill = PatternFill(fill_type="solid", fgColor="4472C4")
+    header_font = Font(bold=True, color="FFFFFF")
+    label_font = Font(bold=True)
+
+    worksheet.merge_cells("A1:B1")
+    titulo = worksheet["A1"]
+    titulo.value = "CIERRE DEL DIA"
+    titulo.fill = header_fill
+    titulo.font = header_font
+    titulo.alignment = Alignment(horizontal="center")
+
+    row = 2
+    for clave, etiqueta in RESUMEN_CIERRE_ETIQUETAS:
+        if clave not in resumen:
+            continue
+        worksheet.cell(row=row, column=1, value=etiqueta).font = label_font
+        valor_celda = worksheet.cell(row=row, column=2, value=resumen[clave])
+        if clave in RESUMEN_CIERRE_CAMPOS_MONEDA:
+            valor_celda.number_format = '"$" #,##0'
+        row += 1
+
+    nota = str(resumen.get("nota") or "").strip()
+    if nota:
+        worksheet.cell(row=row, column=1, value="Anotacion").font = label_font
+        worksheet.cell(row=row, column=2, value=nota)
+        row += 1
+
+    entradas = sorted(
+        ((int(denominacion), int(cantidad)) for denominacion, cantidad in (denominaciones or {}).items() if int(cantidad) > 0),
+        reverse=True,
+    )
+    if entradas:
+        row += 1
+        worksheet.merge_cells(f"A{row}:C{row}")
+        cabecera = worksheet.cell(row=row, column=1, value="CONTEO DE EFECTIVO EN CAJA")
+        cabecera.fill = header_fill
+        cabecera.font = header_font
+        cabecera.alignment = Alignment(horizontal="center")
+        row += 1
+
+        for columna, encabezado in enumerate(("Denominacion", "Cantidad", "Subtotal"), start=1):
+            celda = worksheet.cell(row=row, column=columna, value=encabezado)
+            celda.font = label_font
+        row += 1
+
+        for denominacion, cantidad in entradas:
+            worksheet.cell(row=row, column=1, value=denominacion).number_format = '"$" #,##0'
+            worksheet.cell(row=row, column=2, value=cantidad)
+            subtotal_celda = worksheet.cell(row=row, column=3, value=denominacion * cantidad)
+            subtotal_celda.number_format = '"$" #,##0'
+            row += 1
+
+    for columna, ancho in (("A", 32), ("B", 18), ("C", 18)):
+        worksheet.column_dimensions[columna].width = ancho
+
+
 def generate_entregadas_operador_excel(
-    repository: GuiaRepository, output_dir: Path, operador: str, target_date: date
+    repository: GuiaRepository,
+    output_dir: Path,
+    operador: str,
+    target_date: date,
+    resumen: dict | None = None,
+    denominaciones: dict | None = None,
 ) -> Path:
     guias = repository.guias_de_operador(operador, target_date.isoformat())
     entregadas = [
@@ -363,6 +447,10 @@ def generate_entregadas_operador_excel(
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         dataframe.to_excel(writer, index=False, sheet_name="ENTREGAS")
         apply_report_format(writer.sheets["ENTREGAS"])
+
+        if resumen or denominaciones:
+            cierre_sheet = writer.book.create_sheet("CIERRE")
+            build_cierre_sheet(cierre_sheet, resumen or {}, denominaciones or {})
 
     return output_path
 
