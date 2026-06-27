@@ -35,6 +35,10 @@ ESTADO_RECAUDO = "E"
 # operadores.ESTADO_SALIDA; se repite aqui para evitar un import circular).
 ESTADO_SALIDA = "R"
 
+# Denominaciones de billetes que un operador puede contar al cerrar el dia
+# (igual a operadores.DENOMINACIONES; se repite aqui para evitar un import circular).
+DENOMINACIONES = (100_000, 50_000, 20_000, 10_000, 5_000, 2_000, 1_000, 500, 200, 100, 50)
+
 
 def generate_reports(source_file: Path, output_dir: Path, target_date: date) -> Path:
     detail = pd.read_excel(source_file, dtype=str).fillna("")
@@ -136,6 +140,8 @@ def build_cierre_breakdown(
 
     operadores = sorted({*dataframe["OPERADOR"].dropna().unique(), *operadores_con_cierre})
 
+    columnas_billetes = [f"BILLETES {denominacion:,}".replace(",", ".") for denominacion in DENOMINACIONES]
+
     if not operadores:
         return pd.DataFrame(
             columns=[
@@ -152,6 +158,7 @@ def build_cierre_breakdown(
                 "GASTOS",
                 "ADELANTO_SALARIO",
                 "EFECTIVO",
+                *columnas_billetes,
             ]
         )
 
@@ -176,24 +183,26 @@ def build_cierre_breakdown(
             cierre["efectivo"] if cierre
             else recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
         )
+        denominaciones_contadas = cierre["denominaciones"] if cierre else {}
 
-        filas.append(
-            {
-                "OPERADOR": nombre_operador,
-                "GESTIONADAS": gestionadas,
-                "RO": ro,
-                "N": n,
-                "D": d,
-                "E": e,
-                "RECAUDADO": recaudado,
-                "BANCOS": bancos,
-                "NEQUI": nequi,
-                "ENVIA": envia,
-                "GASTOS": gastos,
-                "ADELANTO_SALARIO": adelanto_salario,
-                "EFECTIVO": efectivo,
-            }
-        )
+        fila = {
+            "OPERADOR": nombre_operador,
+            "GESTIONADAS": gestionadas,
+            "RO": ro,
+            "N": n,
+            "D": d,
+            "E": e,
+            "RECAUDADO": recaudado,
+            "BANCOS": bancos,
+            "NEQUI": nequi,
+            "ENVIA": envia,
+            "GASTOS": gastos,
+            "ADELANTO_SALARIO": adelanto_salario,
+            "EFECTIVO": efectivo,
+        }
+        for denominacion, columna in zip(DENOMINACIONES, columnas_billetes):
+            fila[columna] = int(denominaciones_contadas.get(denominacion, 0))
+        filas.append(fila)
 
     return pd.DataFrame(filas).sort_values("GESTIONADAS", ascending=False)
 

@@ -68,6 +68,26 @@ def test_build_cierre_breakdown_suma_efectivo_de_varios_operadores(tmp_path: Pat
     assert int(resumen.set_index("OPERADOR").loc["KEVIN", "GASTOS"]) == 2_000
 
 
+def test_build_cierre_breakdown_incluye_cantidad_de_billetes_contados(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="OMAR", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=0, nequi=0, envia=0, efectivo=10_000,
+        denominaciones={50_000: 0, 10_000: 1, 1_000: 0},
+    )
+
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    resumen = build_cierre_breakdown(repository, dataframe, date(2026, 6, 10))
+
+    fila = resumen.set_index("OPERADOR").loc["OMAR"]
+    assert int(fila["BILLETES 10.000"]) == 1
+    assert int(fila["BILLETES 50.000"]) == 0
+
+
 def test_build_cierre_breakdown_incluye_cierre_sin_guias_del_dia(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

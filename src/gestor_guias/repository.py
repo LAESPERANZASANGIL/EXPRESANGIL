@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
+import json
 import shutil
 import sqlite3
 
@@ -95,6 +96,10 @@ class GuiaRepository:
                     connection.execute(
                         f"ALTER TABLE cierres_operador ADD COLUMN {columna} INTEGER NOT NULL DEFAULT 0"
                     )
+            if "denominaciones" not in columnas_cierre:
+                connection.execute(
+                    "ALTER TABLE cierres_operador ADD COLUMN denominaciones TEXT NOT NULL DEFAULT '{}'"
+                )
 
     def save_consolidated(self, dataframe: pd.DataFrame) -> None:
         self.initialize()
@@ -566,16 +571,19 @@ class GuiaRepository:
         efectivo: int,
         gastos: int = 0,
         adelanto_salario: int = 0,
+        denominaciones: dict[int, int] | None = None,
     ) -> None:
         self.initialize()
+        denominaciones_json = json.dumps(denominaciones or {})
         with self._connect() as connection:
             connection.execute(
                 """
                 INSERT INTO cierres_operador (
                     fecha, operador, gestionadas, ro, n, d, e,
-                    recaudado, bancos, nequi, envia, efectivo, gastos, adelanto_salario
+                    recaudado, bancos, nequi, envia, efectivo, gastos, adelanto_salario,
+                    denominaciones
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(fecha, operador) DO UPDATE SET
                     gestionadas = excluded.gestionadas,
                     ro = excluded.ro,
@@ -588,11 +596,13 @@ class GuiaRepository:
                     envia = excluded.envia,
                     efectivo = excluded.efectivo,
                     gastos = excluded.gastos,
-                    adelanto_salario = excluded.adelanto_salario
+                    adelanto_salario = excluded.adelanto_salario,
+                    denominaciones = excluded.denominaciones
                 """,
                 (
                     fecha, operador, gestionadas, ro, n, d, e, recaudado,
                     bancos, nequi, envia, efectivo, gastos, adelanto_salario,
+                    denominaciones_json,
                 ),
             )
 
@@ -604,7 +614,17 @@ class GuiaRepository:
                 "SELECT * FROM cierres_operador WHERE fecha = ? AND operador = ?",
                 (fecha, operador),
             ).fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            cierre = dict(row)
+            try:
+                cierre["denominaciones"] = {
+                    int(denominacion): int(cantidad)
+                    for denominacion, cantidad in json.loads(cierre["denominaciones"] or "{}").items()
+                }
+            except (json.JSONDecodeError, ValueError):
+                cierre["denominaciones"] = {}
+            return cierre
 
     def operadores_con_cierre(self, fecha: str) -> list[str]:
         self.initialize()

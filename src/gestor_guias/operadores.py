@@ -184,6 +184,7 @@ def cerrar_dia(
             efectivo=efectivo,
             gastos=gastos,
             adelanto_salario=adelanto_salario,
+            denominaciones=denominaciones,
         )
 
     caja = calcular_diferencia_caja(efectivo, denominaciones)
