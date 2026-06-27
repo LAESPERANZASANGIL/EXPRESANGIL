@@ -1,4 +1,5 @@
 from datetime import date
+from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
 import pandas as pd
@@ -125,7 +126,7 @@ def test_registrar_novedades_solo_afecta_guias_en_r(tmp_path: Path) -> None:
     resultado = registrar_novedades(
         repository,
         "KEVIN",
-        date.today().isoformat(),
+        hoy_colombia().isoformat(),
         ro_texto="100000000000",
         n_texto="100000000001",
         d_texto="",
@@ -150,7 +151,7 @@ def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
     resultado = registrar_novedades(
         repository,
         "KEVIN",
-        date.today().isoformat(),
+        hoy_colombia().isoformat(),
         ro_texto="",
         n_texto="",
         d_texto="100000000000 10\nguia-sin-causal\n100000000001,25",
@@ -177,7 +178,7 @@ def test_registrar_novedades_pasa_a_d_sin_importar_el_estado_actual(tmp_path: Pa
     resultado = registrar_novedades(
         repository,
         "ALEJANDRO",
-        date.today().isoformat(),
+        hoy_colombia().isoformat(),
         ro_texto="",
         n_texto="",
         d_texto="100000000000 10",
@@ -221,7 +222,7 @@ def test_registrar_novedades_funciona_despues_de_cerrar_el_dia(tmp_path: Path) -
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
     repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
     registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
 
     cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
     cierre_previo = repository.obtener_cierre(fecha, "KEVIN")
@@ -253,7 +254,7 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
     repository.save_consolidated(build_dataframe("100000000002", "$ 30.000"))
     registrar_salidas(repository, "KEVIN", "100000000000\n100000000001\n100000000002")
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
     registrar_novedades(repository, "KEVIN", fecha, ro_texto="100000000000", n_texto="", d_texto="")
 
     resumen = cerrar_dia(repository, "KEVIN", fecha, bancos=10_000, nequi=5_000, envia=0)
@@ -276,7 +277,7 @@ def test_cerrar_dia_simular_no_persiste_ni_modifica_guias(tmp_path: Path) -> Non
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
     repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
     registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
 
     resumen = cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0, simular=True)
 
@@ -298,7 +299,7 @@ def test_recalcular_cierre_incluye_guias_asignadas_despues_del_cierre(tmp_path: 
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
     registrar_salidas(repository, "MARGARITA", "100000000000")
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
 
     resumen_inicial = cerrar_dia(repository, "MARGARITA", fecha, bancos=0, nequi=0, envia=0)
     assert resumen_inicial["gestionadas"] == 1
@@ -343,7 +344,7 @@ def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
     repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
     registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
 
     resumen_faltante = cerrar_dia(
         repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
@@ -367,7 +368,7 @@ def test_cerrar_dia_descuenta_gastos_y_adelanto_salario(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
     repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
     registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
 
     resumen = cerrar_dia(
         repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,

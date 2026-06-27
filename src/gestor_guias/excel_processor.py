@@ -3,9 +3,16 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from dataclasses import dataclass
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import re
 
 import pandas as pd
+
+
+def hoy_colombia() -> date:
+    # El servidor (VPS) corre con reloj en UTC; usar date.today() haria que
+    # la fecha cambiara varias horas antes de la medianoche real en Colombia.
+    return datetime.now(ZoneInfo("America/Bogota")).date()
 
 
 REPORT_COLUMNS = {

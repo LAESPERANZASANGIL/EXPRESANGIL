@@ -1,4 +1,5 @@
 from datetime import date
+from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
 import pandas as pd
@@ -175,7 +176,7 @@ def test_generate_entregadas_operador_excel_solo_incluye_guias_entregadas(tmp_pa
     repository.asignar_salida(["300"], "OMAR", "R")
     repository.update_tracking_fields("300", "OMAR", "E", "")
 
-    output_path = generate_entregadas_operador_excel(repository, tmp_path / "output", "KEVIN", date.today())
+    output_path = generate_entregadas_operador_excel(repository, tmp_path / "output", "KEVIN", hoy_colombia())
 
     assert output_path.exists()
     assert output_path.suffix == ".xlsx"
@@ -190,7 +191,7 @@ def test_generate_entregadas_operador_excel_solo_incluye_guias_entregadas(tmp_pa
 def test_generate_entregadas_operador_excel_sin_guias(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
-    output_path = generate_entregadas_operador_excel(repository, tmp_path / "output", "KEVIN", date.today())
+    output_path = generate_entregadas_operador_excel(repository, tmp_path / "output", "KEVIN", hoy_colombia())
 
     assert output_path.exists()
 

@@ -6,7 +6,7 @@ import os
 import re
 import secrets
 
-from .excel_processor import normalize_guide
+from .excel_processor import hoy_colombia, normalize_guide
 from .reports import ESTADO_RECAUDO, value_to_number
 from .repository import OPERADOR_PLANILLADA, GuiaRepository
 
@@ -24,7 +24,7 @@ DOCUMENTOS_OPERADOR = (
 
 
 def documentos_vencidos(operador: dict) -> list[str]:
-    hoy = date.today()
+    hoy = hoy_colombia()
     vencidos = []
     for campo, etiqueta in DOCUMENTOS_OPERADOR:
         valor = str(operador.get(campo, "") or "").strip()

@@ -7,6 +7,8 @@ import sqlite3
 
 import pandas as pd
 
+from .excel_processor import hoy_colombia
+
 
 TABLE_NAME = "guias"
 
@@ -203,7 +205,7 @@ class GuiaRepository:
                 SET operador = ?, estado = ?, causal = ?, ingreso = ?
                 WHERE guia = ?
                 """,
-                (operador, estado, causal, date.today().isoformat(), guia),
+                (operador, estado, causal, hoy_colombia().isoformat(), guia),
             )
 
     def update_guide_details(
@@ -260,7 +262,7 @@ class GuiaRepository:
                 WHERE guia = ?
                 """,
                 [
-                    (operador, estado, causal, date.today().isoformat(), guia)
+                    (operador, estado, causal, hoy_colombia().isoformat(), guia)
                     for guia in clean_guides
                 ],
             )
@@ -434,7 +436,7 @@ class GuiaRepository:
                 connection.execute("SELECT COALESCE(MAX(orden_salida), 0) FROM guias").fetchone()[0] + 1
             )
 
-            hoy = date.today().isoformat()
+            hoy = hoy_colombia().isoformat()
             cursor = connection.executemany(
                 """
                 UPDATE guias SET operador = ?, estado = ?, orden_salida = ?,

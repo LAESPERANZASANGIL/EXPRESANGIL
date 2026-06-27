@@ -28,7 +28,7 @@ from .operadores import (
     registrar_salidas,
     verify_password,
 )
-from .excel_processor import normalize_guide
+from .excel_processor import hoy_colombia, normalize_guide
 from .exporter import export_marked_dataframe
 from .reports import (
     build_cierre_breakdown,
@@ -265,7 +265,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             query = parse_qs(urlsplit(self.path).query)
             fecha_texto = (query.get("fecha") or [""])[0].strip()
             try:
-                fecha = date.fromisoformat(fecha_texto) if fecha_texto else date.today()
+                fecha = date.fromisoformat(fecha_texto) if fecha_texto else hoy_colombia()
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
                 return
@@ -529,7 +529,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if seleccion.empty:
                 self._send_json({"ok": False, "output": "No se encontraron guias para exportar."})
                 return
-            archivo = export_marked_dataframe(seleccion, SETTINGS.paths.output_dir, date.today())
+            archivo = export_marked_dataframe(seleccion, SETTINGS.paths.output_dir, hoy_colombia())
             self._send_json(
                 {"ok": True, "output": f"Se exportaron {len(seleccion)} guia(s).", "archivo": archivo.name}
             )
@@ -662,7 +662,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
             fecha_texto = str(data.get("fecha", "")).strip()
             try:
-                fecha = date.fromisoformat(fecha_texto) if fecha_texto else date.today()
+                fecha = date.fromisoformat(fecha_texto) if fecha_texto else hoy_colombia()
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
                 return
@@ -911,7 +911,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
                 return
 
-            fecha = str(data.get("fecha", "")).strip() or date.today().isoformat()
+            fecha = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             resultado = registrar_novedades(
                 REPOSITORY,
                 session["nombre"],
@@ -943,7 +943,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
             fecha_texto = str(data.get("fecha", "")).strip()
             try:
-                fecha = date.fromisoformat(fecha_texto) if fecha_texto else date.today()
+                fecha = date.fromisoformat(fecha_texto) if fecha_texto else hoy_colombia()
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
                 return
@@ -962,7 +962,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
                 return
 
-            fecha = str(data.get("fecha", "")).strip() or date.today().isoformat()
+            fecha = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             bancos = value_to_number(data.get("bancos", 0))
             nequi = value_to_number(data.get("nequi", 0))
             envia = value_to_number(data.get("envia", 0))

@@ -1,4 +1,5 @@
 from datetime import date
+from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
 import pandas as pd
@@ -245,7 +246,7 @@ def test_asignar_salida_y_registrar_novedad(tmp_path: Path) -> None:
     assert list(dataframe["ESTADO"]) == ["R", "R", "R"]
     assert dataframe.loc[dataframe["GUIA"] == "999", "PLANILLA"].iloc[0] == "Sin planilla"
 
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
     actualizadas = repository.registrar_novedad(["100"], "KEVIN", fecha, "RO")
     dataframe = repository.to_dataframe()
 
@@ -262,7 +263,7 @@ def test_asignar_salida_actualiza_fecha_de_ingreso_al_dia_actual(tmp_path: Path)
 
     dataframe = repository.to_dataframe()
 
-    assert dataframe.loc[dataframe["GUIA"] == "100", "F_INGRESO"].iloc[0] == date.today().isoformat()
+    assert dataframe.loc[dataframe["GUIA"] == "100", "F_INGRESO"].iloc[0] == hoy_colombia().isoformat()
 
 
 def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
@@ -272,7 +273,7 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("200", "Persona B"))
     repository.asignar_salida(["100", "200"], "KEVIN", "R")
 
-    fecha = date.today().isoformat()
+    fecha = hoy_colombia().isoformat()
     convertidas = repository.cerrar_dia_operador("KEVIN", fecha, "R", "E")
     dataframe = repository.to_dataframe()
 
