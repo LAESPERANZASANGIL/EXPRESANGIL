@@ -221,7 +221,7 @@ function formatoMoneda(valor) {
 const tituloResumenCierre = document.getElementById("titulo-resumen-cierre");
 const btnCierre = document.getElementById("btn-cierre");
 
-function mostrarResumen(resumen, simulado) {
+function mostrarResumen(resumen, simulado, denominaciones) {
   tituloResumenCierre.textContent = simulado ? "Resumen del dia (simulacion, aun no se ha guardado)" : "Resumen del dia";
   tablaResumenBody.innerHTML = "";
   for (const [clave, etiqueta] of FILAS_RESUMEN) {
@@ -242,8 +242,34 @@ function mostrarResumen(resumen, simulado) {
     fila.appendChild(celdaEtiqueta);
     fila.appendChild(celdaValor);
     tablaResumenBody.appendChild(fila);
+
+    if (clave === "efectivo_contado" && denominaciones) {
+      agregarDesgloseDenominaciones(denominaciones);
+    }
   }
   resumenCierre.classList.remove("oculto");
+}
+
+function agregarDesgloseDenominaciones(denominaciones) {
+  const entradas = DENOMINACIONES
+    .map((denominacion) => [denominacion, Number(denominaciones[denominacion]) || 0])
+    .filter(([, cantidad]) => cantidad > 0);
+  if (!entradas.length) return;
+
+  for (const [denominacion, cantidad] of entradas) {
+    const fila = document.createElement("tr");
+    fila.classList.add("fila-denominacion");
+
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = `  ${formatoMoneda(denominacion)} x ${cantidad}`;
+
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = formatoMoneda(denominacion * cantidad);
+
+    fila.appendChild(celdaEtiqueta);
+    fila.appendChild(celdaValor);
+    tablaResumenBody.appendChild(fila);
+  }
 }
 
 function sumarValores(texto) {
@@ -263,18 +289,20 @@ function datosCierre() {
 }
 
 document.getElementById("btn-simular-cierre").addEventListener("click", async () => {
-  const resultado = await llamar("/api/operador/cierre", { ...datosCierre(), simular: true });
+  const datos = datosCierre();
+  const resultado = await llamar("/api/operador/cierre", { ...datos, simular: true });
   if (resultado.ok && resultado.resumen) {
-    mostrarResumen(resultado.resumen, true);
+    mostrarResumen(resultado.resumen, true, datos.denominaciones);
     btnCierre.disabled = false;
   }
 });
 
 btnCierre.addEventListener("click", async () => {
   if (!confirm("¿Confirmas que quieres generar el cierre del dia? Esta accion no se puede deshacer.")) return;
-  const resultado = await llamar("/api/operador/cierre", { ...datosCierre(), simular: false });
+  const datos = datosCierre();
+  const resultado = await llamar("/api/operador/cierre", { ...datos, simular: false });
   if (resultado.ok && resultado.resumen) {
-    mostrarResumen(resultado.resumen, false);
+    mostrarResumen(resultado.resumen, false, datos.denominaciones);
     construirTablaDenominaciones();
     limpiarCamposCierre();
     btnCierre.disabled = true;

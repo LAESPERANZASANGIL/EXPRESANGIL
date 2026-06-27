@@ -92,6 +92,17 @@
   font-size: 1.15rem;
 }
 
+.tabla-resumen tr.fila-denominacion td {
+  font-size: 0.92rem;
+  font-weight: normal;
+  color: #555;
+}
+
+.tabla-resumen tr.fila-denominacion td:first-child {
+  font-weight: normal;
+  color: #555;
+}
+
 .tabla-denominaciones {
   width: 100%;
   border-collapse: collapse;
