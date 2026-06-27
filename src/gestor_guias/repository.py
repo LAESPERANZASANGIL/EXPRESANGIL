@@ -17,6 +17,10 @@ TABLE_NAME = "guias"
 # asignan a un repartidor: siguen "en planilla", esperando salida.
 OPERADOR_PLANILLADA = "PLANILLADA"
 
+# Operador especial: guias que se quedan en bodega (no salen a reparto).
+# No deben quedar con estado "N" al importar ni "R" al registrar salida.
+OPERADOR_BODEGA = "BODEGA"
+
 
 
 class GuiaRepository:
@@ -130,6 +134,9 @@ class GuiaRepository:
             if not operador and guia not in existentes:
                 operador = OPERADOR_PLANILLADA
 
+            # Las guias de BODEGA no salen a reparto: no se les asigna estado.
+            estado = "" if operador.strip().upper() == OPERADOR_BODEGA else row.get("ESTADO", "")
+
             records.append(
                 (
                     guia,
@@ -142,7 +149,7 @@ class GuiaRepository:
                     row.get("MUNICIPIO", ""),
                     row.get("VALOR", ""),
                     operador,
-                    row.get("ESTADO", ""),
+                    estado,
                     row.get("CAUSAL", ""),
                     row.get("F_INGRESO", ""),
                     row.get("F_ENTREGA", ""),

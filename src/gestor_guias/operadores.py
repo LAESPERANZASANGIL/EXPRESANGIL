@@ -8,7 +8,7 @@ import secrets
 
 from .excel_processor import hoy_colombia, normalize_guide
 from .reports import ESTADO_RECAUDO, value_to_number
-from .repository import OPERADOR_PLANILLADA, GuiaRepository
+from .repository import OPERADOR_BODEGA, OPERADOR_PLANILLADA, GuiaRepository
 
 
 # Estado que marca una guia como "en reparto" (salio con el operador, aun sin cerrar).
@@ -81,7 +81,7 @@ def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]
 
 def registrar_salidas(repository: GuiaRepository, operador: str, guias_texto: str) -> dict:
     guias = parse_guides(guias_texto)
-    estado = "" if operador.strip().upper() == OPERADOR_PLANILLADA else ESTADO_SALIDA
+    estado = "" if operador.strip().upper() in (OPERADOR_PLANILLADA, OPERADOR_BODEGA) else ESTADO_SALIDA
     actualizadas, no_encontradas = repository.asignar_salida(guias, operador, estado)
     return {"recibidas": len(guias), "actualizadas": actualizadas, "no_encontradas": no_encontradas}
 

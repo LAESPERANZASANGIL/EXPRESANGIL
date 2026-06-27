@@ -61,6 +61,20 @@ def test_import_deja_guias_nuevas_en_planillada_con_estado_vacio(tmp_path: Path)
     assert dataframe.loc["100", "ESTADO"] == "E"
 
 
+def test_import_deja_guias_de_bodega_con_estado_vacio(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    dataframe_bodega = build_dataframe("100", "Persona A")
+    dataframe_bodega.loc[0, "OPERADOR"] = "BODEGA"
+    dataframe_bodega.loc[0, "ESTADO"] = "N"
+    repository.save_consolidated(dataframe_bodega)
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+
+    assert dataframe.loc["100", "OPERADOR"] == "BODEGA"
+    assert dataframe.loc["100", "ESTADO"] == ""
+
+
 def test_import_no_pisa_operador_de_guia_ya_existente_al_reimportar(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
