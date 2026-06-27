@@ -6,7 +6,7 @@ const buscarCampo = document.getElementById("buscar-campo");
 
 // Filtros estilo Excel: campo -> Set de valores seleccionados, o null si no hay filtro activo (se muestran todos).
 const filtrosExcel = {};
-const CAMPOS_FILTRO_EXCEL = ["guia", "municipio", "operador", "estado", "causal"];
+const CAMPOS_FILTRO_EXCEL = ["planilla", "guia", "municipio", "operador", "estado", "causal"];
 let panelFiltroActual = null;
 
 const formGuia = document.getElementById("form-guia");
