@@ -3,10 +3,11 @@ const tablaBody = document.getElementById("tabla-body");
 const contador = document.getElementById("contador");
 const buscar = document.getElementById("buscar");
 const buscarCampo = document.getElementById("buscar-campo");
-const filtroMunicipio = document.getElementById("filtro-municipio");
-const filtroOperador = document.getElementById("filtro-operador");
-const filtroEstado = document.getElementById("filtro-estado");
-const filtroCausal = document.getElementById("filtro-causal");
+
+// Filtros estilo Excel: campo -> Set de valores seleccionados, o null si no hay filtro activo (se muestran todos).
+const filtrosExcel = {};
+const CAMPOS_FILTRO_EXCEL = ["guia", "municipio", "operador", "estado", "causal"];
+let panelFiltroActual = null;
 
 const formGuia = document.getElementById("form-guia");
 const formPlanilla = document.getElementById("form-planilla");
@@ -99,26 +100,8 @@ async function cargarGuias() {
     mostrarLog("No se pudieron cargar las guias: " + error);
     guias = [];
   }
-  poblarFiltrosColumna();
+  actualizarIconosFiltro();
   renderizarTabla();
-}
-
-function poblarSelectFiltro(select, valores) {
-  const actual = select.value;
-  select.innerHTML = "";
-  const opcionTodos = document.createElement("option");
-  opcionTodos.value = "";
-  opcionTodos.textContent = "Todos";
-  select.appendChild(opcionTodos);
-  for (const valor of valores) {
-    const opcion = document.createElement("option");
-    opcion.value = valor;
-    opcion.textContent = valor;
-    select.appendChild(opcion);
-  }
-  if (valores.includes(actual)) {
-    select.value = actual;
-  }
 }
 
 function valoresUnicos(campo) {
@@ -130,12 +113,130 @@ function valoresUnicos(campo) {
   return Array.from(valores).sort((a, b) => a.localeCompare(b));
 }
 
-function poblarFiltrosColumna() {
-  poblarSelectFiltro(filtroMunicipio, valoresUnicos("municipio"));
-  poblarSelectFiltro(filtroOperador, valoresUnicos("operador"));
-  poblarSelectFiltro(filtroEstado, valoresUnicos("estado"));
-  poblarSelectFiltro(filtroCausal, valoresUnicos("causal"));
+function cerrarPanelFiltroExcel() {
+  if (panelFiltroActual) {
+    panelFiltroActual.remove();
+    panelFiltroActual = null;
+    document.removeEventListener("mousedown", cerrarPanelFiltroExcelFuera);
+  }
 }
+
+function cerrarPanelFiltroExcelFuera(evento) {
+  if (panelFiltroActual && !panelFiltroActual.contains(evento.target)) {
+    cerrarPanelFiltroExcel();
+  }
+}
+
+function actualizarIconosFiltro() {
+  for (const campo of CAMPOS_FILTRO_EXCEL) {
+    const boton = document.querySelector(`.btn-filtro-excel[data-campo="${campo}"]`);
+    if (boton) boton.classList.toggle("activo", Boolean(filtrosExcel[campo]));
+  }
+}
+
+function abrirFiltroExcel(campo, boton) {
+  const yaAbiertoParaEsteCampo = panelFiltroActual && panelFiltroActual.dataset.campo === campo;
+  cerrarPanelFiltroExcel();
+  if (yaAbiertoParaEsteCampo) return;
+
+  const valores = valoresUnicos(campo);
+  const seleccionActual = new Set(filtrosExcel[campo] || valores);
+
+  const panel = document.createElement("div");
+  panel.className = "panel-filtro-excel";
+  panel.dataset.campo = campo;
+
+  const buscarInput = document.createElement("input");
+  buscarInput.type = "text";
+  buscarInput.placeholder = "Buscar";
+  buscarInput.className = "filtro-excel-buscar";
+  panel.appendChild(buscarInput);
+
+  const listaDiv = document.createElement("div");
+  listaDiv.className = "filtro-excel-lista";
+  panel.appendChild(listaDiv);
+
+  function renderLista(textoFiltro) {
+    listaDiv.innerHTML = "";
+    const texto = (textoFiltro || "").trim().toUpperCase();
+    const visibles = texto ? valores.filter((valor) => valor.toUpperCase().includes(texto)) : valores;
+
+    const labelTodo = document.createElement("label");
+    labelTodo.className = "filtro-excel-item filtro-excel-item-todo";
+    const checkTodo = document.createElement("input");
+    checkTodo.type = "checkbox";
+    checkTodo.checked = visibles.length > 0 && visibles.every((valor) => seleccionActual.has(valor));
+    checkTodo.addEventListener("change", () => {
+      for (const valor of visibles) {
+        if (checkTodo.checked) seleccionActual.add(valor);
+        else seleccionActual.delete(valor);
+      }
+      renderLista(buscarInput.value);
+    });
+    labelTodo.appendChild(checkTodo);
+    labelTodo.appendChild(document.createTextNode("(Seleccionar todo)"));
+    listaDiv.appendChild(labelTodo);
+
+    for (const valor of visibles) {
+      const label = document.createElement("label");
+      label.className = "filtro-excel-item";
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.checked = seleccionActual.has(valor);
+      check.addEventListener("change", () => {
+        if (check.checked) seleccionActual.add(valor);
+        else seleccionActual.delete(valor);
+        checkTodo.checked = visibles.every((v) => seleccionActual.has(v));
+      });
+      label.appendChild(check);
+      label.appendChild(document.createTextNode(valor));
+      listaDiv.appendChild(label);
+    }
+  }
+  renderLista("");
+
+  buscarInput.addEventListener("input", () => renderLista(buscarInput.value));
+
+  const filaBotones = document.createElement("div");
+  filaBotones.className = "filtro-excel-botones";
+
+  const btnAceptar = document.createElement("button");
+  btnAceptar.type = "button";
+  btnAceptar.className = "filtro-excel-aceptar";
+  btnAceptar.textContent = "Aceptar";
+  btnAceptar.addEventListener("click", () => {
+    filtrosExcel[campo] = seleccionActual.size === valores.length ? null : new Set(seleccionActual);
+    actualizarIconosFiltro();
+    cerrarPanelFiltroExcel();
+    renderizarTabla();
+  });
+
+  const btnCancelar = document.createElement("button");
+  btnCancelar.type = "button";
+  btnCancelar.textContent = "Cancelar";
+  btnCancelar.addEventListener("click", cerrarPanelFiltroExcel);
+
+  filaBotones.appendChild(btnAceptar);
+  filaBotones.appendChild(btnCancelar);
+  panel.appendChild(filaBotones);
+
+  document.body.appendChild(panel);
+  const rect = boton.getBoundingClientRect();
+  const maxLeft = window.innerWidth - panel.offsetWidth - 10;
+  panel.style.position = "fixed";
+  panel.style.top = `${rect.bottom + 4}px`;
+  panel.style.left = `${Math.min(rect.left, Math.max(maxLeft, 10))}px`;
+
+  panelFiltroActual = panel;
+  setTimeout(() => document.addEventListener("mousedown", cerrarPanelFiltroExcelFuera), 0);
+}
+
+document.querySelectorAll(".btn-filtro-excel").forEach((boton) => {
+  boton.addEventListener("click", (evento) => {
+    evento.stopPropagation();
+    abrirFiltroExcel(boton.dataset.campo, boton);
+  });
+});
 
 function filasFiltradas() {
   const texto = buscar.value.trim().toUpperCase();
@@ -160,15 +261,10 @@ function filasFiltradas() {
     );
   }
 
-  const filtrosColumna = [
-    ["municipio", filtroMunicipio.value],
-    ["operador", filtroOperador.value],
-    ["estado", filtroEstado.value],
-    ["causal", filtroCausal.value],
-  ];
-  for (const [campo, valor] of filtrosColumna) {
-    if (valor) {
-      filas = filas.filter((fila) => String(fila[campo] || "") === valor);
+  for (const campo of CAMPOS_FILTRO_EXCEL) {
+    const seleccion = filtrosExcel[campo];
+    if (seleccion) {
+      filas = filas.filter((fila) => seleccion.has(String(fila[campo] || "")));
     }
   }
 
@@ -257,18 +353,14 @@ function guiasObjetivo() {
 
 buscar.addEventListener("input", renderizarTabla);
 buscarCampo.addEventListener("change", renderizarTabla);
-filtroMunicipio.addEventListener("change", renderizarTabla);
-filtroOperador.addEventListener("change", renderizarTabla);
-filtroEstado.addEventListener("change", renderizarTabla);
-filtroCausal.addEventListener("change", renderizarTabla);
 
 document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
   buscar.value = "";
   Array.from(buscarCampo.options).forEach((opcion) => (opcion.selected = false));
-  filtroMunicipio.value = "";
-  filtroOperador.value = "";
-  filtroEstado.value = "";
-  filtroCausal.value = "";
+  for (const campo of CAMPOS_FILTRO_EXCEL) {
+    filtrosExcel[campo] = null;
+  }
+  actualizarIconosFiltro();
   renderizarTabla();
 });
 

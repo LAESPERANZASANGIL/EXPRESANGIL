@@ -38,20 +38,98 @@
   z-index: 2;
 }
 
-.fila-filtros-columna th {
-  top: 46px;
-  padding: 8px 10px;
+.btn-filtro-excel {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 6px;
+  margin-left: 4px;
 }
 
-.fila-filtros-columna select {
+.btn-filtro-excel:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-filtro-excel.activo {
+  background: #ffc107;
+  border-color: #ffc107;
+  color: #1a1a1a;
+}
+
+.panel-filtro-excel {
+  background: #fff;
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  padding: 10px;
+  width: 260px;
+  z-index: 50;
+}
+
+.filtro-excel-buscar {
   width: 100%;
-  min-height: 36px;
-  padding: 4px 8px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.filtro-excel-lista {
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid var(--gris-borde);
+  border-bottom: 1px solid var(--gris-borde);
+  padding: 6px 0;
+  margin-bottom: 8px;
+}
+
+.filtro-excel-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  white-space: normal;
+  font-weight: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.filtro-excel-item:hover {
+  background: #eef3fb;
+}
+
+.filtro-excel-item-todo {
+  border-bottom: 1px solid var(--gris-borde);
+  margin-bottom: 4px;
+  padding-bottom: 6px;
+  font-weight: bold;
+}
+
+.filtro-excel-botones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.filtro-excel-botones button {
+  padding: 6px 14px;
   border-radius: 6px;
   border: 1px solid var(--gris-borde);
-  font-size: 0.85rem;
-  text-transform: none;
-  color: #1a1a1a;
+  cursor: pointer;
+  background: #f0f2f5;
+}
+
+.filtro-excel-botones button.filtro-excel-aceptar {
+  background: var(--azul-medio);
+  color: #fff;
+  border-color: var(--azul-medio);
 }
 
 .tabla-guias tbody tr:nth-child(even) {

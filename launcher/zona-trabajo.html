@@ -35,7 +35,7 @@
         <button class="boton boton-buscar" id="btn-actualizar">Actualizar</button>
       </div>
       <p class="ayuda">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar varias columnas, ej. Operador, Fecha de ingreso y Estado. Sin ninguna seleccionada se busca en todos los campos.</p>
-      <p class="ayuda">Usa los filtros de Municipio, Operador, Estado o Causal en la cabecera de la tabla para ver solo esas guias, y el boton "Marcar todas las visibles" para aplicarles un cambio masivo.</p>
+      <p class="ayuda">Usa el icono de filtro en la cabecera de Guia, Municipio, Operador, Estado o Causal para elegir varios valores a la vez (como en Excel), y el boton "Marcar todas las visibles" para aplicarles un cambio masivo.</p>
       <p id="contador" class="contador">Cargando...</p>
       <div class="fila-botones">
         <button class="boton boton-buscar" id="btn-marcar-visibles">Marcar todas las visibles</button>
@@ -48,30 +48,16 @@
           <tr>
             <th></th>
             <th>PLANILLA</th>
-            <th>GUIA</th>
+            <th>GUIA <button type="button" class="btn-filtro-excel" data-campo="guia">&#9662;</button></th>
             <th>DESTINATARIO</th>
             <th>DIRECCION</th>
-            <th>MUNICIPIO</th>
+            <th>MUNICIPIO <button type="button" class="btn-filtro-excel" data-campo="municipio">&#9662;</button></th>
             <th>VALOR</th>
-            <th>OPERADOR</th>
-            <th>ESTADO</th>
-            <th>CAUSAL</th>
+            <th>OPERADOR <button type="button" class="btn-filtro-excel" data-campo="operador">&#9662;</button></th>
+            <th>ESTADO <button type="button" class="btn-filtro-excel" data-campo="estado">&#9662;</button></th>
+            <th>CAUSAL <button type="button" class="btn-filtro-excel" data-campo="causal">&#9662;</button></th>
             <th>F. IMPORTACION</th>
             <th>F. ENTREGA</th>
-          </tr>
-          <tr class="fila-filtros-columna">
-            <th></th>
-            <th></th>
-            <th></th>
-            <th></th>
-            <th></th>
-            <th><select id="filtro-municipio"><option value="">Todos</option></select></th>
-            <th></th>
-            <th><select id="filtro-operador"><option value="">Todos</option></select></th>
-            <th><select id="filtro-estado"><option value="">Todos</option></select></th>
-            <th><select id="filtro-causal"><option value="">Todos</option></select></th>
-            <th></th>
-            <th></th>
           </tr>
         </thead>
         <tbody id="tabla-body"></tbody>
