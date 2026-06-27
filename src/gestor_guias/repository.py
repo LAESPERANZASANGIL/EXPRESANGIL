@@ -472,25 +472,23 @@ class GuiaRepository:
         guias: list[str],
         operador: str,
         fecha: str,
-        estados_actuales: list[str],
         nuevo_estado: str,
     ) -> int:
+        # No se filtra por estado actual: una novedad debe poder registrarse
+        # sin importar en que estado haya quedado la guia (R, E, otra
+        # novedad...), incluso si el operador ya cerro el dia.
         self.initialize()
         clean_guides = [guia.strip() for guia in guias if guia.strip()]
         if not clean_guides:
             return 0
 
-        placeholders_estado = ",".join("?" * len(estados_actuales))
         with self._connect() as connection:
             cursor = connection.executemany(
-                f"""
+                """
                 UPDATE guias SET estado = ?, ingreso = ?
-                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado IN ({placeholders_estado})
+                WHERE guia = ? AND operador = ?
                 """,
-                [
-                    (nuevo_estado, fecha, guia, operador, f"{fecha}%", *estados_actuales)
-                    for guia in clean_guides
-                ],
+                [(nuevo_estado, fecha, guia, operador) for guia in clean_guides],
             )
             return cursor.rowcount
 
@@ -499,26 +497,21 @@ class GuiaRepository:
         items: list[tuple[str, str]],
         operador: str,
         fecha: str,
-        estados_actuales: list[str],
         nuevo_estado: str,
     ) -> int:
+        # No se filtra por estado actual, por la misma razon que registrar_novedad.
         self.initialize()
         clean_items = [(guia.strip(), causal.strip()) for guia, causal in items if guia.strip()]
         if not clean_items:
             return 0
 
-        estados_permitidos = [*estados_actuales, nuevo_estado]
-        placeholders_estado = ",".join("?" * len(estados_permitidos))
         with self._connect() as connection:
             cursor = connection.executemany(
-                f"""
+                """
                 UPDATE guias SET estado = ?, causal = ?, ingreso = ?
-                WHERE guia = ? AND operador = ? AND fecha LIKE ? AND estado IN ({placeholders_estado})
+                WHERE guia = ? AND operador = ?
                 """,
-                [
-                    (nuevo_estado, causal, fecha, guia, operador, f"{fecha}%", *estados_permitidos)
-                    for guia, causal in clean_items
-                ],
+                [(nuevo_estado, causal, fecha, guia, operador) for guia, causal in clean_items],
             )
             return cursor.rowcount
 
