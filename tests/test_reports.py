@@ -97,6 +97,7 @@ def test_generate_operator_report_incluye_detalle_de_guias_entregadas(tmp_path: 
 
     workbook = load_workbook(output_path)
     assert "GUIAS ENTREGADAS" in workbook.sheetnames
+    assert "CIERRE" in workbook.sheetnames
     sheet = workbook["GUIAS ENTREGADAS"]
     guias = [sheet.cell(row=row, column=2).value for row in range(2, sheet.max_row + 1)]
     assert guias == ["100"]

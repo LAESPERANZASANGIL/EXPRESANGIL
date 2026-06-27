@@ -264,7 +264,7 @@ def generate_operator_report(
     entregadas = build_entregadas_detalle(dataframe, operador)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        summary.to_excel(writer, index=False, sheet_name="POR OPERADOR")
+        summary.to_excel(writer, index=False, sheet_name="CIERRE")
         entregadas.to_excel(writer, index=False, sheet_name="GUIAS ENTREGADAS")
         for sheet_name in writer.sheets:
             apply_report_format(writer.sheets[sheet_name])
