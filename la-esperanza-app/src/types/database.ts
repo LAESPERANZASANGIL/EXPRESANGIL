@@ -25,6 +25,8 @@ export interface Grado {
   orden: number;
 }
 
+export type EstadoPeriodo = "planeado" | "abierto" | "cerrado";
+
 export interface PeriodoAcademico {
   id: string;
   nombre: string;
@@ -32,6 +34,7 @@ export interface PeriodoAcademico {
   fecha_inicio: string;
   fecha_fin: string;
   orden: number;
+  estado: EstadoPeriodo;
 }
 
 export interface Curso {
@@ -76,17 +79,64 @@ export interface AcudienteEstudiante {
   parentesco: string | null;
 }
 
+export type TipoActividad =
+  | "trabajo"
+  | "quiz"
+  | "evaluacion"
+  | "proyecto"
+  | "laboratorio"
+  | "recuperacion"
+  | "nivelacion";
+
+export interface ActividadEvaluacion {
+  id: string;
+  asignacion_docente_id: string;
+  periodo_id: string;
+  nombre: string;
+  tipo: TipoActividad;
+  peso_porcentual: number;
+  orden: number;
+  es_recuperacion: boolean;
+  activa: boolean;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface Nota {
   id: string;
   estudiante_id: string;
   asignatura_id: string;
   periodo_id: string;
   docente_id: string | null;
+  actividad_id: string;
   valor: number;
   tipo: string;
   observacion: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AuditoriaNota {
+  id: string;
+  nota_id: string;
+  estudiante_id: string;
+  actividad_id: string;
+  usuario_id: string | null;
+  rol: string | null;
+  valor_anterior: number | null;
+  valor_nuevo: number | null;
+  motivo: string | null;
+  created_at: string;
+}
+
+export interface AuditoriaPeriodo {
+  id: string;
+  periodo_id: string;
+  usuario_id: string | null;
+  rol: string | null;
+  estado_anterior: string | null;
+  estado_nuevo: string | null;
+  created_at: string;
 }
 
 export type EstadoAsistencia =
