@@ -26,6 +26,7 @@ from .operadores import (
     recalcular_cierre,
     registrar_novedades,
     registrar_salidas,
+    revertir_cierre,
     verify_password,
 )
 from .excel_processor import hoy_colombia, normalize_guide
@@ -1007,6 +1008,68 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "archivo_entregas": ruta_entregas.name,
                 }
             )
+            return
+
+        if self.path == "/api/admin/cierre/revertir":
+            if not self._require_admin():
+                return
+            operador = str(data.get("operador", "")).strip()
+            fecha_texto = str(data.get("fecha", "")).strip()
+            if not operador or not fecha_texto:
+                self._send_json({"ok": False, "output": "Faltan operador o fecha."})
+                return
+            try:
+                date.fromisoformat(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            resultado = revertir_cierre(REPOSITORY, operador, fecha_texto)
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Cierre revertido: {resultado['guias_revertidas']} guia(s) volvieron a estado R. "
+                    f"Registro de cierre {'eliminado' if resultado['cierre_eliminado'] else 'no encontrado'}."
+                ),
+                "resultado": resultado,
+            })
+            return
+
+        if self.path == "/api/admin/cierre/regenerar":
+            if not self._require_admin():
+                return
+            operador = str(data.get("operador", "")).strip()
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            try:
+                fecha_date = date.fromisoformat(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            if not operador:
+                self._send_json({"ok": False, "output": "Falta el operador."})
+                return
+            bancos = value_to_number(data.get("bancos", 0))
+            nequi = value_to_number(data.get("nequi", 0))
+            envia = value_to_number(data.get("envia", 0))
+            gastos = value_to_number(data.get("gastos", 0))
+            adelanto_salario = value_to_number(data.get("adelanto_salario", 0))
+            denominaciones_raw = data.get("denominaciones") or {}
+            denominaciones = {
+                int(d): value_to_number(c) for d, c in denominaciones_raw.items()
+            }
+            resumen = cerrar_dia(
+                REPOSITORY, operador, fecha_texto, bancos, nequi, envia,
+                denominaciones, gastos, adelanto_salario,
+            )
+            ruta_entregas = generate_entregadas_operador_excel(
+                REPOSITORY, SETTINGS.paths.output_dir, operador, fecha_date,
+                resumen=resumen, denominaciones=denominaciones,
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Cierre regenerado para {operador} ({fecha_texto}).",
+                "resumen": resumen,
+                "archivo_entregas": ruta_entregas.name,
+            })
             return
 
         self.send_error(404)

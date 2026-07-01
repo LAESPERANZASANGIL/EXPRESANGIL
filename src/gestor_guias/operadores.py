@@ -258,3 +258,9 @@ def recalcular_cierre(repository: GuiaRepository, operador: str, fecha: str) -> 
         "adelanto_salario": adelanto_salario,
         "efectivo": efectivo,
     }
+
+
+def revertir_cierre(repository: GuiaRepository, operador: str, fecha: str) -> dict:
+    guias_revertidas = repository.revertir_cierre_operador(operador, fecha)
+    cierre_eliminado = repository.eliminar_cierre(fecha, operador)
+    return {"guias_revertidas": guias_revertidas, "cierre_eliminado": cierre_eliminado}

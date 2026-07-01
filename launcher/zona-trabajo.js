@@ -582,6 +582,40 @@ document.getElementById("btn-eliminar-estado").addEventListener("click", async (
   }
 });
 
+document.getElementById("btn-admin-revertir-cierre").addEventListener("click", async () => {
+  const operador = document.getElementById("cierre-admin-operador").value.trim();
+  const fecha = document.getElementById("cierre-admin-fecha").value.trim();
+  if (!operador || !fecha) {
+    mostrarLog("Escribe el operador y la fecha.");
+    return;
+  }
+  if (!confirm(`¿Revertir el cierre de '${operador}' del ${fecha}? Sus guias volveran a estado R y se eliminara el registro de cierre.`)) return;
+  const resultado = await llamar("/api/admin/cierre/revertir", { operador, fecha });
+  if (resultado.ok) await cargarGuias();
+});
+
+document.getElementById("btn-admin-regenerar-cierre").addEventListener("click", async () => {
+  const operador = document.getElementById("cierre-admin-operador").value.trim();
+  const fecha = document.getElementById("cierre-admin-fecha").value.trim();
+  if (!operador || !fecha) {
+    mostrarLog("Escribe el operador y la fecha.");
+    return;
+  }
+  if (!confirm(`¿Regenerar el cierre de '${operador}' del ${fecha}? Esto cerrara el dia y sobreescribira el cierre anterior si existe.`)) return;
+  const bancos = document.getElementById("cierre-admin-bancos").value;
+  const nequi = document.getElementById("cierre-admin-nequi").value;
+  const envia = document.getElementById("cierre-admin-envia").value;
+  const gastos = document.getElementById("cierre-admin-gastos").value;
+  const adelanto_salario = document.getElementById("cierre-admin-adelanto").value;
+  const resultado = await llamar("/api/admin/cierre/regenerar", { operador, fecha, bancos, nequi, envia, gastos, adelanto_salario });
+  if (resultado.ok) {
+    if (resultado.archivo_entregas) {
+      window.open(`/api/operador/descargar?archivo=${encodeURIComponent(resultado.archivo_entregas)}`, "_blank");
+    }
+    await cargarGuias();
+  }
+});
+
 document.getElementById("btn-eliminar-operador").addEventListener("click", async () => {
   const operador = document.getElementById("del-operador").value.trim();
   if (!operador) {

@@ -156,6 +156,50 @@
     </section>
 
     <section class="opcion">
+      <h3>Reversar o regenerar cierre de operador</h3>
+      <div class="fila-eliminar">
+        <div>
+          <label>OPERADOR</label>
+          <input type="text" id="cierre-admin-operador" placeholder="Nombre del operador" />
+        </div>
+        <div>
+          <label>FECHA</label>
+          <input type="date" id="cierre-admin-fecha" />
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <p class="ayuda" style="margin-top:0;margin-bottom:6px;">Valores para regenerar el cierre (no aplican al reverso):</p>
+        <div class="fila-eliminar">
+          <div>
+            <label>BANCOS</label>
+            <input type="text" id="cierre-admin-bancos" value="0" />
+          </div>
+          <div>
+            <label>NEQUI</label>
+            <input type="text" id="cierre-admin-nequi" value="0" />
+          </div>
+          <div>
+            <label>LINK ENVIA</label>
+            <input type="text" id="cierre-admin-envia" value="0" />
+          </div>
+          <div>
+            <label>GASTOS</label>
+            <input type="text" id="cierre-admin-gastos" value="0" />
+          </div>
+          <div>
+            <label>ADELANTO</label>
+            <input type="text" id="cierre-admin-adelanto" value="0" />
+          </div>
+        </div>
+      </div>
+      <div class="fila-botones" style="margin-top:12px;">
+        <button class="boton boton-peligro" id="btn-admin-revertir-cierre">Reversar cierre</button>
+        <button class="boton boton-accion" id="btn-admin-regenerar-cierre">Regenerar cierre</button>
+      </div>
+      <p class="ayuda">Reversar: devuelve las guias de E a R y borra el registro de cierre. Regenerar: vuelve a cerrar el dia con los valores indicados y genera el Excel de entregas.</p>
+    </section>
+
+    <section class="opcion">
       <h3>Generar informes</h3>
       <label>Tipo de informe</label>
       <select id="informe-tipo">

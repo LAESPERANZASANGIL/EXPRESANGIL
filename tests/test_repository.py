@@ -316,6 +316,30 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     assert cierre["e"] == 2
 
 
+def test_revertir_cierre_operador_devuelve_guias_a_estado_r(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.save_consolidated(build_dataframe("200", "Persona B"))
+    repository.asignar_salida(["100", "200"], "KEVIN", "R")
+
+    fecha = hoy_colombia().isoformat()
+    repository.cerrar_dia_operador("KEVIN", fecha, "R", "E")
+    repository.guardar_cierre(
+        fecha=fecha, operador="KEVIN", gestionadas=2, ro=0, n=0, d=0, e=2,
+        recaudado=0, bancos=0, nequi=0, envia=0, efectivo=0,
+    )
+
+    guias_revertidas = repository.revertir_cierre_operador("KEVIN", fecha)
+    cierre_eliminado = repository.eliminar_cierre(fecha, "KEVIN")
+
+    assert guias_revertidas == 2
+    assert cierre_eliminado is True
+    assert repository.obtener_cierre(fecha, "KEVIN") is None
+    dataframe = repository.to_dataframe()
+    assert list(dataframe["ESTADO"]) == ["R", "R"]
+
+
 def test_guardar_cierre_persiste_denominaciones_contadas(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 

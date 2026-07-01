@@ -538,6 +538,24 @@ class GuiaRepository:
             )
             return cursor.rowcount
 
+    def revertir_cierre_operador(self, operador: str, fecha: str) -> int:
+        self.initialize()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE guias SET estado = 'R', ingreso = '' WHERE operador = ? AND fecha LIKE ? AND estado = 'E'",
+                (operador, f"{fecha}%"),
+            )
+            return cursor.rowcount
+
+    def eliminar_cierre(self, fecha: str, operador: str) -> bool:
+        self.initialize()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM cierres_operador WHERE fecha = ? AND operador = ?",
+                (fecha, operador),
+            )
+            return cursor.rowcount > 0
+
     def guias_de_operador(self, operador: str, fecha: str) -> list[dict]:
         self.initialize()
         with self._connect() as connection:

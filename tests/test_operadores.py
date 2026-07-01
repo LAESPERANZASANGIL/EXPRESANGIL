@@ -13,6 +13,7 @@ from gestor_guias.operadores import (
     recalcular_cierre,
     registrar_novedades,
     registrar_salidas,
+    revertir_cierre,
     verify_password,
 )
 from gestor_guias.repository import GuiaRepository
@@ -258,6 +259,23 @@ def test_registrar_novedades_funciona_despues_de_cerrar_el_dia(tmp_path: Path) -
 
     # El cierre individual ya guardado no se altera por las novedades posteriores.
     assert repository.obtener_cierre(fecha, "KEVIN") == cierre_previo
+
+
+def test_revertir_cierre_restaura_guias_y_elimina_registro(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = hoy_colombia().isoformat()
+    cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
+
+    resultado = revertir_cierre(repository, "KEVIN", fecha)
+
+    assert resultado["guias_revertidas"] == 2
+    assert resultado["cierre_eliminado"] is True
+    assert repository.obtener_cierre(fecha, "KEVIN") is None
+    dataframe = repository.to_dataframe()
+    assert set(dataframe["ESTADO"].tolist()) == {"R"}
 
 
 def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
