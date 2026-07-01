@@ -621,7 +621,7 @@ document.getElementById("btn-admin-regenerar-cierre").addEventListener("click", 
   const resultado = await llamar("/api/admin/cierre/regenerar", { operador, fecha, bancos, nequi, envia, gastos, adelanto_salario });
   if (resultado.ok) {
     if (resultado.archivo_entregas) {
-      window.open(`/api/operador/descargar?archivo=${encodeURIComponent(resultado.archivo_entregas)}`, "_blank");
+      window.open(`/api/descargar?archivo=${encodeURIComponent(resultado.archivo_entregas)}`, "_blank");
     }
     await cargarGuias();
   }
