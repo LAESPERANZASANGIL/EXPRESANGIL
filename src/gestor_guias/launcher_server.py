@@ -672,17 +672,6 @@ class LauncherHandler(BaseHTTPRequestHandler):
             dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
             daily = filter_by_date(dataframe, fecha)
             en_reparto = int((daily["ESTADO"].astype(str).str.strip().str.upper() == ESTADO_SALIDA).sum())
-            if en_reparto:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "output": (
-                            f"No se puede cerrar el dia: hay {en_reparto} guia(s) en estado "
-                            "R (en reparto) sin novedad ni recaudo registrado."
-                        ),
-                    }
-                )
-                return
 
             totales = REPOSITORY.sumar_totales_cierres_dia(fecha.isoformat())
             recaudado_total = totales["recaudado"]
@@ -694,10 +683,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
             efectivo_esperado = totales["efectivo"]
 
             caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
+            aviso = (
+                f"Advertencia: hay {en_reparto} guia(s) en estado R aun sin cerrar para esta fecha."
+                if en_reparto else ""
+            )
             self._send_json(
                 {
                     "ok": True,
-                    "output": "Cierre general calculado.",
+                    "output": aviso or "Cierre general calculado.",
                     "resumen": {
                         "recaudado": recaudado_total,
                         "bancos": bancos_total,
@@ -709,6 +702,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                         "efectivo_contado": caja["efectivo_contado"],
                         "diferencia": caja["diferencia"],
                         "nota": caja["nota"],
+                        "en_reparto": en_reparto,
                     },
                 }
             )

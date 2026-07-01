@@ -409,6 +409,16 @@ function mostrarResumenCierreGeneral(resumen) {
     filaNota.appendChild(celdaValor);
     tablaResumenCierreGeneralBody.appendChild(filaNota);
   }
+  if (resumen.en_reparto) {
+    const filaAviso = document.createElement("tr");
+    filaAviso.classList.add("fila-efectivo");
+    const celdaAviso = document.createElement("td");
+    celdaAviso.colSpan = 2;
+    celdaAviso.style.color = "#c0392b";
+    celdaAviso.textContent = `⚠ Hay ${resumen.en_reparto} guia(s) en estado R sin cerrar para esta fecha. Los totales pueden ser parciales.`;
+    filaAviso.appendChild(celdaAviso);
+    tablaResumenCierreGeneralBody.appendChild(filaAviso);
+  }
   resumenCierreGeneral.classList.remove("oculto");
 }
 
