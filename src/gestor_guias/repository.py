@@ -676,6 +676,33 @@ class GuiaRepository:
             ).fetchall()
             return [row[0] for row in rows]
 
+    def sumar_totales_cierres_dia(self, fecha: str) -> dict:
+        self.initialize()
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    COALESCE(SUM(recaudado), 0) AS recaudado,
+                    COALESCE(SUM(bancos), 0)    AS bancos,
+                    COALESCE(SUM(nequi), 0)     AS nequi,
+                    COALESCE(SUM(envia), 0)     AS envia,
+                    COALESCE(SUM(gastos), 0)    AS gastos,
+                    COALESCE(SUM(adelanto_salario), 0) AS adelanto_salario,
+                    COALESCE(SUM(efectivo), 0)  AS efectivo
+                FROM cierres_operador WHERE fecha = ?
+                """,
+                (fecha,),
+            ).fetchone()
+            return {
+                "recaudado": row[0],
+                "bancos": row[1],
+                "nequi": row[2],
+                "envia": row[3],
+                "gastos": row[4],
+                "adelanto_salario": row[5],
+                "efectivo": row[6],
+            }
+
     def sumar_envia_dia(self, fecha: str) -> int:
         self.initialize()
         with self._connect() as connection:

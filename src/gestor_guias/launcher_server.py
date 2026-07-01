@@ -32,7 +32,6 @@ from .operadores import (
 from .excel_processor import hoy_colombia, normalize_guide
 from .exporter import export_marked_dataframe
 from .reports import (
-    build_cierre_breakdown,
     filter_by_date,
     generate_entregadas_operador_excel,
     generate_salidas_operador_excel,
@@ -286,18 +285,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
             valor_en_reparto = int(en_reparto["VALOR_NUMERICO"].sum())
 
             daily = filter_by_date(dataframe, fecha)
-            resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
-            if resumen.empty:
-                recaudado_total = bancos_total = nequi_total = envia_total = 0
-                gastos_total = adelanto_total = efectivo_total = 0
-            else:
-                recaudado_total = int(resumen["RECAUDADO"].sum())
-                bancos_total = int(resumen["BANCOS"].sum())
-                nequi_total = int(resumen["NEQUI"].sum())
-                envia_total = int(resumen["ENVIA"].sum())
-                gastos_total = int(resumen["GASTOS"].sum())
-                adelanto_total = int(resumen["ADELANTO_SALARIO"].sum())
-                efectivo_total = int(resumen["EFECTIVO"].sum())
+            totales_panel = REPOSITORY.sumar_totales_cierres_dia(fecha.isoformat())
+            recaudado_total = totales_panel["recaudado"]
+            bancos_total = totales_panel["bancos"]
+            nequi_total = totales_panel["nequi"]
+            envia_total = totales_panel["envia"]
+            gastos_total = totales_panel["gastos"]
+            adelanto_total = totales_panel["adelanto_salario"]
+            efectivo_total = totales_panel["efectivo"]
 
             # El efectivo esperado del dia incluye lo ya recaudado mas lo que
             # todavia esta en la calle (estado R), para que se vea el total
@@ -689,25 +684,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-            resumen = build_cierre_breakdown(REPOSITORY, daily, fecha)
-            if resumen.empty:
-                recaudado_total = 0
-                bancos_total = 0
-                nequi_total = 0
-                envia_total = 0
-                gastos_total = 0
-                adelanto_total = 0
-                efectivo_esperado = 0
-            else:
-                recaudado_total = int(resumen["RECAUDADO"].sum())
-                bancos_total = int(resumen["BANCOS"].sum())
-                nequi_total = int(resumen["NEQUI"].sum())
-                envia_total = int(resumen["ENVIA"].sum())
-                gastos_total = int(resumen["GASTOS"].sum())
-                adelanto_total = int(resumen["ADELANTO_SALARIO"].sum())
-                efectivo_esperado = (
-                    recaudado_total - bancos_total - nequi_total - envia_total - gastos_total - adelanto_total
-                )
+            totales = REPOSITORY.sumar_totales_cierres_dia(fecha.isoformat())
+            recaudado_total = totales["recaudado"]
+            bancos_total = totales["bancos"]
+            nequi_total = totales["nequi"]
+            envia_total = totales["envia"]
+            gastos_total = totales["gastos"]
+            adelanto_total = totales["adelanto_salario"]
+            efectivo_esperado = totales["efectivo"]
 
             caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
             self._send_json(
