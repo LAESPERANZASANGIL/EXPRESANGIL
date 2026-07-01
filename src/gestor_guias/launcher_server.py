@@ -1010,6 +1010,30 @@ class LauncherHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if self.path == "/api/admin/cierre/revertir-dia":
+            if not self._require_admin():
+                return
+            fecha_texto = str(data.get("fecha", "")).strip()
+            if not fecha_texto:
+                self._send_json({"ok": False, "output": "Falta la fecha."})
+                return
+            try:
+                date.fromisoformat(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            resultado = REPOSITORY.revertir_cierres_dia(fecha_texto)
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Cierres del {fecha_texto} revertidos: "
+                    f"{resultado['guias_revertidas']} guia(s) volvieron a R, "
+                    f"{resultado['cierres_eliminados']} registro(s) de cierre eliminados."
+                ),
+                "resultado": resultado,
+            })
+            return
+
         if self.path == "/api/admin/cierre/revertir":
             if not self._require_admin():
                 return

@@ -582,6 +582,17 @@ document.getElementById("btn-eliminar-estado").addEventListener("click", async (
   }
 });
 
+document.getElementById("btn-admin-revertir-dia").addEventListener("click", async () => {
+  const fecha = document.getElementById("cierre-admin-fecha").value.trim();
+  if (!fecha) {
+    mostrarLog("Selecciona la fecha.");
+    return;
+  }
+  if (!confirm(`¿Revertir TODOS los cierres del ${fecha}? Las guias de todos los operadores volveran a estado R y se eliminaran todos los registros de cierre de ese dia.`)) return;
+  const resultado = await llamar("/api/admin/cierre/revertir-dia", { fecha });
+  if (resultado.ok) await cargarGuias();
+});
+
 document.getElementById("btn-admin-revertir-cierre").addEventListener("click", async () => {
   const operador = document.getElementById("cierre-admin-operador").value.trim();
   const fecha = document.getElementById("cierre-admin-fecha").value.trim();
