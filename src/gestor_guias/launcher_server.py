@@ -481,6 +481,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
             fecha = str(data.get("fecha", "")).strip()
             entrega = str(data.get("entrega", "")).strip()
+            servicio = str(data.get("servicio", "")).strip()
             REPOSITORY.update_guide_details(
                 guia=guia,
                 planilla=str(data.get("planilla", "")).strip(),
@@ -493,6 +494,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 causal=str(data.get("causal", "")).strip(),
                 fecha=fecha or None,
                 entrega=entrega or None,
+                servicio=servicio or None,
             )
             self._send_json({"ok": True, "output": f"Se actualizo la guia {guia}."})
             return

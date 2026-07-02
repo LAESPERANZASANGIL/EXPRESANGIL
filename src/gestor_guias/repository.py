@@ -233,6 +233,7 @@ class GuiaRepository:
         causal: str,
         fecha: str | None = None,
         entrega: str | None = None,
+        servicio: str | None = None,
     ) -> None:
         self.initialize()
         # F_INGRESO (columna "fecha") y F_ENTREGA (columna "ingreso") solo se
@@ -245,12 +246,13 @@ class GuiaRepository:
                 SET planilla = ?, destinatario = ?, direccion = ?, municipio = ?,
                     valor = ?, operador = ?, estado = ?, causal = ?,
                     fecha = COALESCE(?, fecha),
-                    ingreso = COALESCE(?, ingreso)
+                    ingreso = COALESCE(?, ingreso),
+                    servicio = COALESCE(?, servicio)
                 WHERE guia = ?
                 """,
                 (
                     planilla, destinatario, direccion, municipio, valor,
-                    operador, estado, causal, fecha, entrega, guia,
+                    operador, estado, causal, fecha, entrega, servicio or None, guia,
                 ),
             )
 

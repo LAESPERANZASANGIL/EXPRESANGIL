@@ -6,7 +6,7 @@ const buscarCampo = document.getElementById("buscar-campo");
 
 // Filtros estilo Excel: campo -> Set de valores seleccionados, o null si no hay filtro activo (se muestran todos).
 const filtrosExcel = {};
-const CAMPOS_FILTRO_EXCEL = ["planilla", "guia", "municipio", "operador", "estado", "causal"];
+const CAMPOS_FILTRO_EXCEL = ["planilla", "guia", "servicio", "municipio", "operador", "estado", "causal"];
 let panelFiltroActual = null;
 
 // Orden de columna: null = sin orden; "asc"/"desc" segun la ultima columna clickeada.
@@ -25,6 +25,7 @@ const formEstado = document.getElementById("form-estado");
 const formCausal = document.getElementById("form-causal");
 const formFecha = document.getElementById("form-fecha");
 const formEntrega = document.getElementById("form-entrega");
+const formServicio = document.getElementById("form-servicio");
 
 let guias = [];
 let marcadas = new Set();
@@ -275,7 +276,7 @@ function filasFiltradas() {
     const camposSeleccionados = Array.from(buscarCampo.selectedOptions).map((opcion) => opcion.value);
     const campos = camposSeleccionados.length
       ? camposSeleccionados
-      : ["planilla", "guia", "destinatario", "direccion", "municipio", "operador", "estado", "causal", "fecha", "ingreso"];
+      : ["planilla", "guia", "servicio", "destinatario", "direccion", "municipio", "operador", "estado", "causal", "fecha", "ingreso"];
     filas = filas.filter((fila) =>
       campos.some((campo) => {
         const valor = String(fila[campo] || "").toUpperCase();
@@ -333,7 +334,7 @@ function renderizarTabla() {
     });
     tr.appendChild(tdCheck);
 
-    for (const campo of ["planilla", "guia", "destinatario", "direccion", "municipio"]) {
+    for (const campo of ["planilla", "guia", "servicio", "destinatario", "direccion", "municipio"]) {
       const td = document.createElement("td");
       td.textContent = fila[campo] || "";
       tr.appendChild(td);
@@ -376,6 +377,7 @@ function seleccionarFila(fila) {
   formCausal.value = fila.causal || "";
   formFecha.value = fechaParaInput(fila.fecha);
   formEntrega.value = fechaParaInput(fila.ingreso);
+  formServicio.value = fila.servicio || "";
   renderizarTabla();
 }
 
@@ -441,6 +443,7 @@ document.getElementById("btn-guardar-una").addEventListener("click", async () =>
     causal: formCausal.value,
     fecha: formFecha.value,
     entrega: formEntrega.value,
+    servicio: formServicio.value,
   });
   if (resultado.ok) await cargarGuias();
 });

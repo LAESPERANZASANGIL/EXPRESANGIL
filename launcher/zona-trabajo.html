@@ -20,6 +20,7 @@
         <select id="buscar-campo" multiple size="4">
           <option value="planilla">Planilla</option>
           <option value="guia">Guia</option>
+          <option value="servicio">Servicio</option>
           <option value="destinatario">Destinatario</option>
           <option value="direccion">Direccion</option>
           <option value="municipio">Municipio</option>
@@ -49,6 +50,7 @@
             <th></th>
             <th>PLANILLA <button type="button" class="btn-filtro-excel" data-campo="planilla">&#9662;</button></th>
             <th>GUIA <button type="button" class="btn-filtro-excel" data-campo="guia">&#9662;</button></th>
+            <th>SERVICIO <button type="button" class="btn-filtro-excel" data-campo="servicio">&#9662;</button></th>
             <th>DESTINATARIO</th>
             <th>DIRECCION</th>
             <th>MUNICIPIO <button type="button" class="btn-filtro-excel" data-campo="municipio">&#9662;</button></th>
@@ -110,6 +112,10 @@
         <div class="campo">
           <label>FECHA DE ENTREGA</label>
           <input type="date" id="form-entrega" />
+        </div>
+        <div class="campo">
+          <label>SERVICIO</label>
+          <input type="text" id="form-servicio" />
         </div>
       </div>
       <p class="ayuda">Nota: estos campos solo aplican a "Guardar guia seleccionada", no a "Aplicar a marcadas" ni a la edicion masiva por lista.</p>
