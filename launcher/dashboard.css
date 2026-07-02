@@ -1,0 +1,59 @@
+.ancho {
+  max-width: 1880px;
+}
+
+.tarjetas {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.tarjeta {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 10px;
+  background: #f7f8fa;
+}
+
+.tarjeta-valor {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--azul-oscuro);
+}
+
+.tarjeta-etiqueta {
+  font-size: 0.95rem;
+  color: var(--azul-oscuro);
+  opacity: 0.8;
+  text-align: center;
+}
+
+.tabla-dashboard {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+
+.tabla-dashboard th,
+.tabla-dashboard td {
+  border: 1px solid var(--gris-borde);
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.tabla-dashboard thead th {
+  background: var(--azul-oscuro);
+  color: #fff;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tabla-dashboard tbody tr:nth-child(even) {
+  background: #f7f8fa;
+}

@@ -1,9 +1,18 @@
+const pantallaLogin = document.getElementById("pantalla-login");
 const pantallaPrincipal = document.getElementById("pantalla-principal");
 const pantallaIniciar = document.getElementById("pantalla-iniciar");
+const nombreUsuario = document.getElementById("nombre-usuario");
 const log = document.getElementById("log");
 
 function mostrarLog(texto) {
   log.textContent = texto;
+}
+
+function hoy() {
+  const ahora = new Date();
+  const mes = String(ahora.getMonth() + 1).padStart(2, "0");
+  const dia = String(ahora.getDate()).padStart(2, "0");
+  return `${ahora.getFullYear()}-${mes}-${dia}`;
 }
 
 function mostrarAviso(texto, tipo) {
@@ -24,6 +33,24 @@ function mostrarAviso(texto, tipo) {
   }, 4000);
 }
 
+function mostrarDescargas(descargas) {
+  const anterior = document.getElementById("descargas");
+  if (anterior) anterior.remove();
+  if (!descargas || !descargas.length) return;
+
+  const contenedor = document.createElement("div");
+  contenedor.id = "descargas";
+  for (const nombre of descargas) {
+    const enlace = document.createElement("a");
+    enlace.className = "boton boton-accion";
+    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
+    enlace.textContent = "Descargar " + nombre;
+    enlace.setAttribute("download", nombre);
+    contenedor.appendChild(enlace);
+  }
+  log.insertAdjacentElement("afterend", contenedor);
+}
+
 async function llamar(ruta, datos, accion) {
   const nombre = accion || "Orden";
   mostrarLog("Procesando...");
@@ -36,6 +63,7 @@ async function llamar(ruta, datos, accion) {
     });
     const resultado = await respuesta.json();
     mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    mostrarDescargas(resultado.descargas);
     if (resultado.ok) {
       mostrarAviso(nombre + ": orden ejecutada correctamente.", "exito");
     } else {
@@ -47,10 +75,96 @@ async function llamar(ruta, datos, accion) {
   }
 }
 
+function mostrarPantallaPrincipal(nombre, rol) {
+  nombreUsuario.textContent = nombre + (rol === "admin" ? " (administrador)" : " (operador)");
+  pantallaLogin.classList.add("oculto");
+  pantallaIniciar.classList.add("oculto");
+  pantallaPrincipal.classList.remove("oculto");
+
+  for (const elemento of document.querySelectorAll(".solo-admin")) {
+    elemento.classList.toggle("oculto", rol !== "admin");
+  }
+
+  actualizarCampoOperadorInforme();
+}
+
+function mostrarPantallaLogin() {
+  pantallaPrincipal.classList.add("oculto");
+  pantallaIniciar.classList.add("oculto");
+  pantallaLogin.classList.remove("oculto");
+}
+
+const MENSAJE_SOLO_ADMIN =
+  "Esta pagina es solo para el administrador. Los operadores deben ingresar desde Modulo Operadores.";
+
+async function verificarSesion() {
+  try {
+    const respuesta = await fetch("/api/operador/sesion", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (respuesta.ok && resultado.ok) {
+      if (resultado.rol !== "admin") {
+        await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+        mostrarPantallaLogin();
+        mostrarLog(MENSAJE_SOLO_ADMIN);
+        return;
+      }
+      mostrarPantallaPrincipal(resultado.nombre, resultado.rol);
+      return;
+    }
+  } catch (error) {
+    // sin sesion activa, se muestra el login
+  }
+  mostrarPantallaLogin();
+}
+
+document.getElementById("btn-login").addEventListener("click", async () => {
+  const usuario = document.getElementById("login-usuario").value.trim();
+  const password = document.getElementById("login-password").value;
+  if (!usuario || !password) {
+    mostrarLog("Escribe usuario y contrasena.");
+    return;
+  }
+  try {
+    const respuesta = await fetch("/api/operador/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, password }),
+      credentials: "same-origin",
+    });
+    const resultado = await respuesta.json();
+    if (resultado.ok) {
+      document.getElementById("login-password").value = "";
+      if (resultado.rol !== "admin") {
+        await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+        mostrarLog(MENSAJE_SOLO_ADMIN);
+        return;
+      }
+      mostrarPantallaPrincipal(resultado.nombre, resultado.rol);
+    } else {
+      mostrarLog(resultado.output || "Usuario o contrasena incorrectos.");
+    }
+  } catch (error) {
+    mostrarLog("No se pudo conectar con el panel: " + error);
+  }
+});
+
+document.getElementById("btn-logout").addEventListener("click", async () => {
+  await fetch("/api/operador/logout", { method: "POST", credentials: "same-origin" });
+  mostrarPantallaLogin();
+});
+
+verificarSesion();
+
 document.getElementById("btn-iniciar").addEventListener("click", () => {
   pantallaPrincipal.classList.add("oculto");
   pantallaIniciar.classList.remove("oculto");
   mostrarLog("Listo.");
+  actualizarCampoOperadorInforme();
+
+  const campoCierreGeneralFecha = document.getElementById("cierre-general-fecha");
+  if (campoCierreGeneralFecha && !campoCierreGeneralFecha.value) campoCierreGeneralFecha.value = hoy();
+  const campoRecalcularFecha = document.getElementById("recalcular-fecha");
+  if (campoRecalcularFecha && !campoRecalcularFecha.value) campoRecalcularFecha.value = hoy();
 });
 
 document.getElementById("btn-volver").addEventListener("click", () => {
@@ -59,48 +173,348 @@ document.getElementById("btn-volver").addEventListener("click", () => {
   mostrarLog("Listo.");
 });
 
-document.getElementById("btn-buscar-archivo").addEventListener("click", async () => {
-  mostrarLog("Abriendo explorador de archivos...");
-  try {
-    const respuesta = await fetch("/api/elegir-archivo", { method: "POST" });
-    const resultado = await respuesta.json();
-    const rutas = resultado.rutas || [];
-    if (rutas.length) {
-      document.getElementById("importar-archivo").value = rutas.join("; ");
-      mostrarLog(
-        rutas.length === 1
-          ? "Archivo seleccionado: " + rutas[0]
-          : "Archivos seleccionados (" + rutas.length + "):\n" + rutas.join("\n")
-      );
-    } else {
-      mostrarLog("No se selecciono ningun archivo.");
-    }
-  } catch (error) {
-    mostrarLog("No se pudo abrir el explorador: " + error);
+async function subirArchivo(archivo) {
+  const formData = new FormData();
+  formData.append("archivo", archivo, archivo.name);
+  const respuesta = await fetch("/api/subir-archivo", {
+    method: "POST",
+    body: formData,
+  });
+  const resultado = await respuesta.json();
+  if (!resultado.ok) {
+    throw new Error(resultado.output || "No se pudo subir el archivo " + archivo.name);
   }
-});
+  return resultado.rutas || [];
+}
 
-document.getElementById("btn-importar").addEventListener("click", () => {
-  const archivos = document.getElementById("importar-archivo").value
-    .split(";")
-    .map((ruta) => ruta.trim())
-    .filter((ruta) => ruta);
+document.getElementById("btn-importar").addEventListener("click", async () => {
+  const archivos = document.getElementById("importar-archivo").files;
   const fecha = document.getElementById("importar-fecha").value.trim();
   if (!archivos.length) {
-    mostrarLog("Indica la ruta del archivo a importar.");
+    mostrarLog("Selecciona uno o varios archivos a importar.");
     return;
   }
-  llamar("/api/importar", { archivos, fecha }, "Importar");
+
+  mostrarLog("Subiendo archivos...");
+  mostrarAviso("Importar: subiendo archivos...", "info");
+  let rutas = [];
+  try {
+    for (const archivo of archivos) {
+      const subidas = await subirArchivo(archivo);
+      rutas = rutas.concat(subidas);
+    }
+  } catch (error) {
+    mostrarLog("No se pudieron subir los archivos: " + error);
+    mostrarAviso("Importar: no se pudieron subir los archivos.", "error");
+    return;
+  }
+
+  llamar("/api/importar", { archivos: rutas, fecha }, "Importar");
+});
+
+const exportarEstadoSelect = document.getElementById("exportar-estado-select");
+const exportarEstadoOtro = document.getElementById("exportar-estado-otro");
+
+exportarEstadoSelect.addEventListener("change", () => {
+  const esOtro = exportarEstadoSelect.value === "otro";
+  exportarEstadoOtro.classList.toggle("oculto", !esOtro);
+  if (!esOtro) exportarEstadoOtro.value = "";
 });
 
 document.getElementById("btn-exportar").addEventListener("click", () => {
   const fecha = document.getElementById("exportar-fecha").value.trim();
-  llamar("/api/exportar", { fecha }, "Exportar");
+  const estado =
+    exportarEstadoSelect.value === "otro"
+      ? exportarEstadoOtro.value.trim()
+      : exportarEstadoSelect.value;
+  llamar("/api/exportar", { fecha, estado }, "Exportar");
 });
 
+const informeTipo = document.getElementById("informe-tipo");
+const informeOperadorCampo = document.getElementById("informe-operador-campo");
+const informeOperador = document.getElementById("informe-operador");
+
+async function cargarOperadoresInforme(tipo) {
+  const incluirTodos = tipo === "operador";
+  const ruta = incluirTodos ? "/api/operadores-guias" : "/api/usuarios";
+  try {
+    const respuesta = await fetch(ruta, { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    const nombres = incluirTodos ? resultado.operadores : resultado.usuarios.map((u) => u.nombre);
+    informeOperador.innerHTML = "";
+    if (incluirTodos) {
+      const opcionTodos = document.createElement("option");
+      opcionTodos.value = "";
+      opcionTodos.textContent = "Todos los operadores";
+      informeOperador.appendChild(opcionTodos);
+    }
+    for (const nombre of nombres) {
+      const opcion = document.createElement("option");
+      opcion.value = nombre;
+      opcion.textContent = nombre;
+      informeOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+const informeFechaCampo = document.getElementById("informe-fecha-campo");
+const informeMesCampo = document.getElementById("informe-mes-campo");
+
+function actualizarCampoOperadorInforme() {
+  const esSalidas = informeTipo.value === "salidas";
+  const esOperador = informeTipo.value === "operador";
+  const esMensual = informeTipo.value === "mensual";
+  informeOperadorCampo.classList.toggle("oculto", !esSalidas && !esOperador);
+  informeFechaCampo.classList.toggle("oculto", esMensual);
+  informeMesCampo.classList.toggle("oculto", !esMensual);
+  if (esSalidas) {
+    cargarOperadoresInforme("salidas");
+  } else if (esOperador) {
+    cargarOperadoresInforme("operador");
+  }
+}
+
+informeTipo.addEventListener("change", actualizarCampoOperadorInforme);
+actualizarCampoOperadorInforme();
+
 document.getElementById("btn-informe").addEventListener("click", () => {
-  const tipo = document.getElementById("informe-tipo").value;
+  const tipo = informeTipo.value;
   const fecha = document.getElementById("informe-fecha").value.trim();
-  const nombre = document.getElementById("informe-tipo").selectedOptions[0].textContent;
+  const nombre = informeTipo.selectedOptions[0].textContent;
+  if (tipo === "salidas") {
+    const operador = informeOperador.value;
+    if (!operador) {
+      mostrarLog("Selecciona un operador para el informe de salidas.");
+      return;
+    }
+    llamar("/api/informe", { tipo, fecha, operador }, nombre);
+    return;
+  }
+  if (tipo === "operador") {
+    const operador = informeOperador.value;
+    llamar("/api/informe", { tipo, fecha, operador }, nombre);
+    return;
+  }
+  if (tipo === "mensual") {
+    const mes = document.getElementById("informe-mes").value.trim();
+    if (!mes) {
+      mostrarLog("Selecciona el mes para el informe mensual.");
+      return;
+    }
+    llamar("/api/informe", { tipo, mes }, nombre);
+    return;
+  }
   llamar("/api/informe", { tipo, fecha }, nombre);
+});
+
+const DENOMINACIONES = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50];
+const tablaCierreGeneralBody = document.getElementById("tabla-cierre-general-body");
+const cierreGeneralSubtotal = document.getElementById("cierre-general-subtotal");
+const resumenCierreGeneral = document.getElementById("resumen-cierre-general");
+const tablaResumenCierreGeneralBody = document.getElementById("tabla-resumen-cierre-general-body");
+
+function formatoMonedaCierreGeneral(valor) {
+  return "$ " + Number(valor || 0).toLocaleString("es-CO");
+}
+
+function construirTablaCierreGeneral() {
+  tablaCierreGeneralBody.innerHTML = "";
+  for (const denominacion of DENOMINACIONES) {
+    const fila = document.createElement("tr");
+
+    const tdDenominacion = document.createElement("td");
+    tdDenominacion.textContent = formatoMonedaCierreGeneral(denominacion);
+
+    const tdCantidad = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.placeholder = "0";
+    input.dataset.denominacion = String(denominacion);
+    input.addEventListener("input", actualizarSubtotalCierreGeneral);
+    tdCantidad.appendChild(input);
+
+    const tdSubtotal = document.createElement("td");
+    tdSubtotal.dataset.subtotalDe = String(denominacion);
+    tdSubtotal.textContent = formatoMonedaCierreGeneral(0);
+
+    fila.appendChild(tdDenominacion);
+    fila.appendChild(tdCantidad);
+    fila.appendChild(tdSubtotal);
+    tablaCierreGeneralBody.appendChild(fila);
+  }
+}
+
+function obtenerDenominacionesCierreGeneral() {
+  const denominaciones = {};
+  for (const input of tablaCierreGeneralBody.querySelectorAll("input")) {
+    const cantidad = Number(input.value) || 0;
+    if (cantidad > 0) denominaciones[input.dataset.denominacion] = cantidad;
+  }
+  return denominaciones;
+}
+
+function actualizarSubtotalCierreGeneral() {
+  let total = 0;
+  for (const input of tablaCierreGeneralBody.querySelectorAll("input")) {
+    const cantidad = Number(input.value) || 0;
+    const denominacion = Number(input.dataset.denominacion);
+    const subtotal = cantidad * denominacion;
+    total += subtotal;
+    const celdaSubtotal = tablaCierreGeneralBody.querySelector(`[data-subtotal-de="${denominacion}"]`);
+    celdaSubtotal.textContent = formatoMonedaCierreGeneral(subtotal);
+  }
+  cierreGeneralSubtotal.textContent = formatoMonedaCierreGeneral(total);
+}
+
+construirTablaCierreGeneral();
+
+function mostrarResumenCierreGeneral(resumen) {
+  const filas = [
+    ["Total recaudado (todos los operadores)", resumen.recaudado],
+    ["Total en bancos", resumen.bancos],
+    ["Total en Nequi", resumen.nequi],
+    ["Total en link Envia", resumen.envia],
+    ["Total gastos", resumen.gastos],
+    ["Total prestamos / adelantos de salario", resumen.adelanto_salario],
+    ["Efectivo esperado (todos los operadores)", resumen.efectivo_esperado],
+    ["Efectivo contado en caja", resumen.efectivo_contado],
+    ["Diferencia", resumen.diferencia],
+  ];
+  tablaResumenCierreGeneralBody.innerHTML = "";
+  for (const [etiqueta, valor] of filas) {
+    const fila = document.createElement("tr");
+    fila.classList.add("fila-efectivo");
+
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = etiqueta;
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = formatoMonedaCierreGeneral(valor);
+
+    fila.appendChild(celdaEtiqueta);
+    fila.appendChild(celdaValor);
+    tablaResumenCierreGeneralBody.appendChild(fila);
+  }
+  if (resumen.nota) {
+    const filaNota = document.createElement("tr");
+    filaNota.classList.add("fila-efectivo");
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = "Anotacion";
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = resumen.nota;
+    filaNota.appendChild(celdaEtiqueta);
+    filaNota.appendChild(celdaValor);
+    tablaResumenCierreGeneralBody.appendChild(filaNota);
+  }
+  if (resumen.en_reparto) {
+    const filaAviso = document.createElement("tr");
+    filaAviso.classList.add("fila-efectivo");
+    const celdaAviso = document.createElement("td");
+    celdaAviso.colSpan = 2;
+    celdaAviso.style.color = "#c0392b";
+    celdaAviso.textContent = `⚠ Hay ${resumen.en_reparto} guia(s) en estado R sin cerrar para esta fecha. Los totales pueden ser parciales.`;
+    filaAviso.appendChild(celdaAviso);
+    tablaResumenCierreGeneralBody.appendChild(filaAviso);
+  }
+  resumenCierreGeneral.classList.remove("oculto");
+}
+
+document.getElementById("btn-cierre-general").addEventListener("click", async () => {
+  const fecha = document.getElementById("cierre-general-fecha").value.trim();
+  const denominaciones = obtenerDenominacionesCierreGeneral();
+  mostrarLog("Procesando...");
+  try {
+    const respuesta = await fetch("/api/cierre-general", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fecha, denominaciones }),
+    });
+    const resultado = await respuesta.json();
+    mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    if (resultado.ok && resultado.resumen) {
+      mostrarResumenCierreGeneral(resultado.resumen);
+    }
+  } catch (error) {
+    mostrarLog("No se pudo conectar con el panel: " + error);
+  }
+});
+
+const recalcularOperador = document.getElementById("recalcular-operador");
+const resumenRecalcularCierre = document.getElementById("resumen-recalcular-cierre");
+const tablaResumenRecalcularCierreBody = document.getElementById("tabla-resumen-recalcular-cierre-body");
+
+async function cargarOperadoresRecalcular() {
+  try {
+    const respuesta = await fetch("/api/operadores-guias", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    recalcularOperador.innerHTML = "";
+    for (const nombre of resultado.operadores) {
+      const opcion = document.createElement("option");
+      opcion.value = nombre;
+      opcion.textContent = nombre;
+      recalcularOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+cargarOperadoresRecalcular();
+
+function mostrarResumenRecalcularCierre(resumen) {
+  const filas = [
+    ["Guias gestionadas", resumen.gestionadas],
+    ["RO", resumen.ro],
+    ["N", resumen.n],
+    ["D", resumen.d],
+    ["Entregadas/recaudadas (E)", resumen.e],
+    ["Recaudado", formatoMonedaCierreGeneral(resumen.recaudado)],
+    ["Bancos", formatoMonedaCierreGeneral(resumen.bancos)],
+    ["Nequi", formatoMonedaCierreGeneral(resumen.nequi)],
+    ["Link de envia", formatoMonedaCierreGeneral(resumen.envia)],
+    ["Gastos", formatoMonedaCierreGeneral(resumen.gastos)],
+    ["Adelanto de salario", formatoMonedaCierreGeneral(resumen.adelanto_salario)],
+    ["Efectivo", formatoMonedaCierreGeneral(resumen.efectivo)],
+  ];
+  tablaResumenRecalcularCierreBody.innerHTML = "";
+  for (const [etiqueta, valor] of filas) {
+    const fila = document.createElement("tr");
+    fila.classList.add("fila-efectivo");
+    const celdaEtiqueta = document.createElement("td");
+    celdaEtiqueta.textContent = etiqueta;
+    const celdaValor = document.createElement("td");
+    celdaValor.textContent = valor;
+    fila.appendChild(celdaEtiqueta);
+    fila.appendChild(celdaValor);
+    tablaResumenRecalcularCierreBody.appendChild(fila);
+  }
+  resumenRecalcularCierre.classList.remove("oculto");
+}
+
+document.getElementById("btn-recalcular-cierre").addEventListener("click", async () => {
+  const operador = recalcularOperador.value.trim();
+  const fecha = document.getElementById("recalcular-fecha").value.trim();
+  if (!operador || !fecha) {
+    mostrarLog("Selecciona un operador y una fecha.");
+    return;
+  }
+  mostrarLog("Procesando...");
+  try {
+    const respuesta = await fetch("/api/cierre-recalcular", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operador, fecha }),
+    });
+    const resultado = await respuesta.json();
+    mostrarLog(resultado.output || (resultado.ok ? "Listo." : "Ocurrio un error."));
+    if (resultado.ok && resultado.resumen) {
+      mostrarResumenRecalcularCierre(resultado.resumen);
+    }
+  } catch (error) {
+    mostrarLog("No se pudo conectar con el panel: " + error);
+  }
 });

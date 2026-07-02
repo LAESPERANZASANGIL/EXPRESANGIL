@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultar guia - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="consulta.css" />
+</head>
+<body>
+  <div class="pagina">
+    <div class="container">
+      <header>
+        <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+        <h1>EXPRESANGIL</h1>
+        <p class="subtitulo">Consulta el estado de tu guia</p>
+      </header>
+
+      <section class="opcion">
+        <label>Numero de guia</label>
+        <input type="text" id="guia" placeholder="Ej: 980941" autofocus />
+        <button class="boton boton-accion" id="btn-consultar">Consultar</button>
+      </section>
+
+      <section class="opcion oculto" id="resultado">
+        <h3 id="resultado-titulo"></h3>
+        <p id="resultado-mensaje"></p>
+      </section>
+
+      <button class="boton boton-volver" id="btn-ingresar-panel">Ingresar al panel</button>
+
+      <section class="opcion oculto" id="panel-acceso">
+        <h3>Ingresar al panel</h3>
+        <label>Usuario</label>
+        <input type="text" id="panel-usuario" autocomplete="username" />
+        <label>Contrasena del administrador</label>
+        <input type="password" id="panel-password" autocomplete="current-password" />
+        <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
+        <p id="panel-error" class="panel-error oculto"></p>
+      </section>
+    </div>
+
+    <aside class="info-empresa">
+      <h2>¡En EXPRESANGIL llevamos tus encomiendas a donde las necesites!</h2>
+      <p>
+        Recogemos tus paquetes directamente en la puerta de tu casa o negocio
+        y los entregamos de manera rapida y segura en San Gil y los
+        municipios circunvecinos.
+      </p>
+
+      <p class="info-ubicacion">📍 Estamos ubicados en la carrera 9 No. 17-22, San Gil</p>
+      <p class="info-telefonos">📱 304 262 4407 &nbsp;-&nbsp; 📱 314 269 3385</p>
+
+      <h3 class="info-seccion">CONSULTA EL ESTADO DE TU ENCOMIENDA:</h3>
+
+      <p class="info-importante">Importante:</p>
+      <p>Para realizar correctamente la consulta de tu envio, el numero de guia debe ingresarse:</p>
+
+      <ul class="lista-reglas">
+        <li class="regla-ok">✅ Solo con numeros</li>
+        <li class="regla-mal">❌ Sin puntos (.)</li>
+        <li class="regla-mal">❌ Sin guiones (-)</li>
+        <li class="regla-mal">❌ Sin espacios</li>
+      </ul>
+
+      <p class="info-importante">Ejemplo:</p>
+      <ul class="lista-reglas">
+        <li class="regla-ok">✅ Correcto: 123456789</li>
+        <li class="regla-mal">❌ Incorrecto: 123-456-789</li>
+        <li class="regla-mal">❌ Incorrecto: 123.456.789</li>
+      </ul>
+
+      <p>Esto permitira que nuestro sistema encuentre tu envio de forma rapida y precisa.</p>
+
+      <p class="info-lema">🚚 "Recogemos donde estas, entregamos donde necesitas."</p>
+    </aside>
+  </div>
+
+  <script src="consulta.js"></script>
+</body>
+</html>

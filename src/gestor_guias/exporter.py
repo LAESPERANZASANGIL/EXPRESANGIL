@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 import re
 
 from openpyxl.styles import Font, PatternFill
 import pandas as pd
+
+FECHA_CORTA_FORMATO = "DD/MM/YYYY"
 
 
 MONTHS_ES = {
@@ -24,8 +26,9 @@ MONTHS_ES = {
 }
 
 
-def output_filename(target_date: date) -> str:
-    return f"{target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
+def output_filename(target_date: date, estado: str = "") -> str:
+    sufijo = f" estado {estado.strip().upper()}" if estado.strip() else ""
+    return f"{target_date.day:02d} {MONTHS_ES[target_date.month]}{sufijo}.xlsx"
 
 
 def display_date(value: object) -> str:
@@ -46,12 +49,45 @@ def prepare_for_export(dataframe: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def export_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date) -> Path:
+def date_for_excel(text: str) -> object:
+    """Convierte "DD/MM/YYYY" en un date real para que Excel lo muestre en formato fecha corta."""
+    if not text:
+        return ""
+    try:
+        return datetime.strptime(text, "%d/%m/%Y").date()
+    except ValueError:
+        return text
+
+
+def prepare_for_excel(dataframe: pd.DataFrame) -> pd.DataFrame:
+    result = prepare_for_export(dataframe)
+    for column in ("F_INGRESO", "F_ENTREGA"):
+        if column in result.columns:
+            result[column] = result[column].map(date_for_excel)
+    return result
+
+
+def export_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date, estado: str = "") -> Path:
+    if estado.strip() and "ESTADO" in dataframe.columns:
+        dataframe = dataframe[dataframe["ESTADO"].astype(str).str.strip().str.upper() == estado.strip().upper()]
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / output_filename(target_date)
+    output_path = output_dir / output_filename(target_date, estado)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        prepare_for_export(dataframe).to_excel(writer, index=False, sheet_name="Hoja1")
+        prepare_for_excel(dataframe).to_excel(writer, index=False, sheet_name="Hoja1")
+        worksheet = writer.sheets["Hoja1"]
+        apply_master_format(worksheet)
+
+    return output_path
+
+
+def export_marked_dataframe(dataframe: pd.DataFrame, output_dir: Path, target_date: date) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"guias marcadas {output_filename(target_date)}"
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        prepare_for_excel(dataframe).to_excel(writer, index=False, sheet_name="Hoja1")
         worksheet = writer.sheets["Hoja1"]
         apply_master_format(worksheet)
 
@@ -66,7 +102,7 @@ def export_movements_copy(dataframe: pd.DataFrame, output_dir: Path, target_date
     output_path = output_dir / f"movimientos otros estado {output_filename(target_date)}"
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        prepare_for_export(dataframe).to_excel(writer, index=False, sheet_name="Movimientos")
+        prepare_for_excel(dataframe).to_excel(writer, index=False, sheet_name="Movimientos")
         worksheet = writer.sheets["Movimientos"]
         apply_master_format(worksheet)
 
@@ -99,6 +135,15 @@ def apply_master_format(worksheet) -> None:
     for column, width in widths.items():
         worksheet.column_dimensions[column].width = width
 
+    fecha_columnas = {
+        cell.column
+        for cell in worksheet[1]
+        if str(cell.value).strip().upper() in ("F_INGRESO", "F_ENTREGA")
+    }
+    guia_columnas = {
+        cell.column for cell in worksheet[1] if str(cell.value).strip().upper() == "GUIA"
+    }
+
     for cell in worksheet[1]:
         cell.fill = header_fill
         cell.font = header_font
@@ -112,3 +157,7 @@ def apply_master_format(worksheet) -> None:
             else:
                 cell.fill = data_fill
             cell.alignment = cell.alignment.copy(horizontal="left")
+            if cell.column in fecha_columnas and isinstance(cell.value, date):
+                cell.number_format = FECHA_CORTA_FORMATO
+            if cell.column in guia_columnas:
+                cell.number_format = "@"

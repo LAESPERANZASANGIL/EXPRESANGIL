@@ -1,0 +1,217 @@
+.ancho {
+  max-width: 1880px;
+}
+
+#informe-operador-campo.oculto {
+  display: none;
+}
+
+.tabla-contenedor {
+  overflow-x: auto;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.tabla-guias {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+
+.tabla-guias th,
+.tabla-guias td {
+  border: 1px solid var(--gris-borde);
+  padding: 14px 18px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tabla-guias thead th {
+  background: var(--azul-oscuro);
+  color: #fff;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.btn-filtro-excel {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 6px;
+  margin-left: 4px;
+}
+
+.btn-filtro-excel:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-orden {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 6px;
+  margin-left: 4px;
+}
+
+.btn-orden:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-orden.activo {
+  background: #ffc107;
+  border-color: #ffc107;
+  color: #1a1a1a;
+}
+
+.btn-filtro-excel.activo {
+  background: #ffc107;
+  border-color: #ffc107;
+  color: #1a1a1a;
+}
+
+.panel-filtro-excel {
+  background: #fff;
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  padding: 10px;
+  width: 260px;
+  z-index: 50;
+}
+
+.filtro-excel-buscar {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.filtro-excel-lista {
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid var(--gris-borde);
+  border-bottom: 1px solid var(--gris-borde);
+  padding: 6px 0;
+  margin-bottom: 8px;
+}
+
+.filtro-excel-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  white-space: normal;
+  font-weight: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.filtro-excel-item:hover {
+  background: #eef3fb;
+}
+
+.filtro-excel-item-todo {
+  border-bottom: 1px solid var(--gris-borde);
+  margin-bottom: 4px;
+  padding-bottom: 6px;
+  font-weight: bold;
+}
+
+.filtro-excel-botones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.filtro-excel-botones button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--gris-borde);
+  cursor: pointer;
+  background: #f0f2f5;
+}
+
+.filtro-excel-botones button.filtro-excel-aceptar {
+  background: var(--azul-medio);
+  color: #fff;
+  border-color: var(--azul-medio);
+}
+
+.tabla-guias tbody tr:nth-child(even) {
+  background: #f7f8fa;
+}
+
+.tabla-guias tbody tr:hover {
+  background: #eef3fb;
+  cursor: pointer;
+}
+
+.tabla-guias tbody tr.marcada {
+  background: #fff3cd;
+}
+
+.tabla-guias tbody tr.seleccionada {
+  outline: 3px solid var(--azul-medio);
+}
+
+.contador {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--azul-oscuro);
+  margin-top: 10px;
+}
+
+.fila-botones {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.fila-botones .boton {
+  flex: 1 1 220px;
+  margin-top: 0;
+}
+
+.fila-eliminar {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.fila-eliminar > div {
+  flex: 1;
+  min-width: 240px;
+}
+
+.ayuda {
+  font-size: 0.9rem;
+  color: var(--azul-oscuro);
+  opacity: 0.75;
+  margin-top: 10px;
+}
+
+#bulk-text {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  font-size: 1.05rem;
+}

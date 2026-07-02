@@ -2,32 +2,62 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  border-left: 5px solid var(--azul-info);
 }
 
 .barra-operador p {
   margin: 0;
+  font-size: 1.1rem;
+  color: #444;
+}
+
+.barra-operador p strong {
   color: var(--azul-oscuro);
 }
 
 .barra-operador label {
   margin: 0;
+  font-size: 1rem;
 }
 
 .barra-operador input {
-  width: 140px;
+  width: 190px;
+  min-height: 48px;
+  padding: 10px 14px;
+  font-size: 1.05rem;
 }
 
 .barra-operador .boton {
   margin-left: auto;
+  width: auto;
+  padding: 12px 22px;
+}
+
+.fila-botones {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.fila-botones .boton {
+  flex: 1 1 220px;
+  margin-top: 0;
+}
+
+.nota-campo {
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: #777;
 }
 
 #pantalla-operador textarea {
   width: 100%;
-  padding: 8px;
+  padding: 12px;
   border: 1px solid var(--gris-borde);
-  border-radius: 4px;
-  font-size: 0.95rem;
+  border-radius: 6px;
+  font-size: 1.05rem;
   font-family: inherit;
   resize: vertical;
   box-sizing: border-box;
@@ -36,12 +66,13 @@
 .tabla-resumen {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 8px;
+  margin-top: 12px;
+  font-size: 1.05rem;
 }
 
 .tabla-resumen td {
   border: 1px solid var(--gris-borde);
-  padding: 8px 10px;
+  padding: 14px 16px;
 }
 
 .tabla-resumen td:first-child {
@@ -55,7 +86,56 @@
 }
 
 .tabla-resumen tr.fila-efectivo td {
-  background: var(--amarillo);
+  background: #fdf3e0;
   color: var(--azul-oscuro);
   font-weight: bold;
+  font-size: 1.15rem;
+}
+
+.tabla-resumen tr.fila-denominacion td {
+  font-size: 0.92rem;
+  font-weight: normal;
+  color: #555;
+}
+
+.tabla-resumen tr.fila-denominacion td:first-child {
+  font-weight: normal;
+  color: #555;
+}
+
+.tabla-denominaciones {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 1.05rem;
+}
+
+.tabla-denominaciones th,
+.tabla-denominaciones td {
+  border: 1px solid var(--gris-borde);
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.tabla-denominaciones th {
+  background: var(--azul-oscuro);
+  color: #fff;
+}
+
+.tabla-denominaciones td:nth-child(2),
+.tabla-denominaciones td:nth-child(3) {
+  text-align: right;
+}
+
+.tabla-denominaciones input {
+  width: 100px;
+  padding: 8px 10px;
+  font-size: 1rem;
+  text-align: right;
+}
+
+.tabla-denominaciones tfoot td {
+  font-weight: bold;
+  color: var(--azul-oscuro);
+  background: #fdf3e0;
 }

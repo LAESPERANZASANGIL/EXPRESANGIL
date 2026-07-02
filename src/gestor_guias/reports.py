@@ -6,11 +6,6 @@ import re
 
 from openpyxl.styles import Alignment, Font, PatternFill
 import pandas as pd
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .exporter import MONTHS_ES, display_date
 from .repository import GuiaRepository
@@ -35,6 +30,14 @@ DETAIL_COLUMNS = [
 
 # Estado que indica que la guia fue entregada y su valor recaudado.
 ESTADO_RECAUDO = "E"
+
+# Estado que indica que la guia salio en reparto con el operador (igual a
+# operadores.ESTADO_SALIDA; se repite aqui para evitar un import circular).
+ESTADO_SALIDA = "R"
+
+# Denominaciones de billetes que un operador puede contar al cerrar el dia
+# (igual a operadores.DENOMINACIONES; se repite aqui para evitar un import circular).
+DENOMINACIONES = (100_000, 50_000, 20_000, 10_000, 5_000, 2_000, 1_000, 500, 200, 100, 50)
 
 
 def generate_reports(source_file: Path, output_dir: Path, target_date: date) -> Path:
@@ -115,18 +118,136 @@ def filter_by_date(dataframe: pd.DataFrame, target_date: date) -> pd.DataFrame:
     return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
 
 
-def generate_operator_report(
-    repository: GuiaRepository, output_dir: Path, target_date: date | None = None
+def filter_by_month(dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    if "F_INGRESO" not in dataframe.columns:
+        return dataframe.iloc[0:0]
+
+    prefix = f"{year:04d}-{month:02d}"
+    return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
+
+
+def build_cierre_breakdown(
+    repository: GuiaRepository, dataframe: pd.DataFrame, target_date: date | None, operador: str = ""
+) -> pd.DataFrame:
+    if operador:
+        dataframe = dataframe[dataframe["OPERADOR"] == operador]
+
+    fecha_texto = target_date.isoformat() if target_date else ""
+
+    operadores_con_cierre = repository.operadores_con_cierre(fecha_texto) if fecha_texto else []
+    if operador:
+        operadores_con_cierre = [nombre for nombre in operadores_con_cierre if nombre == operador]
+
+    operadores = sorted({*dataframe["OPERADOR"].dropna().unique(), *operadores_con_cierre})
+
+    columnas_billetes = [f"BILLETES {denominacion:,}".replace(",", ".") for denominacion in DENOMINACIONES]
+
+    if not operadores:
+        return pd.DataFrame(
+            columns=[
+                "OPERADOR",
+                "GESTIONADAS",
+                "RO",
+                "N",
+                "D",
+                "E",
+                "RECAUDADO",
+                "BANCOS",
+                "NEQUI",
+                "ENVIA",
+                "GASTOS",
+                "ADELANTO_SALARIO",
+                "EFECTIVO",
+                *columnas_billetes,
+            ]
+        )
+
+    filas = []
+    for nombre_operador in operadores:
+        guias_operador = dataframe[dataframe["OPERADOR"] == nombre_operador]
+        gestionadas = len(guias_operador)
+        ro = int((guias_operador["ESTADO"].str.upper() == "RO").sum())
+        n = int((guias_operador["ESTADO"].str.upper() == "N").sum())
+        d = int((guias_operador["ESTADO"].str.upper() == "D").sum())
+        entregadas = guias_operador[guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO]
+        e = len(entregadas)
+        recaudado = int(entregadas["VALOR_NUMERICO"].sum())
+
+        cierre = repository.obtener_cierre(fecha_texto, nombre_operador) if fecha_texto else None
+        bancos = cierre["bancos"] if cierre else 0
+        nequi = cierre["nequi"] if cierre else 0
+        envia = cierre["envia"] if cierre else 0
+        gastos = cierre["gastos"] if cierre else 0
+        adelanto_salario = cierre["adelanto_salario"] if cierre else 0
+        efectivo = (
+            cierre["efectivo"] if cierre
+            else recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
+        )
+        denominaciones_contadas = cierre["denominaciones"] if cierre else {}
+
+        fila = {
+            "OPERADOR": nombre_operador,
+            "GESTIONADAS": gestionadas,
+            "RO": ro,
+            "N": n,
+            "D": d,
+            "E": e,
+            "RECAUDADO": recaudado,
+            "BANCOS": bancos,
+            "NEQUI": nequi,
+            "ENVIA": envia,
+            "GASTOS": gastos,
+            "ADELANTO_SALARIO": adelanto_salario,
+            "EFECTIVO": efectivo,
+        }
+        for denominacion, columna in zip(DENOMINACIONES, columnas_billetes):
+            fila[columna] = int(denominaciones_contadas.get(denominacion, 0))
+        filas.append(fila)
+
+    return pd.DataFrame(filas).sort_values("GESTIONADAS", ascending=False)
+
+
+def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    monthly = filter_by_month(dataframe, year, month)
+
+    columns = ["OPERADOR", "GASTOS", "ADELANTO_SALARIO", "GESTIONADAS", "ENTREGADAS", "EFECTIVIDAD"]
+    if monthly.empty:
+        return pd.DataFrame(columns=columns)
+
+    gastos_adelantos = repository.sumar_gastos_adelantos_mes(year, month)
+    operadores = sorted(monthly["OPERADOR"].dropna().unique())
+
+    filas = []
+    for nombre_operador in operadores:
+        guias_operador = monthly[monthly["OPERADOR"] == nombre_operador]
+        gestionadas = len(guias_operador)
+        entregadas = int((guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO).sum())
+        efectividad = round(entregadas / gestionadas * 100, 1) if gestionadas else 0.0
+        extra = gastos_adelantos.get(nombre_operador, {})
+
+        filas.append(
+            {
+                "OPERADOR": nombre_operador,
+                "GASTOS": extra.get("gastos", 0),
+                "ADELANTO_SALARIO": extra.get("adelanto_salario", 0),
+                "GESTIONADAS": gestionadas,
+                "ENTREGADAS": entregadas,
+                "EFECTIVIDAD": efectividad,
+            }
+        )
+
+    return pd.DataFrame(filas, columns=columns).sort_values("GESTIONADAS", ascending=False)
+
+
+def generate_monthly_operator_report(
+    repository: GuiaRepository, output_dir: Path, year: int, month: int
 ) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
-    if target_date is not None:
-        dataframe = filter_by_date(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}" if target_date else ""
-    output_path = output_dir / f"informe por operador{suffix}.xlsx"
+    output_path = output_dir / f"informe mensual por operador {MONTHS_ES[month]} {year}.xlsx"
 
-    summary = build_breakdown(dataframe, "OPERADOR")
+    summary = build_monthly_breakdown(repository, dataframe, year, month)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         summary.to_excel(writer, index=False, sheet_name="POR OPERADOR")
@@ -136,104 +257,209 @@ def generate_operator_report(
     return output_path
 
 
+def generate_operator_report(
+    repository: GuiaRepository, output_dir: Path, target_date: date | None = None, operador: str = ""
+) -> Path:
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    if target_date is not None:
+        dataframe = filter_by_date(dataframe, target_date)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}" if target_date else ""
+    sufijo_operador = f" {operador}" if operador else ""
+    output_path = output_dir / f"informe por operador{sufijo_operador}{suffix}.xlsx"
+
+    summary = build_cierre_breakdown(repository, dataframe, target_date, operador)
+    entregadas = build_entregadas_detalle(dataframe, operador)
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        summary.to_excel(writer, index=False, sheet_name="CIERRE")
+        entregadas.to_excel(writer, index=False, sheet_name="GUIAS ENTREGADAS")
+        for sheet_name in writer.sheets:
+            apply_report_format(writer.sheets[sheet_name])
+
+    return output_path
+
+
+def build_entregadas_detalle(dataframe: pd.DataFrame, operador: str = "") -> pd.DataFrame:
+    columnas = ["OPERADOR", "GUIA", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR", "F_ENTREGA"]
+    entregadas = dataframe[dataframe["ESTADO"].str.upper() == ESTADO_RECAUDO]
+    if operador:
+        entregadas = entregadas[entregadas["OPERADOR"] == operador]
+
+    if entregadas.empty:
+        return pd.DataFrame(columns=columnas)
+
+    return (
+        entregadas[columnas]
+        .assign(VALOR=entregadas["VALOR_NUMERICO"])
+        .sort_values(["OPERADOR", "GUIA"])
+        .reset_index(drop=True)
+    )
+
+
 # Meta diaria de guias entregadas por operador para calcular la efectividad.
 META_DIARIA_GUIAS = 52
 
 
-def format_currency_co(value: int) -> str:
-    return f"$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def efectividad_color(porcentaje: float) -> colors.Color:
-    if porcentaje >= 100:
-        return colors.HexColor("#C6E0B4")
-    if porcentaje >= 70:
-        return colors.HexColor("#FFE699")
-    return colors.HexColor("#F8CBAD")
-
-
-def generate_operator_report_pdf(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
+def generate_salidas_operador_excel(
+    repository: GuiaRepository, output_dir: Path, operador: str, target_date: date
+) -> Path:
+    guias = repository.guias_en_salida(operador, ESTADO_SALIDA)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"informe por operador {target_date.day:02d} {MONTHS_ES[target_date.month]}.pdf"
+    suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"
+    output_path = output_dir / f"salidas {operador}{suffix}.xlsx"
 
-    fecha_label = f"{MONTHS_ES[target_date.month].upper()} {target_date.day} DE {target_date.year}"
-
-    styles = getSampleStyleSheet()
-    title_style = styles["Title"].clone("CardTitle")
-    title_style.textColor = colors.white
-    title_style.alignment = 1
-
-    elements: list = []
-
-    if daily.empty:
-        operators: list[str] = []
-    else:
-        totals = daily.groupby("OPERADOR")["GUIA"].count()
-        recaudo = (
-            daily[daily["ESTADO"].str.upper() == ESTADO_RECAUDO]
-            .groupby("OPERADOR")["VALOR_NUMERICO"]
-            .sum()
+    filas = []
+    total_valor = 0
+    for guia in guias:
+        valor = value_to_number(guia.get("valor", ""))
+        total_valor += valor
+        filas.append(
+            {
+                "GUIA": guia.get("guia", ""),
+                "DESTINATARIO": guia.get("destinatario", ""),
+                "DIRECCION": guia.get("direccion", ""),
+                "VALOR": valor,
+            }
         )
-        entregadas = (
-            daily[daily["ESTADO"].str.upper() == ESTADO_RECAUDO]
-            .groupby("OPERADOR")["GUIA"]
-            .count()
+
+    filas.append({"GUIA": "", "DESTINATARIO": "", "DIRECCION": "TOTAL", "VALOR": total_valor})
+
+    dataframe = pd.DataFrame(filas, columns=["GUIA", "DESTINATARIO", "DIRECCION", "VALOR"])
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        dataframe.to_excel(writer, index=False, sheet_name="SALIDAS")
+        apply_report_format(writer.sheets["SALIDAS"])
+
+    return output_path
+
+
+RESUMEN_CIERRE_ETIQUETAS = (
+    ("gestionadas", "Guias gestionadas (salidas del dia)"),
+    ("ro", "Reclama oficina (RO)"),
+    ("n", "Novedades operativas (N)"),
+    ("d", "Devoluciones (D)"),
+    ("e", "Entregadas y recaudadas (E)"),
+    ("recaudado", "Dinero recaudado"),
+    ("bancos", "Dinero en bancos"),
+    ("nequi", "Dinero en Nequi"),
+    ("envia", "Dinero en link Envia"),
+    ("gastos", "Gastos"),
+    ("adelanto_salario", "Adelanto de salario"),
+    ("efectivo", "Efectivo a entregar"),
+    ("efectivo_contado", "Efectivo contado en caja"),
+    ("diferencia", "Diferencia"),
+)
+RESUMEN_CIERRE_CAMPOS_MONEDA = {
+    "recaudado", "bancos", "nequi", "envia", "gastos", "adelanto_salario",
+    "efectivo", "efectivo_contado", "diferencia",
+}
+
+
+def build_cierre_sheet(worksheet, resumen: dict, denominaciones: dict) -> None:
+    header_fill = PatternFill(fill_type="solid", fgColor="4472C4")
+    header_font = Font(bold=True, color="FFFFFF")
+    label_font = Font(bold=True)
+
+    worksheet.merge_cells("A1:B1")
+    titulo = worksheet["A1"]
+    titulo.value = "CIERRE DEL DIA"
+    titulo.fill = header_fill
+    titulo.font = header_font
+    titulo.alignment = Alignment(horizontal="center")
+
+    row = 2
+    for clave, etiqueta in RESUMEN_CIERRE_ETIQUETAS:
+        if clave not in resumen:
+            continue
+        worksheet.cell(row=row, column=1, value=etiqueta).font = label_font
+        valor_celda = worksheet.cell(row=row, column=2, value=resumen[clave])
+        if clave in RESUMEN_CIERRE_CAMPOS_MONEDA:
+            valor_celda.number_format = '"$" #,##0'
+        row += 1
+
+    nota = str(resumen.get("nota") or "").strip()
+    if nota:
+        worksheet.cell(row=row, column=1, value="Anotacion").font = label_font
+        worksheet.cell(row=row, column=2, value=nota)
+        row += 1
+
+    entradas = sorted(
+        ((int(denominacion), int(cantidad)) for denominacion, cantidad in (denominaciones or {}).items() if int(cantidad) > 0),
+        reverse=True,
+    )
+    if entradas:
+        row += 1
+        worksheet.merge_cells(f"A{row}:C{row}")
+        cabecera = worksheet.cell(row=row, column=1, value="CONTEO DE EFECTIVO EN CAJA")
+        cabecera.fill = header_fill
+        cabecera.font = header_font
+        cabecera.alignment = Alignment(horizontal="center")
+        row += 1
+
+        for columna, encabezado in enumerate(("Denominacion", "Cantidad", "Subtotal"), start=1):
+            celda = worksheet.cell(row=row, column=columna, value=encabezado)
+            celda.font = label_font
+        row += 1
+
+        for denominacion, cantidad in entradas:
+            worksheet.cell(row=row, column=1, value=denominacion).number_format = '"$" #,##0'
+            worksheet.cell(row=row, column=2, value=cantidad)
+            subtotal_celda = worksheet.cell(row=row, column=3, value=denominacion * cantidad)
+            subtotal_celda.number_format = '"$" #,##0'
+            row += 1
+
+    for columna, ancho in (("A", 32), ("B", 18), ("C", 18)):
+        worksheet.column_dimensions[columna].width = ancho
+
+
+def generate_entregadas_operador_excel(
+    repository: GuiaRepository,
+    output_dir: Path,
+    operador: str,
+    target_date: date,
+    resumen: dict | None = None,
+    denominaciones: dict | None = None,
+) -> Path:
+    guias = repository.guias_de_operador(operador, target_date.isoformat())
+    entregadas = [
+        guia for guia in guias if (guia.get("estado") or "").strip().upper() == ESTADO_RECAUDO
+    ]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"
+    output_path = output_dir / f"entregas {operador}{suffix}.xlsx"
+
+    filas = []
+    total_valor = 0
+    for guia in entregadas:
+        valor = value_to_number(guia.get("valor", ""))
+        total_valor += valor
+        filas.append(
+            {
+                "GUIA": guia.get("guia", ""),
+                "DESTINATARIO": guia.get("destinatario", ""),
+                "DIRECCION": guia.get("direccion", ""),
+                "MUNICIPIO": guia.get("municipio", ""),
+                "VALOR": valor,
+            }
         )
-        operators = sorted(totals.index, key=lambda operador: totals[operador], reverse=True)
 
-    if not operators:
-        elements.append(Paragraph("Sin registros para esta fecha", styles["Normal"]))
-    else:
-        for operador in operators:
-            gestionadas = int(totals.get(operador, 0))
-            entregadas_count = int(entregadas.get(operador, 0))
-            devolucion_count = gestionadas - entregadas_count
-            recaudado = int(recaudo.get(operador, 0))
-            efectividad = (entregadas_count / META_DIARIA_GUIAS) * 100
+    filas.append(
+        {"GUIA": "", "DESTINATARIO": "", "DIRECCION": "", "MUNICIPIO": "TOTAL", "VALOR": total_valor}
+    )
 
-            title_paragraph = Paragraph(
-                f"INFORME POR OPERADOR<br/>{operador}<br/>{fecha_label}",
-                title_style,
-            )
+    dataframe = pd.DataFrame(filas, columns=["GUIA", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR"])
 
-            rows = [
-                [title_paragraph, ""],
-                ["GUIAS GESTIONADAS", gestionadas],
-                [f"GUIAS ENTREGADAS ({ESTADO_RECAUDO})", entregadas_count],
-                ["GUIAS EN DEVOLUCION", devolucion_count],
-                [f"VALOR RECAUDADO ({ESTADO_RECAUDO})", format_currency_co(recaudado)],
-                [f"EFECTIVIDAD DEL DIA (META {META_DIARIA_GUIAS})", f"{efectividad:.1f} %"],
-            ]
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        dataframe.to_excel(writer, index=False, sheet_name="ENTREGAS")
+        apply_report_format(writer.sheets["ENTREGAS"])
 
-            table = Table(rows, colWidths=[8 * cm, 6 * cm])
-            table.setStyle(
-                TableStyle(
-                    [
-                        ("SPAN", (0, 0), (-1, 0)),
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
-                        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-                        ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
-                        ("TOPPADDING", (0, 0), (-1, 0), 8),
-                        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-                        ("FONTNAME", (0, 1), (-1, -1), "Helvetica-Bold"),
-                        ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-                        ("BACKGROUND", (0, 4), (-1, 4), colors.HexColor("#FFFF00")),
-                        ("BACKGROUND", (0, 5), (-1, 5), efectividad_color(efectividad)),
-                        ("GRID", (0, 1), (-1, -1), 0.5, colors.grey),
-                        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
-                        ("TOPPADDING", (0, 1), (-1, -1), 6),
-                    ]
-                )
-            )
-
-            elements.append(table)
-            elements.append(Spacer(1, 14))
-
-    doc = SimpleDocTemplate(str(output_path), pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
-    doc.build(elements)
+        if resumen or denominaciones:
+            cierre_sheet = writer.book.create_sheet("CIERRE")
+            build_cierre_sheet(cierre_sheet, resumen or {}, denominaciones or {})
 
     return output_path
 
@@ -428,6 +654,10 @@ def apply_report_format(worksheet) -> None:
     data_fill = PatternFill(fill_type="solid", fgColor="D9E1F2")
     header_font = Font(bold=True)
 
+    guia_columnas = {
+        cell.column for cell in worksheet[1] if str(cell.value).strip().upper() == "GUIA"
+    }
+
     for cell in worksheet[1]:
         cell.fill = header_fill
         cell.font = header_font
@@ -435,6 +665,8 @@ def apply_report_format(worksheet) -> None:
     for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, max_col=worksheet.max_column):
         for cell in row:
             cell.fill = data_fill
+            if cell.column in guia_columnas:
+                cell.number_format = "@"
 
     worksheet.freeze_panes = "A2"
     worksheet.auto_filter.ref = worksheet.dimensions

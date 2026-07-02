@@ -34,3 +34,10 @@ editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
 [oficina]
 nombre = "SAN GIL"
 admin_name = "JOHAN A. ORTIZ"
+
+[servidor]
+# HTTPS opcional: si dejas estos campos vacios, el panel sigue sirviendo
+# por HTTP plano como siempre. Para activarlo, genera un certificado
+# (autofirmado o real) y apunta aqui a los archivos .pem/.key.
+cert_file = ""
+key_file = ""

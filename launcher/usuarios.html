@@ -10,6 +10,7 @@
 <body>
   <div class="container">
     <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
       <h1>MODULO USUARIOS</h1>
       <p class="subtitulo">Administracion de operadores y administradores</p>
     </header>
@@ -18,15 +19,23 @@
       <div class="opcion">
         <h3>Crear el primer administrador</h3>
         <p class="nota">Todavia no existe ningun administrador. Crea el primero para poder gestionar los usuarios del sistema.</p>
-        <label>Usuario</label>
-        <input type="text" id="boot-usuario" autocomplete="off" />
-        <label>Contrasena</label>
-        <input type="password" id="boot-password" autocomplete="new-password" />
-        <label>Nombre completo</label>
-        <input type="text" id="boot-nombre" autocomplete="off" />
+        <div class="campos-grid">
+          <div class="campo">
+            <label>Usuario</label>
+            <input type="text" id="boot-usuario" autocomplete="off" />
+          </div>
+          <div class="campo">
+            <label>Contrasena</label>
+            <input type="password" id="boot-password" autocomplete="new-password" />
+          </div>
+          <div class="campo">
+            <label>Nombre completo</label>
+            <input type="text" id="boot-nombre" autocomplete="off" />
+          </div>
+        </div>
         <button class="boton boton-accion" id="btn-bootstrap">Crear administrador</button>
       </div>
-      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+      <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
     </section>
 
     <section id="pantalla-login" class="pantalla oculto">
@@ -38,7 +47,7 @@
         <input type="password" id="login-password" autocomplete="current-password" />
         <button class="boton boton-accion" id="btn-login">Ingresar</button>
       </div>
-      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+      <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
     </section>
 
     <section id="pantalla-admin" class="pantalla oculto">
@@ -48,32 +57,65 @@
       </div>
 
       <div class="opcion">
-        <h3>Crear o actualizar usuario</h3>
-        <label>Usuario de acceso</label>
-        <input type="text" id="nuevo-usuario" autocomplete="off" />
-        <label>Contrasena</label>
-        <input type="password" id="nuevo-password" autocomplete="new-password" />
-        <label>Nombre (como aparece en la columna OPERADOR)</label>
-        <input type="text" id="nuevo-nombre" autocomplete="off" />
-        <label>Rol</label>
-        <select id="nuevo-rol">
-          <option value="operador">Operador</option>
-          <option value="admin">Administrador</option>
-        </select>
-        <button class="boton boton-accion" id="btn-crear">Guardar usuario</button>
+        <h3 id="titulo-formulario">Crear o actualizar usuario</h3>
+
+        <h4 class="subtitulo-form">Datos de acceso</h4>
+        <div class="campos-grid campos-grid-acceso">
+          <div class="campo">
+            <label>Usuario de acceso</label>
+            <input type="text" id="nuevo-usuario" autocomplete="off" />
+          </div>
+          <div class="campo">
+            <label>Contrasena <span class="nota-campo" id="nota-password"></span></label>
+            <input type="password" id="nuevo-password" autocomplete="new-password" />
+          </div>
+          <div class="campo">
+            <label>Nombre (como aparece en la columna OPERADOR)</label>
+            <input type="text" id="nuevo-nombre" autocomplete="off" />
+          </div>
+          <div class="campo">
+            <label>Rol</label>
+            <select id="nuevo-rol">
+              <option value="operador">Operador</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
+
+        <h4 class="subtitulo-form">Documentos del operador (fechas de vencimiento)</h4>
+        <p class="nota nota-documentos">Si un documento vence, el operador no podra iniciar sesion hasta que se actualice la fecha.</p>
+        <div class="campos-grid campos-grid-documentos">
+          <div class="campo">
+            <label>Licencia de conduccion</label>
+            <input type="date" id="nuevo-licencia" />
+          </div>
+          <div class="campo">
+            <label>Seguro obligatorio (SOAT)</label>
+            <input type="date" id="nuevo-soat" />
+          </div>
+          <div class="campo">
+            <label>Tecnomecanica</label>
+            <input type="date" id="nuevo-tecnomecanica" />
+          </div>
+        </div>
+
+        <div class="acciones-formulario">
+          <button class="boton boton-accion" id="btn-crear">Guardar usuario</button>
+          <button class="boton boton-volver oculto" id="btn-cancelar-edicion">Cancelar edicion</button>
+        </div>
       </div>
 
       <div class="opcion">
         <h3>Usuarios registrados</h3>
         <table class="tabla-usuarios">
           <thead>
-            <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th></th></tr>
+            <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Licencia</th><th>SOAT</th><th>Tecnomecanica</th><th></th></tr>
           </thead>
           <tbody id="tabla-usuarios-body"></tbody>
         </table>
       </div>
 
-      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+      <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
     </section>
 
     <section class="log-seccion">

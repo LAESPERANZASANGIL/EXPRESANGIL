@@ -1,13 +1,19 @@
+from datetime import date
+from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
 import pandas as pd
 
 from gestor_guias.operadores import (
+    calcular_diferencia_caja,
     cerrar_dia,
+    documentos_vencidos,
     hash_password,
     parse_guides,
+    recalcular_cierre,
     registrar_novedades,
     registrar_salidas,
+    revertir_cierre,
     verify_password,
 )
 from gestor_guias.repository import GuiaRepository
@@ -42,76 +48,246 @@ def test_hash_and_verify_password() -> None:
     assert not verify_password("otra-clave", stored)
 
 
+def test_documentos_vencidos_detecta_fechas_pasadas() -> None:
+    operador = {
+        "licencia_vencimiento": "2000-01-01",
+        "soat_vencimiento": "2999-01-01",
+        "tecnomecanica_vencimiento": "",
+    }
+
+    assert documentos_vencidos(operador) == ["Licencia de conduccion"]
+
+
+def test_documentos_vencidos_sin_fechas_no_bloquea() -> None:
+    operador = {
+        "licencia_vencimiento": "",
+        "soat_vencimiento": "",
+        "tecnomecanica_vencimiento": "",
+    }
+
+    assert documentos_vencidos(operador) == []
+
+
 def test_parse_guides_extracts_long_numbers() -> None:
-    texto = "100000, 100001\n100002 - texto 12"
+    texto = "100000000000, 100000000001\n100000000002 - texto 12"
 
-    assert parse_guides(texto) == ["100000", "100001", "100002"]
+    assert parse_guides(texto) == ["100000000000", "100000000001", "100000000002"]
 
 
-def test_parse_guides_quita_cero_inicial_del_escaner() -> None:
-    # El escaner entrega el numero con cero inicial, pero la base lo guarda sin el.
-    assert parse_guides("064108678163\n14160044927") == ["64108678163", "14160044927"]
+def test_parse_guides_rellena_con_cero_para_completar_12_digitos() -> None:
+    # Toda guia tiene 12 digitos; si llega mas corta se completa con ceros
+    # a la izquierda en vez de descartar el cero inicial.
+    assert parse_guides("64108678163\n014160044927") == ["064108678163", "014160044927"]
 
 
 def test_registrar_salidas_acepta_guias_con_cero_inicial(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
-    repository.save_consolidated(build_dataframe("64108678163", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("064108678163", "$ 10.000"))
 
     resultado = registrar_salidas(repository, "OMAR", "064108678163")
 
-    assert resultado == {"recibidas": 1, "actualizadas": 1}
+    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
     dataframe = repository.to_dataframe()
     assert list(dataframe["OPERADOR"]) == ["OMAR"]
 
 
 def test_registrar_salidas_marca_operador_y_estado(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
-    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
-    repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
 
-    resultado = registrar_salidas(repository, "KEVIN", "100000\n100001\n100099")
+    resultado = registrar_salidas(repository, "KEVIN", "100000000000\n100000000001\n100000000099")
 
-    assert resultado == {"recibidas": 3, "actualizadas": 2}
+    assert resultado == {"recibidas": 3, "actualizadas": 3, "no_encontradas": ["100000000099"]}
     dataframe = repository.to_dataframe()
-    assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN"]
-    assert list(dataframe["ESTADO"]) == ["R", "R"]
+    assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN", "KEVIN"]
+    assert list(dataframe["ESTADO"]) == ["R", "R", "R"]
+    assert dataframe.loc[dataframe["GUIA"] == "100000000099", "PLANILLA"].iloc[0] == "Sin planilla"
+
+
+def test_registrar_salidas_con_planillada_deja_estado_en_blanco(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+
+    resultado = registrar_salidas(repository, "planillada", "100000000000")
+
+    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
+    dataframe = repository.to_dataframe()
+    assert dataframe.loc[0, "OPERADOR"] == "planillada"
+    assert dataframe.loc[0, "ESTADO"] == ""
+
+
+def test_registrar_salidas_con_bodega_deja_estado_en_blanco(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+
+    resultado = registrar_salidas(repository, "bodega", "100000000000")
+
+    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
+    dataframe = repository.to_dataframe()
+    assert dataframe.loc[0, "OPERADOR"] == "bodega"
+    assert dataframe.loc[0, "ESTADO"] == ""
 
 
 def test_registrar_novedades_solo_afecta_guias_en_r(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
-    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
-    repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
-    repository.save_consolidated(build_dataframe("100002", "$ 30.000"))
-    registrar_salidas(repository, "KEVIN", "100000\n100001\n100002")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    repository.save_consolidated(build_dataframe("100000000002", "$ 30.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001\n100000000002")
 
     resultado = registrar_novedades(
         repository,
         "KEVIN",
-        "2026-06-09",
-        ro_texto="100000",
-        n_texto="100001",
+        hoy_colombia().isoformat(),
+        ro_texto="100000000000",
+        n_texto="100000000001",
         d_texto="",
     )
 
     assert resultado["ro"] == {"recibidas": 1, "actualizadas": 1}
     assert resultado["n"] == {"recibidas": 1, "actualizadas": 1}
-    assert resultado["d"] == {"recibidas": 0, "actualizadas": 0}
+    assert resultado["d"] == {"recibidas": 0, "actualizadas": 0, "errores": []}
 
     dataframe = repository.to_dataframe().set_index("GUIA")
-    assert dataframe.loc["100000", "ESTADO"] == "RO"
-    assert dataframe.loc["100001", "ESTADO"] == "N"
-    assert dataframe.loc["100002", "ESTADO"] == "R"
+    assert dataframe.loc["100000000000", "ESTADO"] == "RO"
+    assert dataframe.loc["100000000001", "ESTADO"] == "N"
+    assert dataframe.loc["100000000002", "ESTADO"] == "R"
+
+
+def test_registrar_novedades_devolucion_guarda_causal(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+
+    resultado = registrar_novedades(
+        repository,
+        "KEVIN",
+        hoy_colombia().isoformat(),
+        ro_texto="",
+        n_texto="",
+        d_texto="100000000000 10\nguia-sin-causal\n100000000001,25",
+    )
+
+    assert resultado["d"]["recibidas"] == 2
+    assert resultado["d"]["actualizadas"] == 2
+    assert resultado["d"]["errores"] == ["guia-sin-causal"]
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "D"
+    assert dataframe.loc["100000000000", "CAUSAL"] == "10"
+    assert dataframe.loc["100000000001", "ESTADO"] == "D"
+    assert dataframe.loc["100000000001", "CAUSAL"] == "25"
+
+
+def test_registrar_novedades_pasa_a_d_sin_importar_el_estado_actual(tmp_path: Path) -> None:
+    # Una devolucion debe poder registrarse sin importar en que estado haya
+    # quedado la guia (RO, N, sin estado...), no solo si esta en R o E.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.update_tracking_fields("100000000000", "ALEJANDRO", "RO", "")
+
+    resultado = registrar_novedades(
+        repository,
+        "ALEJANDRO",
+        hoy_colombia().isoformat(),
+        ro_texto="",
+        n_texto="",
+        d_texto="100000000000 10",
+    )
+
+    assert resultado["d"]["actualizadas"] == 1
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "D"
+    assert dataframe.loc["100000000000", "CAUSAL"] == "10"
+
+
+def test_registrar_novedades_corrige_causal_de_guia_ya_en_devolucion(tmp_path: Path) -> None:
+    # Si una guia ya quedo en D sin causal (por ejemplo editada a mano en
+    # Zona de Trabajo), el operador debe poder corregir la causal volviendo
+    # a registrar la devolucion, aunque ya no este en estado R.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.update_tracking_fields("100000000000", "KEVIN", "D", "")
+
+    resultado = registrar_novedades(
+        repository,
+        "KEVIN",
+        "2026-06-09",
+        ro_texto="",
+        n_texto="",
+        d_texto="100000000000 10",
+    )
+
+    assert resultado["d"]["actualizadas"] == 1
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "D"
+    assert dataframe.loc["100000000000", "CAUSAL"] == "10"
+
+
+def test_registrar_novedades_funciona_despues_de_cerrar_el_dia(tmp_path: Path) -> None:
+    # Al cerrar el dia, cerrar_dia_operador mueve las guias que quedaron en R
+    # a E (recaudada). El operador debe poder seguir gestionando novedades
+    # sobre esas guias sin reabrir su cierre individual ya guardado.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = hoy_colombia().isoformat()
+
+    cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
+    cierre_previo = repository.obtener_cierre(fecha, "KEVIN")
+
+    resultado = registrar_novedades(
+        repository,
+        "KEVIN",
+        fecha,
+        ro_texto="100000000000",
+        n_texto="",
+        d_texto="100000000001 10",
+    )
+
+    assert resultado["ro"] == {"recibidas": 1, "actualizadas": 1}
+    assert resultado["d"]["actualizadas"] == 1
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "RO"
+    assert dataframe.loc["100000000001", "ESTADO"] == "D"
+    assert dataframe.loc["100000000001", "CAUSAL"] == "10"
+
+    # El cierre individual ya guardado no se altera por las novedades posteriores.
+    assert repository.obtener_cierre(fecha, "KEVIN") == cierre_previo
+
+
+def test_revertir_cierre_restaura_guias_y_elimina_registro(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = hoy_colombia().isoformat()
+    cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
+
+    resultado = revertir_cierre(repository, "KEVIN", fecha)
+
+    assert resultado["guias_revertidas"] == 2
+    assert resultado["cierre_eliminado"] is True
+    assert repository.obtener_cierre(fecha, "KEVIN") is None
+    dataframe = repository.to_dataframe()
+    assert set(dataframe["ESTADO"].tolist()) == {"R"}
 
 
 def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
-    repository.save_consolidated(build_dataframe("100000", "$ 10.000"))
-    repository.save_consolidated(build_dataframe("100001", "$ 20.000"))
-    repository.save_consolidated(build_dataframe("100002", "$ 30.000"))
-    registrar_salidas(repository, "KEVIN", "100000\n100001\n100002")
-    registrar_novedades(repository, "KEVIN", "2026-06-09", ro_texto="100000", n_texto="", d_texto="")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    repository.save_consolidated(build_dataframe("100000000002", "$ 30.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001\n100000000002")
+    fecha = hoy_colombia().isoformat()
+    registrar_novedades(repository, "KEVIN", fecha, ro_texto="100000000000", n_texto="", d_texto="")
 
-    resumen = cerrar_dia(repository, "KEVIN", "2026-06-09", bancos=10_000, nequi=5_000, envia=0)
+    resumen = cerrar_dia(repository, "KEVIN", fecha, bancos=10_000, nequi=5_000, envia=0)
 
     assert resumen["gestionadas"] == 3
     assert resumen["ro"] == 1
@@ -121,6 +297,119 @@ def test_cerrar_dia_calcula_resumen_y_persiste(tmp_path: Path) -> None:
     assert resumen["recaudado"] == 50_000
     assert resumen["efectivo"] == 35_000
 
-    cierre = repository.obtener_cierre("2026-06-09", "KEVIN")
+    cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["recaudado"] == 50_000
     assert cierre["efectivo"] == 35_000
+
+
+def test_cerrar_dia_simular_no_persiste_ni_modifica_guias(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = hoy_colombia().isoformat()
+
+    resumen = cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0, simular=True)
+
+    assert resumen["gestionadas"] == 2
+    assert resumen["e"] == 2
+    assert resumen["recaudado"] == 30_000
+
+    assert repository.obtener_cierre(fecha, "KEVIN") is None
+    dataframe = repository.to_dataframe().set_index("GUIA")
+    assert dataframe.loc["100000000000", "ESTADO"] == "R"
+    assert dataframe.loc["100000000001", "ESTADO"] == "R"
+
+    resumen_real = cerrar_dia(repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0)
+    assert resumen_real["recaudado"] == 30_000
+    assert repository.obtener_cierre(fecha, "KEVIN") is not None
+
+
+def test_recalcular_cierre_incluye_guias_asignadas_despues_del_cierre(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    registrar_salidas(repository, "MARGARITA", "100000000000")
+    fecha = hoy_colombia().isoformat()
+
+    resumen_inicial = cerrar_dia(repository, "MARGARITA", fecha, bancos=0, nequi=0, envia=0)
+    assert resumen_inicial["gestionadas"] == 1
+    assert resumen_inicial["e"] == 1
+    assert resumen_inicial["recaudado"] == 10_000
+
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "MARGARITA", "100000000001")
+    repository.update_tracking_fields("100000000001", "MARGARITA", "E", "")
+
+    resumen = recalcular_cierre(repository, "MARGARITA", fecha)
+
+    assert resumen["gestionadas"] == 2
+    assert resumen["e"] == 2
+    assert resumen["recaudado"] == 30_000
+
+    cierre = repository.obtener_cierre(fecha, "MARGARITA")
+    assert cierre["recaudado"] == 30_000
+
+
+def test_calcular_diferencia_caja() -> None:
+    pendiente = calcular_diferencia_caja(50_000, {20_000: 1, 10_000: 1})
+    assert pendiente["efectivo_contado"] == 30_000
+    assert pendiente["diferencia"] == 20_000
+    assert "Pendiente por entregar" in pendiente["nota"]
+
+    sobrante = calcular_diferencia_caja(10_000, {10_000: 2})
+    assert sobrante["diferencia"] == -10_000
+    assert "Sobrante en caja" in sobrante["nota"]
+
+    exacto = calcular_diferencia_caja(10_000, {10_000: 1})
+    assert exacto["diferencia"] == 0
+    assert exacto["nota"] == ""
+
+    sin_denominaciones = calcular_diferencia_caja(5_000, None)
+    assert sin_denominaciones["efectivo_contado"] == 0
+    assert sin_denominaciones["diferencia"] == 5_000
+
+
+def test_cerrar_dia_anota_diferencia_de_efectivo_contado(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = hoy_colombia().isoformat()
+
+    resumen_faltante = cerrar_dia(
+        repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
+        denominaciones={50_000: 0, 10_000: 1},
+    )
+    assert resumen_faltante["efectivo"] == 30_000
+    assert resumen_faltante["efectivo_contado"] == 10_000
+    assert resumen_faltante["diferencia"] == 20_000
+    assert "Pendiente por entregar" in resumen_faltante["nota"]
+
+    resumen_exacto = cerrar_dia(
+        repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
+        denominaciones={10_000: 1, 20_000: 1},
+    )
+    assert resumen_exacto["diferencia"] == 0
+    assert resumen_exacto["nota"] == ""
+
+
+def test_cerrar_dia_descuenta_gastos_y_adelanto_salario(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000000", "$ 10.000"))
+    repository.save_consolidated(build_dataframe("100000000001", "$ 20.000"))
+    registrar_salidas(repository, "KEVIN", "100000000000\n100000000001")
+    fecha = hoy_colombia().isoformat()
+
+    resumen = cerrar_dia(
+        repository, "KEVIN", fecha, bancos=0, nequi=0, envia=0,
+        gastos=5_000, adelanto_salario=8_000,
+    )
+
+    assert resumen["recaudado"] == 30_000
+    assert resumen["gastos"] == 5_000
+    assert resumen["adelanto_salario"] == 8_000
+    assert resumen["efectivo"] == 17_000
+
+    cierre = repository.obtener_cierre(fecha, "KEVIN")
+    assert cierre["gastos"] == 5_000
+    assert cierre["adelanto_salario"] == 8_000

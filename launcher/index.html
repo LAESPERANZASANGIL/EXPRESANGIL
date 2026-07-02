@@ -9,61 +9,170 @@
 <body>
   <div class="container">
     <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
       <h1>GESTOR DE GUIAS ENVIA</h1>
       <p class="subtitulo">Panel de control - Expresangil</p>
     </header>
 
-    <section id="pantalla-principal" class="pantalla">
-      <button class="boton boton-principal" id="btn-iniciar">INICIAR</button>
-      <a class="boton boton-principal" href="/zona">ZONA DE TRABAJO</a>
-      <a class="boton boton-principal" href="/operadores">MODULO OPERADORES</a>
-      <a class="boton boton-principal" href="/usuarios">MODULO USUARIOS</a>
+    <section id="pantalla-login" class="pantalla">
+      <div class="opcion">
+        <h3>Iniciar sesion</h3>
+        <label>Usuario</label>
+        <input type="text" id="login-usuario" autocomplete="username" />
+        <label>Contrasena</label>
+        <input type="password" id="login-password" autocomplete="current-password" />
+        <button class="boton boton-accion" id="btn-login"><span class="icono">🔑</span>Ingresar</button>
+        <p class="nota-login">Acceso exclusivo para el administrador. Si eres operador, ingresa desde el <a href="/operadores">Modulo Operadores</a>.</p>
+      </div>
+      <a class="boton boton-volver" href="/"><span class="icono">⬅️</span>VOLVER A CONSULTAR GUIA</a>
+    </section>
+
+    <section id="pantalla-principal" class="pantalla oculto">
+      <div class="opcion barra-sesion">
+        <span class="avatar-usuario">👤</span>
+        <div class="info-usuario">
+          <span class="nombre-completo">Sesion: <strong id="nombre-usuario"></strong></span>
+          <span class="estado-conexion"><span class="punto-conectado"></span>Conectado</span>
+        </div>
+        <button class="boton boton-volver" id="btn-logout"><span class="icono">🚪</span>Cerrar sesion</button>
+      </div>
+      <button class="boton boton-principal solo-admin" id="btn-iniciar">
+        <span class="icono">🏠</span>
+        <span class="titulo-modulo">INICIO</span>
+        <span class="desc-modulo">Importar, exportar e informes</span>
+      </button>
+      <a class="boton boton-principal solo-admin" href="/zona-trabajo">
+        <span class="icono">🗂️</span>
+        <span class="titulo-modulo">ZONA DE TRABAJO</span>
+        <span class="desc-modulo">Editor de operador, estado y causal</span>
+      </a>
+      <a class="boton boton-principal solo-admin" href="/dashboard">
+        <span class="icono">📈</span>
+        <span class="titulo-modulo">DASHBOARD</span>
+        <span class="desc-modulo">Guias por estado, reparto y resumen financiero</span>
+      </a>
+      <a class="boton boton-principal" href="/operadores">
+        <span class="icono">🚚</span>
+        <span class="titulo-modulo">MODULO OPERADORES</span>
+        <span class="desc-modulo">Salidas, novedades y cierre</span>
+      </a>
+      <a class="boton boton-principal solo-admin" href="/usuarios">
+        <span class="icono">👥</span>
+        <span class="titulo-modulo">MODULO USUARIOS</span>
+        <span class="desc-modulo">Administracion de usuarios</span>
+      </a>
     </section>
 
     <section id="pantalla-iniciar" class="pantalla oculto">
       <h2>OPCIONES</h2>
 
-      <div class="opcion">
-        <h3>1. Importar planilla descargada</h3>
-        <label>Ruta del archivo .xls o .xlsx (varias rutas separadas por ;)</label>
-        <div class="fila-archivo">
-          <input type="text" id="importar-archivo" placeholder="C:\ruta\al\archivo.xls" />
-          <button class="boton boton-buscar" id="btn-buscar-archivo">Buscar...</button>
+      <div class="grid-opciones">
+        <div class="opcion opcion-compacta">
+          <h3>1. Importar planilla descargada</h3>
+          <p class="desc-opcion">Sube las planillas .xls/.xlsx descargadas y agregalas al consolidado del dia.</p>
+          <label>Selecciona uno o varios archivos .xls o .xlsx</label>
+          <input type="file" id="importar-archivo" accept=".xls,.xlsx" multiple />
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="importar-fecha" />
+          <button class="boton boton-accion boton-importar" id="btn-importar"><span class="icono">📥</span>Importar</button>
         </div>
-        <label>Fecha (YYYY-MM-DD, opcional)</label>
-        <input type="text" id="importar-fecha" placeholder="2026-06-10" />
-        <button class="boton boton-accion" id="btn-importar">Importar</button>
+
+        <div class="opcion opcion-compacta">
+          <h3>2. Abrir editor de operador, estado y causal</h3>
+          <p class="desc-opcion">Asigna operador, cambia estado y registra la causal de cada guia.</p>
+          <a class="boton boton-accion boton-editor" href="/zona-trabajo"><span class="icono">🗂️</span>Abrir editor</a>
+        </div>
+
+        <div class="opcion opcion-compacta">
+          <h3>3. Exportar consolidado</h3>
+          <p class="desc-opcion">Genera el archivo Excel con las guias guardadas. Puedes filtrar por estado o exportar todo el movimiento.</p>
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="exportar-fecha" />
+          <label>Filtrar por estado</label>
+          <select id="exportar-estado-select">
+            <option value="">Todo el movimiento del dia</option>
+            <option value="N">Solo movimiento normal (N)</option>
+            <option value="R">Solo en reparto (R)</option>
+            <option value="RO">Solo reclama oficina (RO)</option>
+            <option value="D">Solo devoluciones (D)</option>
+            <option value="E">Solo entregadas/recaudadas (E)</option>
+            <option value="otro">Otro estado...</option>
+          </select>
+          <input type="text" id="exportar-estado-otro" class="oculto" placeholder="Escribe el estado, ej. T" />
+          <button class="boton boton-accion boton-exportar" id="btn-exportar"><span class="icono">📤</span>Exportar</button>
+        </div>
+
+        <div class="opcion opcion-compacta">
+          <h3>4. Generar informes</h3>
+          <p class="desc-opcion">Crea informes por operador, del dia, de recaudo, relacion CE/RR o devoluciones.</p>
+          <label>Tipo de informe</label>
+          <select id="informe-tipo">
+            <option value="operador">Informe por operador</option>
+            <option value="salidas">Salidas por operador (Excel)</option>
+            <option value="dia">Informe del dia</option>
+            <option value="recaudo">Informe de recaudo</option>
+            <option value="relacion">Relacion de guias CE y RR</option>
+            <option value="devoluciones">Informe de devoluciones</option>
+            <option value="mensual">Informe mensual por operador</option>
+          </select>
+          <div id="informe-operador-campo" class="oculto">
+            <label>Operador</label>
+            <select id="informe-operador"></select>
+          </div>
+          <div id="informe-fecha-campo">
+            <label>Fecha (opcional, vacio = hoy)</label>
+            <input type="date" id="informe-fecha" />
+          </div>
+          <div id="informe-mes-campo" class="oculto">
+            <label>Mes</label>
+            <input type="month" id="informe-mes" />
+          </div>
+          <button class="boton boton-accion boton-informe" id="btn-informe"><span class="icono">📊</span>Generar informe</button>
+        </div>
+
+        <div class="opcion opcion-compacta opcion-ancha">
+          <h3>5. Cierre del dia general</h3>
+          <p class="desc-opcion">Verifica el efectivo total de la oficina contando billetes y monedas por denominacion.</p>
+          <label>Fecha (opcional, vacio = hoy)</label>
+          <input type="date" id="cierre-general-fecha" />
+
+          <table class="tabla-denominaciones">
+            <thead>
+              <tr><th>Denominacion</th><th>Cantidad</th><th>Subtotal</th></tr>
+            </thead>
+            <tbody id="tabla-cierre-general-body"></tbody>
+            <tfoot>
+              <tr><td colspan="2">SUBTOTAL CONTADO</td><td id="cierre-general-subtotal">$ 0</td></tr>
+            </tfoot>
+          </table>
+
+          <button class="boton boton-accion" id="btn-cierre-general"><span class="icono">🧮</span>Verificar cierre general</button>
+
+          <div class="opcion oculto" id="resumen-cierre-general">
+            <table class="tabla-resumen">
+              <tbody id="tabla-resumen-cierre-general-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="opcion opcion-compacta opcion-ancha">
+          <h3>6. Recalcular cierre de operador</h3>
+          <p class="desc-opcion">Vuelve a calcular el cierre ya guardado de un operador con las guias actuales. Util cuando le asignaron o entregaron mas guias despues de haber cerrado el dia.</p>
+          <label>Operador</label>
+          <select id="recalcular-operador"></select>
+          <label>Fecha</label>
+          <input type="date" id="recalcular-fecha" />
+          <button class="boton boton-accion" id="btn-recalcular-cierre"><span class="icono">🔄</span>Recalcular cierre</button>
+
+          <div class="opcion oculto" id="resumen-recalcular-cierre">
+            <table class="tabla-resumen">
+              <tbody id="tabla-resumen-recalcular-cierre-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <div class="opcion">
-        <h3>2. Abrir Zona de Trabajo (editor web)</h3>
-        <a class="boton boton-accion" href="/zona">Abrir Zona de Trabajo</a>
-      </div>
-
-      <div class="opcion">
-        <h3>3. Exportar consolidado</h3>
-        <label>Fecha (YYYY-MM-DD, opcional)</label>
-        <input type="text" id="exportar-fecha" placeholder="2026-06-10" />
-        <button class="boton boton-accion" id="btn-exportar">Exportar</button>
-      </div>
-
-      <div class="opcion">
-        <h3>4. Generar informes</h3>
-        <label>Tipo de informe</label>
-        <select id="informe-tipo">
-          <option value="operador">Informe por operador</option>
-          <option value="dia">Informe del dia</option>
-          <option value="recaudo">Informe de recaudo</option>
-          <option value="relacion">Relacion de guias CE y RR</option>
-          <option value="devoluciones">Devoluciones (D)</option>
-          <option value="entregadas">Entregadas del dia (E)</option>
-        </select>
-        <label>Fecha (YYYY-MM-DD, opcional)</label>
-        <input type="text" id="informe-fecha" placeholder="2026-06-10" />
-        <button class="boton boton-accion" id="btn-informe">Generar informe</button>
-      </div>
-
-      <button class="boton boton-volver" id="btn-volver">VOLVER AL MENU PRINCIPAL</button>
+      <button class="boton boton-volver" id="btn-volver"><span class="icono">🏠</span>VOLVER AL MENU PRINCIPAL</button>
     </section>
 
     <section class="log-seccion">

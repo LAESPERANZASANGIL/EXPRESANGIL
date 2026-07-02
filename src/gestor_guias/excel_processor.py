@@ -3,9 +3,16 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from dataclasses import dataclass
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import re
 
 import pandas as pd
+
+
+def hoy_colombia() -> date:
+    # El servidor (VPS) corre con reloj en UTC; usar date.today() haria que
+    # la fecha cambiara varias horas antes de la medianoche real en Colombia.
+    return datetime.now(ZoneInfo("America/Bogota")).date()
 
 
 REPORT_COLUMNS = {
@@ -99,9 +106,11 @@ def read_excel_file(path: Path, required_columns: list[str], import_date: str) -
         ]
         result = dataframe[required_columns + optional_columns].copy()
         result["GUIA"] = result["GUIA"].map(normalize_header_guide)
-        # Las fechas que ya trae el archivo (consolidado reexportado o formato
-        # inicial) se conservan; solo se normalizan al formato interno.
+        # Las fechas que ya trae el archivo (consolidado reexportado) se
+        # conservan; si vienen vacias, se estampa la fecha de importacion.
+        f_ingreso_defecto = format_consolidated_date(import_date)
         result["F_INGRESO"] = result["F_INGRESO"].map(normalize_header_date)
+        result["F_INGRESO"] = result["F_INGRESO"].replace("", f_ingreso_defecto)
         result["F_ENTREGA"] = result["F_ENTREGA"].map(normalize_header_date)
         result["VALOR"] = result["VALOR"].map(format_pesos)
         return result
@@ -183,6 +192,11 @@ def consolidate_excels_with_movements(
     for column in ("OPERADOR", "ESTADO", "CAUSAL"):
         if column in active.columns:
             active.loc[~preserve_mask.loc[active.index], column] = ""
+
+    if "SERVICIO" in active.columns and "VALOR" in active.columns:
+        sin_servicio = active["SERVICIO"].fillna("").astype(str).str.strip() == ""
+        con_valor = active["VALOR"].fillna("").astype(str).str.strip().ne("$ -")
+        active.loc[sin_servicio & con_valor, "SERVICIO"] = "RR"
 
     active = active[active["GUIA"] != ""]
     active = active.drop_duplicates(subset=["GUIA"], keep="first")
@@ -329,8 +343,11 @@ def is_guide_number(value: str) -> bool:
 
 
 def normalize_guide(value: str) -> str:
+    # Toda guia tiene 12 digitos; si llega mas corta (el escaner o la
+    # planilla no conservan el cero inicial), se rellena con ceros a la
+    # izquierda en vez de descartarlo.
     guide = value.replace("-", "").strip()
-    return guide[1:] if guide.startswith("0") else guide
+    return guide.zfill(12) if guide.isdigit() else guide
 
 
 def normalize_value(value: object) -> str:

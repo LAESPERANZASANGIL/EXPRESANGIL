@@ -8,13 +8,7 @@ import re
 
 from .config import OficinaSettings
 from .excel_processor import format_pesos, normalize_guide
-from .reports import (
-    generate_daily_report,
-    generate_devoluciones_report,
-    generate_entregadas_report,
-    generate_operator_report,
-    generate_operator_report_pdf,
-)
+from .reports import generate_daily_report, generate_operator_report
 from .recaudo import generate_recaudo_report
 from .relacion_ce_rr import generate_relacion_ce_rr_report
 from .repository import GuiaRepository
@@ -534,15 +528,11 @@ class GuiaEditorApp:
         target_date = self._get_report_date()
         try:
             output_path = generate_operator_report(self.repository, self.output_dir, target_date)
-            pdf_path = generate_operator_report_pdf(self.repository, self.output_dir, target_date)
         except Exception as error:  # noqa: BLE001
             messagebox.showerror("Error", f"No se pudo generar el informe: {error}")
             return
 
-        messagebox.showinfo(
-            "Informe generado",
-            f"Informe por operador generado en:\n{output_path}\n\nInforme PDF generado en:\n{pdf_path}",
-        )
+        messagebox.showinfo("Informe generado", f"Informe por operador generado en:\n{output_path}")
 
     def _generate_daily_report(self) -> None:
         try:

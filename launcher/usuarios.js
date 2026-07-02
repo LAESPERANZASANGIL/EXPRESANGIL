@@ -4,8 +4,34 @@ const pantallaAdmin = document.getElementById("pantalla-admin");
 const log = document.getElementById("log");
 const nombreAdmin = document.getElementById("nombre-admin");
 const tablaUsuariosBody = document.getElementById("tabla-usuarios-body");
+const tituloFormulario = document.getElementById("titulo-formulario");
+const notaPassword = document.getElementById("nota-password");
+const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
 
 let usuarioActual = "";
+let editandoUsuario = null;
+
+function vencidoAhora(fecha) {
+  if (!fecha) {
+    return false;
+  }
+  return fecha < new Date().toISOString().slice(0, 10);
+}
+
+function limpiarFormulario() {
+  editandoUsuario = null;
+  document.getElementById("nuevo-usuario").value = "";
+  document.getElementById("nuevo-usuario").disabled = false;
+  document.getElementById("nuevo-password").value = "";
+  document.getElementById("nuevo-nombre").value = "";
+  document.getElementById("nuevo-rol").value = "operador";
+  document.getElementById("nuevo-licencia").value = "";
+  document.getElementById("nuevo-soat").value = "";
+  document.getElementById("nuevo-tecnomecanica").value = "";
+  tituloFormulario.textContent = "Crear o actualizar usuario";
+  notaPassword.textContent = "";
+  btnCancelarEdicion.classList.add("oculto");
+}
 
 function mostrarLog(texto) {
   log.textContent = texto;
@@ -58,7 +84,44 @@ async function cargarUsuarios() {
         celdaRol.classList.add("rol-admin");
       }
 
+      const celdaLicencia = document.createElement("td");
+      celdaLicencia.textContent = usuario.licencia_vencimiento || "-";
+      const celdaSoat = document.createElement("td");
+      celdaSoat.textContent = usuario.soat_vencimiento || "-";
+      const celdaTecno = document.createElement("td");
+      celdaTecno.textContent = usuario.tecnomecanica_vencimiento || "-";
+      for (const [celda, fecha] of [
+        [celdaLicencia, usuario.licencia_vencimiento],
+        [celdaSoat, usuario.soat_vencimiento],
+        [celdaTecno, usuario.tecnomecanica_vencimiento],
+      ]) {
+        if (vencidoAhora(fecha)) {
+          celda.classList.add("documento-vencido");
+        }
+      }
+
       const celdaAcciones = document.createElement("td");
+
+      const botonEditar = document.createElement("button");
+      botonEditar.textContent = "Editar";
+      botonEditar.className = "boton-editar";
+      botonEditar.addEventListener("click", () => {
+        editandoUsuario = usuario.usuario;
+        document.getElementById("nuevo-usuario").value = usuario.usuario;
+        document.getElementById("nuevo-usuario").disabled = true;
+        document.getElementById("nuevo-password").value = "";
+        document.getElementById("nuevo-nombre").value = usuario.nombre;
+        document.getElementById("nuevo-rol").value = usuario.rol;
+        document.getElementById("nuevo-licencia").value = usuario.licencia_vencimiento || "";
+        document.getElementById("nuevo-soat").value = usuario.soat_vencimiento || "";
+        document.getElementById("nuevo-tecnomecanica").value = usuario.tecnomecanica_vencimiento || "";
+        tituloFormulario.textContent = `Editar usuario '${usuario.usuario}'`;
+        notaPassword.textContent = "(dejar en blanco para mantener la actual)";
+        btnCancelarEdicion.classList.remove("oculto");
+        tituloFormulario.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      celdaAcciones.appendChild(botonEditar);
+
       if (usuario.usuario !== usuarioActual) {
         const botonEliminar = document.createElement("button");
         botonEliminar.textContent = "Eliminar";
@@ -78,6 +141,9 @@ async function cargarUsuarios() {
       fila.appendChild(celdaUsuario);
       fila.appendChild(celdaNombre);
       fila.appendChild(celdaRol);
+      fila.appendChild(celdaLicencia);
+      fila.appendChild(celdaSoat);
+      fila.appendChild(celdaTecno);
       fila.appendChild(celdaAcciones);
       tablaUsuariosBody.appendChild(fila);
     }
@@ -167,18 +233,30 @@ document.getElementById("btn-crear").addEventListener("click", async () => {
   const password = document.getElementById("nuevo-password").value;
   const nombre = document.getElementById("nuevo-nombre").value.trim();
   const rol = document.getElementById("nuevo-rol").value;
-  if (!usuario || !password || !nombre) {
+  const licencia_vencimiento = document.getElementById("nuevo-licencia").value;
+  const soat_vencimiento = document.getElementById("nuevo-soat").value;
+  const tecnomecanica_vencimiento = document.getElementById("nuevo-tecnomecanica").value;
+  if (!usuario || !nombre || (!editandoUsuario && !password)) {
     mostrarLog("Completa usuario, contrasena y nombre.");
     return;
   }
-  const resultado = await llamar("/api/usuarios/crear", { usuario, password, nombre, rol });
+  const resultado = await llamar("/api/usuarios/crear", {
+    usuario,
+    password,
+    nombre,
+    rol,
+    licencia_vencimiento,
+    soat_vencimiento,
+    tecnomecanica_vencimiento,
+  });
   if (resultado.ok) {
-    document.getElementById("nuevo-usuario").value = "";
-    document.getElementById("nuevo-password").value = "";
-    document.getElementById("nuevo-nombre").value = "";
-    document.getElementById("nuevo-rol").value = "operador";
+    limpiarFormulario();
     await cargarUsuarios();
   }
+});
+
+btnCancelarEdicion.addEventListener("click", () => {
+  limpiarFormulario();
 });
 
 iniciar();

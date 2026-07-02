@@ -1,3 +1,5 @@
+from datetime import date
+from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
 import pandas as pd
@@ -42,7 +44,7 @@ def test_import_preserves_existing_data_and_tracking_fields(tmp_path: Path) -> N
     assert dataframe.loc[0, "CAUSAL"] == "Sin causal"
 
 
-def test_import_asigna_bodega_y_estado_vacio_por_defecto(tmp_path: Path) -> None:
+def test_import_deja_guias_nuevas_en_planillada_con_estado_vacio(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "Persona A"))
@@ -51,55 +53,80 @@ def test_import_asigna_bodega_y_estado_vacio_por_defecto(tmp_path: Path) -> None
 
     dataframe = repository.to_dataframe().set_index("GUIA")
 
-    # En BODEGA (sin asignar) el ESTADO queda vacio.
-    assert dataframe.loc["200", "OPERADOR"] == "BODEGA"
+    # Una guia nueva (sin seguimiento previo) queda "en planilla" en vez de en blanco.
+    assert dataframe.loc["200", "OPERADOR"] == "PLANILLADA"
     assert dataframe.loc["200", "ESTADO"] == ""
     # Las guias con seguimiento existente no se tocan.
     assert dataframe.loc["100", "OPERADOR"] == "KEVIN"
     assert dataframe.loc["100", "ESTADO"] == "E"
 
 
-def test_estado_entrega_estampa_fecha_entrega(tmp_path: Path) -> None:
-    from datetime import date
+def test_import_deja_guias_de_bodega_con_estado_vacio(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
 
+    dataframe_bodega = build_dataframe("100", "Persona A")
+    dataframe_bodega.loc[0, "OPERADOR"] = "BODEGA"
+    dataframe_bodega.loc[0, "ESTADO"] = "N"
+    repository.save_consolidated(dataframe_bodega)
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+
+    assert dataframe.loc["100", "OPERADOR"] == "BODEGA"
+    assert dataframe.loc["100", "ESTADO"] == ""
+
+
+def test_import_no_pisa_operador_de_guia_ya_existente_al_reimportar(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.update_tracking_fields("100", "KEVIN", "R", "")
+    # Reimportar la misma planilla (ej. el usuario vuelve a subir el archivo)
+    # no debe pisar el operador/estado ya asignado con "PLANILLADA".
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    dataframe = repository.to_dataframe().set_index("GUIA")
+
+    assert dataframe.loc["100", "OPERADOR"] == "KEVIN"
+    assert dataframe.loc["100", "ESTADO"] == "R"
+
+
+def test_update_guide_details_permite_editar_fecha_y_entrega(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.save_consolidated(build_dataframe("100", "Persona A"))
 
-    hoy = f"{date.today().isoformat()} 00:00:00"
+    repository.update_guide_details(
+        guia="100",
+        planilla="1",
+        destinatario="Persona A",
+        direccion="",
+        municipio="SAN GIL",
+        valor="$ -",
+        operador="KEVIN",
+        estado="E",
+        causal="",
+        fecha="2026-06-01",
+        entrega="2026-06-03",
+    )
 
-    # Marcar E estampa F_ENTREGA con hoy.
-    repository.update_tracking_fields("100", "OMAR", "E", "")
-    assert repository.to_dataframe().loc[0, "F_ENTREGA"] == hoy
+    registro = repository.obtener_guia("100")
+    assert registro["fecha"] == "2026-06-01"
+    assert registro["ingreso"] == "2026-06-03"
 
-    # Volver a R limpia F_ENTREGA.
-    repository.update_tracking_fields("100", "OMAR", "R", "")
-    assert repository.to_dataframe().loc[0, "F_ENTREGA"] == ""
-
-    # Cierre del operador (R -> E) estampa la fecha del cierre. El cierre ya NO
-    # filtra por F_INGRESO, asi que aplica aunque la fecha sea distinta a la de
-    # importacion (build_dataframe importa con F_INGRESO 2026-06-09).
-    repository.cerrar_dia_operador("OMAR", "2026-06-09", "R", "E")
-    assert repository.to_dataframe().loc[0, "F_ENTREGA"] == "2026-06-09 00:00:00"
-
-
-def test_cierre_aplica_a_guias_de_dias_anteriores(tmp_path: Path) -> None:
-    repository = GuiaRepository(tmp_path / "guias.db")
-
-    # Guia importada el 09/06 (F_INGRESO) que sale a reparto y se entrega el 12/06.
-    repository.save_consolidated(build_dataframe("100", "Persona A"))  # F_INGRESO 2026-06-09
-    repository.asignar_salida(["100"], "OMAR", "R")
-
-    cerradas = repository.cerrar_dia_operador("OMAR", "2026-06-12", "R", "E")
-    fila = repository.to_dataframe().set_index("GUIA").loc["100"]
-
-    assert cerradas == 1
-    assert fila["ESTADO"] == "E"
-    # F_INGRESO se conserva (09/06) y F_ENTREGA es la fecha real de entrega (12/06).
-    assert fila["F_INGRESO"] == "2026-06-09 00:00:00"
-    assert fila["F_ENTREGA"] == "2026-06-12 00:00:00"
-    # El resumen del dia 12/06 incluye la guia (se cuenta por F_ENTREGA).
-    assert len(repository.guias_de_operador("OMAR", "2026-06-12")) == 1
-    assert repository.guias_de_operador("OMAR", "2026-06-09") == []
+    # Si no se envia fecha/entrega, se conserva lo que ya tenia la guia.
+    repository.update_guide_details(
+        guia="100",
+        planilla="1",
+        destinatario="Persona A",
+        direccion="",
+        municipio="SAN GIL",
+        valor="$ -",
+        operador="KEVIN",
+        estado="E",
+        causal="",
+    )
+    registro = repository.obtener_guia("100")
+    assert registro["fecha"] == "2026-06-01"
+    assert registro["ingreso"] == "2026-06-03"
 
 
 def test_clear_all_removes_saved_data(tmp_path: Path) -> None:
@@ -197,6 +224,9 @@ def test_operadores_crud(tmp_path: Path) -> None:
         "password_hash": "hash1",
         "nombre": "KEVIN",
         "rol": "operador",
+        "licencia_vencimiento": "",
+        "soat_vencimiento": "",
+        "tecnomecanica_vencimiento": "",
     }
 
     repository.crear_operador("kevin", "hash2", "KEVIN ACTUALIZADO")
@@ -221,20 +251,33 @@ def test_asignar_salida_y_registrar_novedad(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("100", "Persona A"))
     repository.save_consolidated(build_dataframe("200", "Persona B"))
 
-    asignadas = repository.asignar_salida(["100", "200"], "KEVIN", "R")
+    asignadas, creadas_sin_planilla = repository.asignar_salida(["100", "200", "999"], "KEVIN", "R")
     dataframe = repository.to_dataframe()
 
-    assert asignadas == 2
-    assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN"]
-    assert list(dataframe["ESTADO"]) == ["R", "R"]
+    assert asignadas == 3
+    assert creadas_sin_planilla == ["999"]
+    assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN", "KEVIN"]
+    assert list(dataframe["ESTADO"]) == ["R", "R", "R"]
+    assert dataframe.loc[dataframe["GUIA"] == "999", "PLANILLA"].iloc[0] == "Sin planilla"
 
-    fecha = "2026-06-09"
-    actualizadas = repository.registrar_novedad(["100"], "KEVIN", fecha, "R", "RO")
+    fecha = hoy_colombia().isoformat()
+    actualizadas = repository.registrar_novedad(["100"], "KEVIN", fecha, "RO")
     dataframe = repository.to_dataframe()
 
     assert actualizadas == 1
     assert dataframe.loc[dataframe["GUIA"] == "100", "ESTADO"].iloc[0] == "RO"
     assert dataframe.loc[dataframe["GUIA"] == "200", "ESTADO"].iloc[0] == "R"
+
+
+def test_asignar_salida_actualiza_fecha_de_ingreso_al_dia_actual(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.asignar_salida(["100"], "KEVIN", "R")
+
+    dataframe = repository.to_dataframe()
+
+    assert dataframe.loc[dataframe["GUIA"] == "100", "F_INGRESO"].iloc[0] == hoy_colombia().isoformat()
 
 
 def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
@@ -244,7 +287,7 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     repository.save_consolidated(build_dataframe("200", "Persona B"))
     repository.asignar_salida(["100", "200"], "KEVIN", "R")
 
-    fecha = "2026-06-09"
+    fecha = hoy_colombia().isoformat()
     convertidas = repository.cerrar_dia_operador("KEVIN", fecha, "R", "E")
     dataframe = repository.to_dataframe()
 
@@ -271,3 +314,76 @@ def test_cerrar_dia_operador_y_guardar_cierre(tmp_path: Path) -> None:
     cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["gestionadas"] == 2
     assert cierre["e"] == 2
+
+
+def test_revertir_cierre_operador_devuelve_guias_a_estado_r(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.save_consolidated(build_dataframe("200", "Persona B"))
+    repository.asignar_salida(["100", "200"], "KEVIN", "R")
+
+    fecha = hoy_colombia().isoformat()
+    repository.cerrar_dia_operador("KEVIN", fecha, "R", "E")
+    repository.guardar_cierre(
+        fecha=fecha, operador="KEVIN", gestionadas=2, ro=0, n=0, d=0, e=2,
+        recaudado=0, bancos=0, nequi=0, envia=0, efectivo=0,
+    )
+
+    guias_revertidas = repository.revertir_cierre_operador("KEVIN", fecha)
+    cierre_eliminado = repository.eliminar_cierre(fecha, "KEVIN")
+
+    assert guias_revertidas == 2
+    assert cierre_eliminado is True
+    assert repository.obtener_cierre(fecha, "KEVIN") is None
+    dataframe = repository.to_dataframe()
+    assert list(dataframe["ESTADO"]) == ["R", "R"]
+
+
+def test_guardar_cierre_persiste_denominaciones_contadas(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=0, nequi=0, envia=0, efectivo=10_000,
+        denominaciones={50_000: 1, 10_000: 2},
+    )
+
+    cierre = repository.obtener_cierre("2026-06-10", "KEVIN")
+    assert cierre["denominaciones"] == {50_000: 1, 10_000: 2}
+
+
+def test_sumar_gastos_adelantos_mes(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.guardar_cierre(
+        fecha="2026-06-05", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=10_000, bancos=0, nequi=0, envia=0, efectivo=10_000,
+        gastos=2_000, adelanto_salario=5_000,
+    )
+    repository.guardar_cierre(
+        fecha="2026-06-15", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=20_000, bancos=0, nequi=0, envia=0, efectivo=20_000,
+        gastos=1_000, adelanto_salario=0,
+    )
+    repository.guardar_cierre(
+        fecha="2026-07-01", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=30_000, bancos=0, nequi=0, envia=0, efectivo=30_000,
+        gastos=9_000, adelanto_salario=9_000,
+    )
+
+    resultado = repository.sumar_gastos_adelantos_mes(2026, 6)
+
+    assert resultado == {"KEVIN": {"gastos": 3_000, "adelanto_salario": 5_000}}
+
+
+def test_obtener_guia(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    encontrada = repository.obtener_guia("100")
+    assert encontrada is not None
+    assert encontrada["guia"] == "100"
+
+    assert repository.obtener_guia("999") is None

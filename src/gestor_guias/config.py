@@ -36,11 +36,18 @@ class OficinaSettings:
 
 
 @dataclass(frozen=True)
+class ServidorSettings:
+    cert_file: Path | None
+    key_file: Path | None
+
+
+@dataclass(frozen=True)
 class Settings:
     gmail: GmailSettings
     paths: PathSettings
     excel: ExcelSettings
     oficina: OficinaSettings
+    servidor: ServidorSettings
 
 
 def _project_path(value: str) -> Path:
@@ -62,6 +69,10 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
     paths = raw["paths"]
     excel = raw["excel"]
     oficina = raw.get("oficina", {})
+    servidor = raw.get("servidor", {})
+
+    cert_file = str(servidor.get("cert_file", "")).strip()
+    key_file = str(servidor.get("key_file", "")).strip()
 
     return Settings(
         gmail=GmailSettings(
@@ -82,5 +93,9 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
         oficina=OficinaSettings(
             nombre=str(oficina.get("nombre", "SAN GIL")),
             admin_name=str(oficina.get("admin_name", "JOHAN A. ORTIZ")),
+        ),
+        servidor=ServidorSettings(
+            cert_file=_project_path(cert_file) if cert_file else None,
+            key_file=_project_path(key_file) if key_file else None,
         ),
     )

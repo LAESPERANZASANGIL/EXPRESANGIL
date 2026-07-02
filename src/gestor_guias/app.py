@@ -6,7 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .config import load_settings
-from .editor_gui import run_editor
+from .devoluciones import generate_devoluciones_report
 from .excel_processor import consolidate_excels_with_movements
 from .exporter import export_dataframe, export_movements_copy
 from .operadores import hash_password
@@ -14,11 +14,11 @@ from .recaudo import generate_recaudo_report
 from .relacion_ce_rr import generate_relacion_ce_rr_report
 from .reports import (
     generate_daily_report,
-    generate_devoluciones_report,
-    generate_entregadas_report,
+    generate_entregadas_operador_excel,
+    generate_monthly_operator_report,
     generate_operator_report,
-    generate_operator_report_pdf,
     generate_reports,
+    generate_salidas_operador_excel,
 )
 from .repository import GuiaRepository
 
@@ -96,10 +96,10 @@ def clear_data(confirm: bool) -> None:
     print("Informacion guardada borrada correctamente.")
 
 
-def export_existing(target_date: date) -> Path:
+def export_existing(target_date: date, estado: str = "") -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = export_dataframe(repository.to_dataframe(), settings.paths.output_dir, target_date)
+    output_path = export_dataframe(repository.to_dataframe(), settings.paths.output_dir, target_date, estado)
     print(f"Archivo generado: {output_path}")
     return output_path
 
@@ -111,15 +111,11 @@ def generate_reports_from_file(source_file: str, target_date: date) -> Path:
     return output_path
 
 
-def report_by_operator(target_date: date | None) -> Path:
+def report_by_operator(target_date: date | None, operador: str = "") -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = generate_operator_report(repository, settings.paths.output_dir, target_date)
+    output_path = generate_operator_report(repository, settings.paths.output_dir, target_date, operador)
     print(f"Informe generado: {output_path}")
-
-    pdf_date = target_date or date.today()
-    pdf_path = generate_operator_report_pdf(repository, settings.paths.output_dir, pdf_date)
-    print(f"Informe PDF generado: {pdf_path}")
     return output_path
 
 
@@ -153,7 +149,23 @@ def report_relacion_ce_rr(target_date: date) -> Path:
     return output_path
 
 
-def report_devoluciones(target_date: date) -> Path:
+def report_of_salidas_operador(operador: str, target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_salidas_operador_excel(repository, settings.paths.output_dir, operador, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
+def report_of_entregas_operador(operador: str, target_date: date) -> Path:
+    settings = load_settings()
+    repository = GuiaRepository(settings.paths.database_file)
+    output_path = generate_entregadas_operador_excel(repository, settings.paths.output_dir, operador, target_date)
+    print(f"Informe generado: {output_path}")
+    return output_path
+
+
+def report_of_devoluciones(target_date: date) -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
     output_path = generate_devoluciones_report(repository, settings.paths.output_dir, target_date)
@@ -161,15 +173,19 @@ def report_devoluciones(target_date: date) -> Path:
     return output_path
 
 
-def report_entregadas(target_date: date) -> Path:
+def report_monthly_by_operator(year: int, month: int) -> Path:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = generate_entregadas_report(repository, settings.paths.output_dir, target_date)
+    output_path = generate_monthly_operator_report(repository, settings.paths.output_dir, year, month)
     print(f"Informe generado: {output_path}")
     return output_path
 
 
 def open_editor() -> None:
+    # Import perezoso: tkinter solo esta disponible/es necesario en uso local
+    # de escritorio, no en el servidor donde corre el panel web.
+    from .editor_gui import run_editor
+
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
     run_editor(repository, settings.paths.output_dir, settings.oficina)
@@ -209,6 +225,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     export_parser = subparsers.add_parser("exportar", help="Exporta a Excel las guias guardadas")
     export_parser.add_argument("--fecha", help="Fecha para nombrar el archivo en formato YYYY-MM-DD")
+    export_parser.add_argument(
+        "--estado", help="Filtra por estado de guia (ej. N, R, RO, D, E). Vacio = todos los movimientos"
+    )
 
     import_parser = subparsers.add_parser(
         "importar",
@@ -244,6 +263,27 @@ def build_parser() -> argparse.ArgumentParser:
     operator_report_parser.add_argument(
         "--fecha", help="Filtra por fecha de planilla en formato YYYY-MM-DD (opcional)"
     )
+    operator_report_parser.add_argument(
+        "--operador", help="Filtra el informe a un solo operador (opcional, vacio = todos)"
+    )
+
+    salidas_report_parser = subparsers.add_parser(
+        "informe-salidas",
+        help="Genera el Excel con las guias en salida (en reparto) de un operador",
+    )
+    salidas_report_parser.add_argument("--operador", required=True, help="Nombre del operador")
+    salidas_report_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
+
+    entregas_report_parser = subparsers.add_parser(
+        "informe-entregas",
+        help="Genera el Excel con las guias entregadas y recaudadas (estado E) de un operador",
+    )
+    entregas_report_parser.add_argument("--operador", required=True, help="Nombre del operador")
+    entregas_report_parser.add_argument(
+        "--fecha", help="Fecha de cierre a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    )
 
     daily_report_parser = subparsers.add_parser(
         "informe-dia",
@@ -269,21 +309,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
-    devoluciones_parser = subparsers.add_parser(
+    devoluciones_report_parser = subparsers.add_parser(
         "informe-devoluciones",
-        help="Genera la planilla de devoluciones (ESTADO D) por fecha de entrega",
+        help="Genera el informe de devoluciones (estado D) a partir de las guias guardadas",
     )
-    devoluciones_parser.add_argument(
-        "--fecha", help="Fecha de entrega a consultar en formato YYYY-MM-DD (por defecto hoy)"
+    devoluciones_report_parser.add_argument(
+        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
-    entregadas_parser = subparsers.add_parser(
-        "informe-entregadas",
-        help="Genera la planilla de entregadas del dia (ESTADO E) por fecha de entrega",
+    monthly_report_parser = subparsers.add_parser(
+        "informe-mensual",
+        help="Genera el informe mensual por operador (gastos, adelantos, gestionadas, entregadas, efectividad)",
     )
-    entregadas_parser.add_argument(
-        "--fecha", help="Fecha de entrega a consultar en formato YYYY-MM-DD (por defecto hoy)"
-    )
+    monthly_report_parser.add_argument("--mes", required=True, help="Mes a consultar en formato YYYY-MM")
 
     subparsers.add_parser("editar", help="Abre la interfaz para editar operador, estado y causal")
 
@@ -321,7 +359,7 @@ def main() -> None:
     if args.command == "consolidar":
         consolidate(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "exportar":
-        export_existing(parse_date(args.fecha, settings.gmail.timezone))
+        export_existing(parse_date(args.fecha, settings.gmail.timezone), args.estado or "")
     elif args.command in {"importar", "procesar-archivos"}:
         process_local_files(args.archivos, parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informes":
@@ -330,7 +368,13 @@ def main() -> None:
         clear_data(args.confirmar)
     elif args.command == "informe-operador":
         fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else None
-        report_by_operator(fecha)
+        report_by_operator(fecha, args.operador or "")
+    elif args.command == "informe-salidas":
+        fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else date.today()
+        report_of_salidas_operador(args.operador, fecha)
+    elif args.command == "informe-entregas":
+        fecha = parse_date(args.fecha, settings.gmail.timezone) if args.fecha else date.today()
+        report_of_entregas_operador(args.operador, fecha)
     elif args.command == "informe-dia":
         report_of_day(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-recaudo":
@@ -338,9 +382,10 @@ def main() -> None:
     elif args.command == "informe-relacion-ce-rr":
         report_relacion_ce_rr(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-devoluciones":
-        report_devoluciones(parse_date(args.fecha, settings.gmail.timezone))
-    elif args.command == "informe-entregadas":
-        report_entregadas(parse_date(args.fecha, settings.gmail.timezone))
+        report_of_devoluciones(parse_date(args.fecha, settings.gmail.timezone))
+    elif args.command == "informe-mensual":
+        anio, mes = (int(parte) for parte in args.mes.split("-"))
+        report_monthly_by_operator(anio, mes)
     elif args.command == "editar":
         open_editor()
     elif args.command == "operador-crear":

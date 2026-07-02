@@ -2,50 +2,71 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  border-left: 5px solid var(--azul-info);
 }
 
 .barra-admin p {
   margin: 0;
   flex: 1;
+  font-size: 1.1rem;
+  color: #444;
+}
+
+.barra-admin p strong {
+  color: var(--azul-oscuro);
 }
 
 .barra-admin .boton {
   margin-top: 0;
+  margin-left: auto;
   width: auto;
-  padding: 10px 16px;
+  padding: 14px 26px;
+  font-size: 1.05rem;
 }
 
 .nota {
-  font-size: 0.9rem;
+  font-size: 1rem;
+  line-height: 1.5;
   color: #444;
-  margin: 0 0 8px;
+  margin: 0 0 12px;
 }
 
 .opcion input[type="password"] {
   width: 100%;
-  padding: 8px;
+  padding: 12px;
   border: 1px solid var(--gris-borde);
-  border-radius: 4px;
-  font-size: 0.95rem;
+  border-radius: 6px;
+  font-size: 1.05rem;
 }
 
 .tabla-usuarios {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
 }
 
 .tabla-usuarios th,
 .tabla-usuarios td {
   border: 1px solid var(--gris-borde);
-  padding: 8px 10px;
+  padding: 14px 16px;
   text-align: left;
 }
 
-.tabla-usuarios th {
-  background: var(--azul-oscuro);
+.tabla-usuarios thead th {
+  background: var(--texto-titulo);
   color: #fff;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tabla-usuarios tbody tr:nth-child(even) {
+  background: #f7f8fa;
+}
+
+.tabla-usuarios tbody tr:hover {
+  background: #eef3fb;
 }
 
 .rol-admin {
@@ -57,12 +78,97 @@
   background: #b71c1c;
   color: #fff;
   border: none;
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 0.85rem;
+  border-radius: 6px;
+  min-height: 42px;
+  padding: 10px 18px;
+  font-size: 1rem;
+  font-weight: bold;
   cursor: pointer;
 }
 
 .boton-eliminar:hover {
   filter: brightness(1.1);
+}
+
+.boton-editar {
+  background: var(--azul-info, #1565c0);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  min-height: 42px;
+  padding: 10px 18px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.boton-editar:hover {
+  filter: brightness(1.1);
+}
+
+.documento-vencido {
+  color: #b71c1c;
+  font-weight: bold;
+}
+
+.nota-campo {
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: #777;
+}
+
+.subtitulo-form {
+  margin: 28px 0 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--gris-borde);
+  font-size: 1.05rem;
+  color: var(--azul-oscuro);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.opcion h3 + .subtitulo-form {
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.nota-documentos {
+  margin: 0 0 16px;
+}
+
+.campos-grid-acceso,
+.campos-grid-documentos {
+  row-gap: 6px;
+}
+
+.campos-grid .campo label {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.6em;
+  margin: 0 0 8px;
+}
+
+.campos-grid .campo input,
+.campos-grid .campo select {
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+.acciones-formulario {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.acciones-formulario .boton {
+  margin-top: 0;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+#btn-cancelar-edicion.oculto {
+  display: none;
 }

@@ -34,3 +34,7 @@ editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
 [oficina]
 nombre = "SAN GIL"
 admin_name = "JOHAN A. ORTIZ"
+
+[servidor]
+cert_file = ""
+key_file = ""

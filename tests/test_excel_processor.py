@@ -29,6 +29,66 @@ REQUIRED_COLUMNS = [
 ]
 
 
+def test_consolidate_marca_rr_cuando_hay_valor_y_servicio_vacio(tmp_path: Path) -> None:
+    file_path = tmp_path / "planilla.xlsx"
+    dataframe = pd.DataFrame(
+        [
+            {
+                "PLANILLA": "P1",
+                "SERVICIO": "",
+                "GUIA": "100",
+                "UNID": "1",
+                "TIPO DE SERVICIO": "NORMAL",
+                "DESTINATARIO": "Persona A",
+                "MUNICIPIO": "Bucaramanga",
+                "VALOR": "10000",
+                "OPERADOR": "",
+                "ESTADO": "",
+                "CAUSAL": "",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "",
+            },
+            {
+                "PLANILLA": "P1",
+                "SERVICIO": "CE",
+                "GUIA": "200",
+                "UNID": "1",
+                "TIPO DE SERVICIO": "NORMAL",
+                "DESTINATARIO": "Persona B",
+                "MUNICIPIO": "Bucaramanga",
+                "VALOR": "20000",
+                "OPERADOR": "",
+                "ESTADO": "",
+                "CAUSAL": "",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "",
+            },
+            {
+                "PLANILLA": "P1",
+                "SERVICIO": "",
+                "GUIA": "300",
+                "UNID": "1",
+                "TIPO DE SERVICIO": "NORMAL",
+                "DESTINATARIO": "Persona C",
+                "MUNICIPIO": "Bucaramanga",
+                "VALOR": "",
+                "OPERADOR": "",
+                "ESTADO": "",
+                "CAUSAL": "",
+                "F_INGRESO": "2026-06-09",
+                "F_ENTREGA": "",
+            },
+        ]
+    )
+    dataframe.to_excel(file_path, index=False)
+
+    result = consolidate_excels([file_path], REQUIRED_COLUMNS).set_index("GUIA")
+
+    assert result.loc["000000000100", "SERVICIO"] == "RR"
+    assert result.loc["000000000200", "SERVICIO"] == "CE"
+    assert result.loc["000000000300", "SERVICIO"] == ""
+
+
 def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_path: Path) -> None:
     file_path = tmp_path / "planilla.xlsx"
     dataframe = pd.DataFrame(
@@ -72,7 +132,7 @@ def test_consolidate_clears_tracking_fields_and_removes_duplicate_guides(tmp_pat
     result = consolidate_excels([file_path], REQUIRED_COLUMNS)
 
     assert len(result) == 1
-    assert result.loc[0, "GUIA"] == "100"
+    assert result.loc[0, "GUIA"] == "000000000100"
     assert result.loc[0, "OPERADOR"] == ""
     assert result.loc[0, "ESTADO"] == ""
     assert result.loc[0, "CAUSAL"] == ""
@@ -120,8 +180,8 @@ def test_consolidate_keeps_only_movement_status_n_and_copies_other_statuses(tmp_
 
     result = consolidate_excels_with_movements([file_path], REQUIRED_COLUMNS)
 
-    assert list(result.active["GUIA"]) == ["100"]
-    assert list(result.movements_copy["GUIA"]) == ["200"]
+    assert list(result.active["GUIA"]) == ["000000000100"]
+    assert list(result.movements_copy["GUIA"]) == ["000000000200"]
     assert list(result.movements_copy["ESTADO MOVIMIENTO"]) == ["D"]
 
 
@@ -173,7 +233,7 @@ def test_consolidate_initial_operations_format_preserves_tracking(tmp_path: Path
 
     result = consolidate_excels_with_movements([file_path], REQUIRED_COLUMNS)
 
-    assert list(result.active["GUIA"]) == ["14158816547", "34057184716"]
+    assert list(result.active["GUIA"]) == ["014158816547", "034057184716"]
     assert list(result.active["OPERADOR"]) == ["OMAR", "MARGARITA"]
     assert list(result.active["ESTADO"]) == ["D", "E"]
     assert list(result.active["CAUSAL"]) == ["31", ""]
@@ -213,7 +273,7 @@ def test_consolidate_colvanes_report_layout(tmp_path: Path) -> None:
     assert len(result) == 1
     assert result.loc[0, "PLANILLA"] == "979628"
     assert result.loc[0, "SERVICIO"] == ""
-    assert result.loc[0, "GUIA"] == "14158816547"
+    assert result.loc[0, "GUIA"] == "014158816547"
     assert result.loc[0, "UNID"] == "1"
     assert result.loc[0, "TIPO DE SERVICIO"] == "DE"
     assert result.loc[0, "DESTINATARIO"] == "SERGIO ANDRES CORZO"

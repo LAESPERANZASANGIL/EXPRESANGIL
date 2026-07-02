@@ -10,6 +10,7 @@
 <body>
   <div class="container">
     <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
       <h1>MODULO OPERADORES</h1>
       <p class="subtitulo">Salidas, novedades y cierre del dia</p>
     </header>
@@ -23,14 +24,14 @@
         <input type="password" id="login-password" autocomplete="current-password" />
         <button class="boton boton-accion" id="btn-login">Ingresar</button>
       </div>
-      <a class="boton boton-volver" href="/">VOLVER AL MENU PRINCIPAL</a>
+      <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
     </section>
 
     <section id="pantalla-operador" class="pantalla oculto">
       <div class="opcion barra-operador">
         <p>Operador: <strong id="nombre-operador"></strong></p>
-        <label>Fecha de trabajo (YYYY-MM-DD)</label>
-        <input type="text" id="fecha-trabajo" />
+        <label>Fecha de trabajo</label>
+        <input type="date" id="fecha-trabajo" />
         <button class="boton boton-volver" id="btn-logout">Cerrar sesion</button>
       </div>
 
@@ -38,7 +39,14 @@
         <h3>1. Salidas</h3>
         <label>Pega o escanea los numeros de guia que salen hoy (puedes repetirlo varias veces)</label>
         <textarea id="salidas-guias" rows="4"></textarea>
+        <p class="nota-campo">Guias detectadas: <strong id="salidas-contador">0</strong></p>
         <button class="boton boton-accion" id="btn-salidas">Registrar salidas</button>
+      </div>
+
+      <div class="opcion">
+        <h3>Informe de salidas (Excel)</h3>
+        <p class="nota-campo">Descarga la lista de guias que tienes en reparto hoy (guia, destinatario, direccion y valor).</p>
+        <button class="boton boton-accion" id="btn-informe-salidas">Generar y descargar Excel</button>
       </div>
 
       <div class="opcion">
@@ -47,24 +55,43 @@
         <textarea id="novedad-ro" rows="3"></textarea>
         <label>Operativas (N)</label>
         <textarea id="novedad-n" rows="3"></textarea>
-        <label>Devoluciones (D)</label>
-        <textarea id="novedad-d" rows="3"></textarea>
+        <label>Devoluciones (D) <span class="nota-campo">guia y causal de 2 digitos, ej: 064108123 10</span></label>
+        <textarea id="novedad-d" rows="3" placeholder="064108123 10&#10;064108456 25"></textarea>
         <button class="boton boton-accion" id="btn-novedades">Registrar novedades</button>
       </div>
 
       <div class="opcion">
         <h3>3. Cierre del dia</h3>
-        <label>Dinero en bancos</label>
+        <label>Dinero en bancos <span class="nota-campo">puedes escribir varios valores separados por espacio o coma, ej: 10000 5000</span></label>
         <input type="text" id="cierre-bancos" placeholder="0" />
-        <label>Dinero en Nequi</label>
+        <label>Dinero en Nequi <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
         <input type="text" id="cierre-nequi" placeholder="0" />
-        <label>Dinero en link Envia</label>
+        <label>Dinero en link Envia <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
         <input type="text" id="cierre-envia" placeholder="0" />
-        <button class="boton boton-accion" id="btn-cierre">Cerrar dia y generar resumen</button>
+        <label>Gastos <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
+        <input type="text" id="cierre-gastos" placeholder="0" />
+        <label>Adelanto de salario <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
+        <input type="text" id="cierre-adelanto" placeholder="0" />
+
+        <h4>Conteo de efectivo en caja</h4>
+        <table class="tabla-denominaciones">
+          <thead>
+            <tr><th>Denominacion</th><th>Cantidad</th><th>Subtotal</th></tr>
+          </thead>
+          <tbody id="tabla-denominaciones-body"></tbody>
+          <tfoot>
+            <tr><td colspan="2">SUBTOTAL CONTADO</td><td id="subtotal-contado">$ 0</td></tr>
+          </tfoot>
+        </table>
+
+        <div class="fila-botones">
+          <button class="boton boton-buscar" id="btn-simular-cierre">Simular cierre</button>
+          <button class="boton boton-accion" id="btn-cierre" disabled>Generar cierre del dia</button>
+        </div>
       </div>
 
       <div class="opcion oculto" id="resumen-cierre">
-        <h3>Resumen del dia</h3>
+        <h3 id="titulo-resumen-cierre">Resumen del dia</h3>
         <table class="tabla-resumen">
           <tbody id="tabla-resumen-body"></tbody>
         </table>
