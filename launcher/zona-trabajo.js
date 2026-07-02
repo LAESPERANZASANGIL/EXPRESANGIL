@@ -641,6 +641,16 @@ document.getElementById("btn-admin-regenerar-cierre").addEventListener("click", 
   }
 });
 
+document.getElementById("btn-deshacer").addEventListener("click", async () => {
+  if (!confirm("¿Deshacer la ultima modificacion (edicion o eliminacion hecha desde la Zona de Trabajo)?")) return;
+  const resultado = await llamar("/api/admin/deshacer", {});
+  if (resultado.ok) await cargarGuias();
+});
+
+document.getElementById("btn-simular-cierre-dia").addEventListener("click", async () => {
+  await llamar("/api/admin/cierre-dia/simular", {});
+});
+
 document.getElementById("btn-archivar-entregadas").addEventListener("click", async () => {
   if (!confirm("¿Cerrar el dia? TODAS las guias en estado E saldran de la zona de trabajo y pasaran al archivo del mes (consultables en Entregas del Mes).")) return;
   const resultado = await llamar("/api/admin/archivar-entregadas", {});

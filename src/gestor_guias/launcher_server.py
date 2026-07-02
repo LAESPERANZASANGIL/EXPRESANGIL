@@ -133,6 +133,17 @@ GUIA_FIELDS = (
 
 AUDITORIA_FILE = SETTINGS.paths.database_file.parent / "auditoria.log"
 
+# Snapshot en memoria de la ultima modificacion hecha desde la Zona de
+# Trabajo, para poder deshacerla. Solo guarda un nivel y se pierde al
+# reiniciar el servidor.
+ULTIMA_MODIFICACION: dict | None = None
+
+
+def guardar_undo(descripcion: str, rows: list[dict]) -> None:
+    global ULTIMA_MODIFICACION
+    if rows:
+        ULTIMA_MODIFICACION = {"descripcion": descripcion, "rows": rows}
+
 
 def _parse_mes(texto: str) -> tuple[int | None, int | None]:
     """Convierte 'AAAA-MM' (valor de un input type=month) en (anio, mes)."""
@@ -517,6 +528,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             fecha = str(data.get("fecha", "")).strip()
             entrega = str(data.get("entrega", "")).strip()
             servicio = str(data.get("servicio", "")).strip()
+            guardar_undo(f"edicion de la guia {guia}", REPOSITORY.snapshot_por_guias([guia]))
             REPOSITORY.update_guide_details(
                 guia=guia,
                 planilla=str(data.get("planilla", "")).strip(),
@@ -541,6 +553,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not guias:
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
                 return
+            guardar_undo(f"edicion masiva de {len(guias)} guia(s)", REPOSITORY.snapshot_por_guias(guias))
             actualizadas = REPOSITORY.update_many_tracking_fields(
                 guias=guias,
                 operador=str(data.get("operador", "")).strip(),
@@ -575,6 +588,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not guias:
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
                 return
+            guardar_undo(f"eliminacion de {len(guias)} guia(s)", REPOSITORY.snapshot_por_guias(guias))
             eliminadas = REPOSITORY.delete_many(guias)
             registrar_auditoria(
                 self._get_session()["usuario"], "eliminar-guias", f"{eliminadas} guia(s): {guias}"
@@ -589,6 +603,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not fecha:
                 self._send_json({"ok": False, "output": "Escribe una fecha en formato YYYY-MM-DD."})
                 return
+            guardar_undo(
+                f"eliminacion por fecha {fecha}",
+                REPOSITORY.snapshot_guias("fecha LIKE ?", (f"{fecha}%",)),
+            )
             eliminadas = REPOSITORY.delete_by_fecha(fecha)
             registrar_auditoria(
                 self._get_session()["usuario"], "eliminar-guias-por-fecha", f"{eliminadas} guia(s), fecha={fecha}"
@@ -603,6 +621,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not estado:
                 self._send_json({"ok": False, "output": "Escribe un estado."})
                 return
+            guardar_undo(
+                f"eliminacion por estado {estado}",
+                REPOSITORY.snapshot_guias("estado = ?", (estado,)),
+            )
             eliminadas = REPOSITORY.delete_by_estado(estado)
             registrar_auditoria(
                 self._get_session()["usuario"], "eliminar-guias-por-estado", f"{eliminadas} guia(s), estado={estado}"
@@ -617,6 +639,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not operador:
                 self._send_json({"ok": False, "output": "Escribe un operador."})
                 return
+            guardar_undo(
+                f"eliminacion por operador {operador}",
+                REPOSITORY.snapshot_guias("UPPER(TRIM(operador)) = UPPER(?)", (operador,)),
+            )
             eliminadas = REPOSITORY.delete_by_operador(operador)
             registrar_auditoria(
                 self._get_session()["usuario"], "eliminar-guias-por-operador", f"{eliminadas} guia(s), operador={operador}"
@@ -1108,6 +1134,51 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Cierre regenerado para {operador} ({fecha_texto}).",
                 "resumen": resumen,
                 "archivo_entregas": ruta_entregas.name,
+            })
+            return
+
+        if self.path == "/api/admin/deshacer":
+            if not self._require_admin():
+                return
+            global ULTIMA_MODIFICACION
+            if not ULTIMA_MODIFICACION:
+                self._send_json({"ok": False, "output": "No hay ninguna modificacion para deshacer."})
+                return
+            restauradas = REPOSITORY.restaurar_guias(ULTIMA_MODIFICACION["rows"])
+            descripcion = ULTIMA_MODIFICACION["descripcion"]
+            ULTIMA_MODIFICACION = None
+            registrar_auditoria(
+                self._get_session()["usuario"], "deshacer", f"{descripcion}: {restauradas} guia(s) restauradas"
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Se deshizo la {descripcion}: {restauradas} guia(s) restauradas.",
+            })
+            return
+
+        if self.path == "/api/admin/cierre-dia/simular":
+            if not self._require_admin():
+                return
+            dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
+            entregadas = dataframe[dataframe["ESTADO"].str.strip().str.upper() == "E"]
+            if entregadas.empty:
+                self._send_json({
+                    "ok": True,
+                    "output": "Simulacion: no hay guias en estado E; el cierre del dia no moveria nada.",
+                })
+                return
+            por_operador = ", ".join(
+                f"{operador}: {int(cantidad)}"
+                for operador, cantidad in entregadas["OPERADOR"].value_counts().items()
+            )
+            valor_texto = f"{int(entregadas['VALOR_NUMERICO'].sum()):,}".replace(",", ".")
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Simulacion del cierre del dia (no se movio nada): {len(entregadas)} guia(s) en "
+                    f"estado E pasarian al archivo del mes, valor total $ {valor_texto}. "
+                    f"Por operador: {por_operador}."
+                ),
             })
             return
 
