@@ -580,10 +580,10 @@ class GuiaRepository:
                         destinatario, direccion, municipio, valor, operador, estado,
                         causal, fecha, ingreso, orden_salida
                     )
-                    VALUES (?, 'Sin planilla', '', '', '', '', '', '', '0', ?, ?, '', ?, ?, ?)
+                    VALUES (?, 'Sin planilla', '', '', '', '', '', '', '0', ?, ?, '', ?, '', ?)
                     """,
                     [
-                        (guia, operador, estado, hoy, hoy, siguiente_orden + len(encontradas_en_orden) + indice)
+                        (guia, operador, estado, hoy, siguiente_orden + len(encontradas_en_orden) + indice)
                         for indice, guia in enumerate(no_encontradas)
                     ],
                 )
