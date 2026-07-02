@@ -423,6 +423,17 @@ document.getElementById("btn-marcar-visibles").addEventListener("click", () => {
   mostrarLog(`Se marcaron ${marcadas.size} guia(s) visibles. Usa "Aplicar a marcadas" para hacer el cambio masivo.`);
 });
 
+document.getElementById("btn-desmarcar-todas").addEventListener("click", () => {
+  if (!marcadas.size) {
+    mostrarLog("No hay guias marcadas.");
+    return;
+  }
+  const cantidad = marcadas.size;
+  marcadas = new Set();
+  renderizarTabla();
+  mostrarLog(`Se desmarcaron ${cantidad} guia(s).`);
+});
+
 document.getElementById("btn-actualizar").addEventListener("click", cargarGuias);
 
 document.getElementById("btn-guardar-una").addEventListener("click", async () => {
