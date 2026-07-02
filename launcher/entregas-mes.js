@@ -143,9 +143,46 @@ document.getElementById("btn-informe-pdf").addEventListener("click", async () =>
   await llamar("/api/admin/entregas-mes/informe", { mes, formato: "pdf" });
 });
 
+const rendimientoOperador = document.getElementById("rendimiento-operador");
+
+async function cargarOperadores() {
+  try {
+    const respuesta = await fetch("/api/operadores-guias", { credentials: "same-origin" });
+    const resultado = await respuesta.json();
+    if (!resultado.ok) return;
+    rendimientoOperador.innerHTML = "";
+    for (const nombre of resultado.operadores) {
+      const opcion = document.createElement("option");
+      opcion.value = nombre;
+      opcion.textContent = nombre;
+      rendimientoOperador.appendChild(opcion);
+    }
+  } catch (error) {
+    // sin operadores disponibles, el selector queda vacio
+  }
+}
+
+document.getElementById("btn-rendimiento-operador").addEventListener("click", async () => {
+  const mes = mesSeleccionado();
+  if (!mes) return;
+  const operador = rendimientoOperador.value;
+  if (!operador) {
+    mostrarLog("Selecciona el operador.");
+    return;
+  }
+  await llamar("/api/admin/rendimiento-mensual", { mes, operador });
+});
+
+document.getElementById("btn-rendimiento-todos").addEventListener("click", async () => {
+  const mes = mesSeleccionado();
+  if (!mes) return;
+  await llamar("/api/admin/rendimiento-mensual", { mes });
+});
+
 // Al abrir, deja seleccionado el mes actual y consulta.
 (function () {
   const hoy = new Date();
   campoMes.value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
   consultarMes();
+  cargarOperadores();
 })();
