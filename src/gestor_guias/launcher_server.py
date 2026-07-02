@@ -38,6 +38,8 @@ from .reports import (
     generate_cierre_mensual_entregadas_excel,
     generate_cierre_mensual_entregadas_pdf,
     generate_entregadas_operador_excel,
+    generate_rendimiento_mensual_operador_pdf,
+    generate_rendimiento_mensual_pdf,
     generate_salidas_operador_excel,
     normalize_dataframe,
     value_to_number,
@@ -1167,6 +1169,29 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     for fila in detalle
                 ],
                 "resumen": resumen.to_dict(orient="records"),
+            })
+            return
+
+        if self.path == "/api/admin/rendimiento-mensual":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            operador = str(data.get("operador", "")).strip()
+            if operador:
+                ruta = generate_rendimiento_mensual_operador_pdf(
+                    REPOSITORY, SETTINGS.paths.output_dir, operador, anio, mes
+                )
+            else:
+                ruta = generate_rendimiento_mensual_pdf(
+                    REPOSITORY, SETTINGS.paths.output_dir, anio, mes
+                )
+            self._send_json({
+                "ok": True,
+                "output": f"Informe generado: {ruta.name}",
+                "descargas": [ruta.name],
             })
             return
 

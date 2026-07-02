@@ -424,6 +424,190 @@ def generate_cierre_mensual_entregadas_pdf(
     return output_path
 
 
+def build_movimiento_mensual(repository: GuiaRepository, year: int, month: int) -> pd.DataFrame:
+    """Todas las guias gestionadas en el mes (por F_ENTREGA), incluido el archivo.
+
+    Las entregadas (E) salen de entregadas_mes (archivo + zona de trabajo);
+    las novedades (RO, N, D) siguen en la zona de trabajo y se toman de alli.
+    """
+    prefijo = f"{year:04d}-{month:02d}"
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    gestionadas = dataframe[dataframe["F_ENTREGA"].astype(str).str.startswith(prefijo)]
+    novedades = gestionadas[gestionadas["ESTADO"].str.strip().str.upper() != ESTADO_RECAUDO]
+    entregadas = entregadas_mes_dataframe(repository, year, month)
+    if novedades.empty:
+        return entregadas
+    if entregadas.empty:
+        return novedades
+    columnas = [col for col in entregadas.columns if col in novedades.columns]
+    return pd.concat([novedades[columnas], entregadas[columnas]], ignore_index=True)
+
+
+def build_rendimiento_mensual(repository: GuiaRepository, year: int, month: int) -> pd.DataFrame:
+    """Rendimiento del mes por operador: gestionadas, entregadas, prestamos y promedio diario."""
+    movimiento = build_movimiento_mensual(repository, year, month)
+    columnas = [
+        "OPERADOR", "GUIAS GESTIONADAS", "GUIAS ENTREGADAS",
+        "GASTOS", "ADELANTO/PRESTAMO", "EFECTIVIDAD %", "PROMEDIO DEL MES",
+    ]
+    if movimiento.empty:
+        return pd.DataFrame(columns=columnas)
+
+    gastos_adelantos = repository.sumar_gastos_adelantos_mes(year, month)
+
+    filas = []
+    for nombre_operador in sorted(movimiento["OPERADOR"].dropna().unique()):
+        guias_operador = movimiento[movimiento["OPERADOR"] == nombre_operador]
+        gestionadas = len(guias_operador)
+        filas_entregadas = guias_operador[guias_operador["ESTADO"].str.strip().str.upper() == ESTADO_RECAUDO]
+        entregadas = len(filas_entregadas)
+        # Promedio de entregas por dia trabajado (dias con alguna gestion en el mes).
+        dias = guias_operador["F_ENTREGA"].astype(str).str[:10].nunique()
+        promedio = round(entregadas / dias) if dias else 0
+        efectividad = round(entregadas / gestionadas * 100, 1) if gestionadas else 0.0
+        extra = gastos_adelantos.get(nombre_operador, {})
+        filas.append(
+            {
+                "OPERADOR": nombre_operador,
+                "GUIAS GESTIONADAS": gestionadas,
+                "GUIAS ENTREGADAS": entregadas,
+                "GASTOS": extra.get("gastos", 0),
+                "ADELANTO/PRESTAMO": extra.get("adelanto_salario", 0),
+                "EFECTIVIDAD %": efectividad,
+                "PROMEDIO DEL MES": promedio,
+            }
+        )
+
+    return pd.DataFrame(filas, columns=columnas).sort_values("GUIAS ENTREGADAS", ascending=False)
+
+
+def _formato_pesos_pdf(valor: object) -> str:
+    return f"$ {int(valor):,}".replace(",", ".")
+
+
+def generate_rendimiento_mensual_operador_pdf(
+    repository: GuiaRepository, output_dir: Path, operador: str, year: int, month: int
+) -> Path:
+    """Ficha PDF del movimiento mensual de UN operador (formato tipo tarjeta)."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
+
+    rendimiento = build_rendimiento_mensual(repository, year, month)
+    fila = rendimiento[rendimiento["OPERADOR"].str.upper() == operador.strip().upper()]
+    datos = fila.iloc[0] if not fila.empty else None
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / (
+        f"informe mensual {operador} {MONTHS_ES[month]} {year}.pdf"
+    )
+
+    encabezado = [
+        ["INFORME MENSUAL POR OPERADOR"],
+        [operador.upper()],
+        [f"{MONTHS_ES[month].upper()} {year}"],
+    ]
+    cuerpo = [
+        ["GUIAS GESTIONADAS", str(int(datos["GUIAS GESTIONADAS"])) if datos is not None else "0"],
+        ["GUIAS ENTREGADAS", str(int(datos["GUIAS ENTREGADAS"])) if datos is not None else "0"],
+        ["GASTOS", _formato_pesos_pdf(datos["GASTOS"]) if datos is not None else "$ 0"],
+        ["ADELANTO/PRESTAMO", _formato_pesos_pdf(datos["ADELANTO/PRESTAMO"]) if datos is not None else "$ 0"],
+        ["EFECTIVIDAD", f"{datos['EFECTIVIDAD %']} %" if datos is not None else "0 %"],
+        ["PROMEDIO DEL MES (ENTREGAS/DIA)", str(int(datos["PROMEDIO DEL MES"])) if datos is not None else "0"],
+    ]
+
+    tabla_titulo = Table(encabezado, colWidths=[14 * cm])
+    tabla_titulo.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1F3864")),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (0, 0), 14),
+        ("FONTSIZE", (0, 1), (0, 2), 11),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#1F3864")),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    tabla_cuerpo = Table(cuerpo, colWidths=[9 * cm, 5 * cm])
+    tabla_cuerpo.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.7, colors.black),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("FONTSIZE", (0, 0), (-1, -1), 11),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+
+    documento = SimpleDocTemplate(str(output_path), pagesize=letter, title=output_path.stem)
+    documento.build([tabla_titulo, Spacer(1, 0.1 * cm), tabla_cuerpo])
+
+    return output_path
+
+
+def generate_rendimiento_mensual_pdf(
+    repository: GuiaRepository, output_dir: Path, year: int, month: int
+) -> Path:
+    """PDF con el rendimiento mensual de TODOS los operadores."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import landscape, letter
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    rendimiento = build_rendimiento_mensual(repository, year, month)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / (
+        f"informe mensual operadores {MONTHS_ES[month]} {year}.pdf"
+    )
+
+    estilos = getSampleStyleSheet()
+    elementos = [
+        Paragraph(f"INFORME MENSUAL DE OPERADORES - {MONTHS_ES[month].upper()} {year}", estilos["Title"]),
+        Paragraph("Oficina Expresangil - Rendimiento mensual por operador", estilos["Normal"]),
+        Spacer(1, 0.5 * cm),
+    ]
+
+    filas = [[
+        "OPERADOR", "GUIAS\nGESTIONADAS", "GUIAS\nENTREGADAS",
+        "GASTOS", "ADELANTO/\nPRESTAMO", "EFECTIVIDAD", "PROMEDIO\nDEL MES",
+    ]]
+    for _, fila in rendimiento.iterrows():
+        filas.append([
+            str(fila["OPERADOR"]),
+            str(int(fila["GUIAS GESTIONADAS"])),
+            str(int(fila["GUIAS ENTREGADAS"])),
+            _formato_pesos_pdf(fila["GASTOS"]),
+            _formato_pesos_pdf(fila["ADELANTO/PRESTAMO"]),
+            f"{fila['EFECTIVIDAD %']} %",
+            str(int(fila["PROMEDIO DEL MES"])),
+        ])
+    if len(filas) == 1:
+        filas.append(["Sin movimientos registrados en el mes", "", "", "", "", "", ""])
+
+    tabla = Table(filas, colWidths=[6 * cm, 3 * cm, 3 * cm, 3 * cm, 3 * cm, 3 * cm, 3 * cm])
+    tabla.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elementos.append(tabla)
+
+    documento = SimpleDocTemplate(
+        str(output_path), pagesize=landscape(letter), title=output_path.stem
+    )
+    documento.build(elementos)
+
+    return output_path
+
+
 def generate_operator_report(
     repository: GuiaRepository, output_dir: Path, target_date: date | None = None, operador: str = ""
 ) -> Path:

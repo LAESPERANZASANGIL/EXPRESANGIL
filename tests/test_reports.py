@@ -496,3 +496,34 @@ def test_generate_cierre_mensual_entregadas_pdf(tmp_path: Path) -> None:
     assert ruta.exists()
     assert ruta.suffix == ".pdf"
     assert ruta.stat().st_size > 0
+
+
+def test_build_rendimiento_mensual_y_pdfs(tmp_path: Path) -> None:
+    from gestor_guias.reports import (
+        build_rendimiento_mensual,
+        generate_rendimiento_mensual_operador_pdf,
+        generate_rendimiento_mensual_pdf,
+    )
+
+    repository = _preparar_entregadas_del_mes(tmp_path)
+    hoy = hoy_colombia()
+    repository.guardar_cierre(
+        fecha=hoy.isoformat(), operador="OMAR", gestionadas=2, ro=0, n=0, d=0, e=2,
+        recaudado=30_000, bancos=0, nequi=0, envia=0, efectivo=30_000,
+        gastos=5_000, adelanto_salario=50_000,
+    )
+
+    rendimiento = build_rendimiento_mensual(repository, hoy.year, hoy.month)
+    fila_omar = rendimiento[rendimiento["OPERADOR"] == "OMAR"].iloc[0]
+    assert fila_omar["GUIAS GESTIONADAS"] == 2
+    assert fila_omar["GUIAS ENTREGADAS"] == 2
+    assert fila_omar["ADELANTO/PRESTAMO"] == 50_000
+    assert fila_omar["GASTOS"] == 5_000
+    assert fila_omar["PROMEDIO DEL MES"] == 2  # 2 entregas en 1 dia trabajado
+
+    ruta_operador = generate_rendimiento_mensual_operador_pdf(
+        repository, tmp_path, "OMAR", hoy.year, hoy.month
+    )
+    ruta_todos = generate_rendimiento_mensual_pdf(repository, tmp_path, hoy.year, hoy.month)
+    assert ruta_operador.exists() and ruta_operador.stat().st_size > 0
+    assert ruta_todos.exists() and ruta_todos.stat().st_size > 0
