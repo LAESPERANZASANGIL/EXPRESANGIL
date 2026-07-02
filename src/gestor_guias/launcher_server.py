@@ -107,6 +107,19 @@ STATIC_FILES = {
     "/dashboard.js": ("dashboard.js", "application/javascript; charset=utf-8"),
 }
 
+# Campos de cada guia que necesita la Zona de Trabajo web.
+GUIA_FIELDS = (
+    "planilla",
+    "guia",
+    "destinatario",
+    "direccion",
+    "municipio",
+    "valor",
+    "operador",
+    "estado",
+    "causal",
+)
+
 
 AUDITORIA_FILE = SETTINGS.paths.database_file.parent / "auditoria.log"
 

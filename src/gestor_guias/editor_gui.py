@@ -244,6 +244,16 @@ class GuiaEditorApp:
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             reports_frame,
+            text="Devoluciones (D)",
+            command=self._generate_devoluciones_report,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            reports_frame,
+            text="Entregadas del dia (E)",
+            command=self._generate_entregadas_report,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            reports_frame,
             text="Cerrar y volver al menu",
             command=self._close_window,
         ).pack(side="right")
@@ -556,6 +566,24 @@ class GuiaEditorApp:
             return
 
         messagebox.showinfo("Informe generado", f"Relacion de guias CE y RR generada en:\n{output_path}")
+
+    def _generate_devoluciones_report(self) -> None:
+        try:
+            output_path = generate_devoluciones_report(self.repository, self.output_dir, self._get_report_date())
+        except Exception as error:  # noqa: BLE001
+            messagebox.showerror("Error", f"No se pudo generar el informe: {error}")
+            return
+
+        messagebox.showinfo("Informe generado", f"Informe de devoluciones generado en:\n{output_path}")
+
+    def _generate_entregadas_report(self) -> None:
+        try:
+            output_path = generate_entregadas_report(self.repository, self.output_dir, self._get_report_date())
+        except Exception as error:  # noqa: BLE001
+            messagebox.showerror("Error", f"No se pudo generar el informe: {error}")
+            return
+
+        messagebox.showinfo("Informe generado", f"Informe de entregadas del dia generado en:\n{output_path}")
 
     def _select_guides_from_text(self) -> None:
         guides = set(self._guides_from_text())

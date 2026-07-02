@@ -210,6 +210,7 @@ class GuiaRepository:
 
     def update_tracking_fields(self, guia: str, operador: str, estado: str, causal: str) -> None:
         self.initialize()
+        entrega = fecha_entrega(estado)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -268,6 +269,7 @@ class GuiaRepository:
         if not clean_guides:
             return 0
 
+        entrega = fecha_entrega(estado)
         with self._connect() as connection:
             cursor = connection.executemany(
                 """
@@ -498,7 +500,10 @@ class GuiaRepository:
         if not clean_guides:
             return 0
 
+        entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
+            # Sin filtro por F_INGRESO: la novedad aplica a las guias activas del
+            # repartidor aunque se hayan importado dias antes. F_ENTREGA = hoy.
             cursor = connection.executemany(
                 """
                 UPDATE guias SET estado = ?, ingreso = ?
@@ -533,7 +538,10 @@ class GuiaRepository:
 
     def cerrar_dia_operador(self, operador: str, fecha: str, estado_actual: str, nuevo_estado: str) -> int:
         self.initialize()
+        entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
+            # Cierra TODAS las guias del repartidor en reparto, sin importar la
+            # fecha de importacion, y estampa F_ENTREGA con la fecha del cierre.
             cursor = connection.execute(
                 "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
                 (nuevo_estado, fecha, operador, f"{fecha}%", estado_actual),
@@ -578,8 +586,10 @@ class GuiaRepository:
         self.initialize()
         with self._connect() as connection:
             connection.row_factory = sqlite3.Row
+            # Guias que el repartidor gestiono ESE dia: se filtran por F_ENTREGA
+            # (fecha de gestion), no por la fecha de importacion.
             rows = connection.execute(
-                "SELECT * FROM guias WHERE operador = ? AND fecha LIKE ?",
+                "SELECT * FROM guias WHERE operador = ? AND ingreso LIKE ?",
                 (operador, f"{fecha}%"),
             ).fetchall()
             return [dict(row) for row in rows]

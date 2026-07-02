@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zona de Trabajo - Gestor de Guias Envia</title>
+  <link rel="stylesheet" href="zona.css" />
+</head>
+<body>
+  <header class="barra">
+    <div class="barra-titulo">
+      <span class="marca">EXPRESANGIL</span>
+      <h1>Zona de Trabajo</h1>
+    </div>
+    <div class="barra-buscar">
+      <input type="search" id="buscar" placeholder="Buscar guia, destinatario, direccion, operador..." />
+      <button class="btn btn-claro" id="btn-limpiar-filtro">Limpiar</button>
+      <button class="btn btn-claro" id="btn-actualizar">Actualizar</button>
+      <a class="btn btn-claro" href="/">Volver al panel</a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="tabla-zona">
+      <div class="tabla-scroll">
+        <table id="tabla">
+          <thead>
+            <tr>
+              <th class="col-sel"><input type="checkbox" id="sel-todos" title="Seleccionar todo" /></th>
+              <th>PLANILLA</th>
+              <th>GUIA</th>
+              <th>DESTINATARIO</th>
+              <th>DIRECCION</th>
+              <th>MUNICIPIO</th>
+              <th class="col-num">VALOR</th>
+              <th>OPERADOR</th>
+              <th>ESTADO</th>
+              <th>CAUSAL</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="barra-estado" id="estado">Cargando...</div>
+    </section>
+
+    <aside class="panel-lateral">
+      <div class="tarjeta">
+        <h2>Editar seguimiento</h2>
+        <p class="ayuda">Marca guias en la tabla o pega una lista, escribe los valores y aplica.</p>
+        <label>GUIA seleccionada</label>
+        <input type="text" id="guia-actual" readonly placeholder="(ninguna)" />
+        <label>OPERADOR</label>
+        <input type="text" id="in-operador" placeholder="Ej. OMAR" />
+        <label>ESTADO</label>
+        <input type="text" id="in-estado" placeholder="Ej. E, D, R, RO, N" />
+        <label>CAUSAL</label>
+        <input type="text" id="in-causal" placeholder="Codigo (opcional)" />
+        <div class="botonera">
+          <button class="btn btn-primario" id="btn-aplicar-sel">Aplicar a seleccionadas</button>
+          <button class="btn btn-peligro" id="btn-eliminar-sel">Eliminar seleccionadas</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Edicion masiva por lista</h2>
+        <textarea id="lista-guias" rows="4" placeholder="Pega aqui una lista de guias (numeros)"></textarea>
+        <div class="botonera">
+          <button class="btn btn-claro" id="btn-seleccionar-lista">Seleccionar lista</button>
+          <button class="btn btn-primario" id="btn-aplicar-lista">Aplicar a lista</button>
+          <button class="btn btn-peligro" id="btn-eliminar-lista">Eliminar lista</button>
+          <button class="btn btn-claro" id="btn-limpiar-lista">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Eliminar por criterio</h2>
+        <div class="fila">
+          <input type="text" id="del-fecha" placeholder="FECHA YYYY-MM-DD" />
+          <button class="btn btn-peligro" id="btn-del-fecha">Eliminar</button>
+        </div>
+        <div class="fila">
+          <input type="text" id="del-estado" placeholder="ESTADO" />
+          <button class="btn btn-peligro" id="btn-del-estado">Eliminar</button>
+        </div>
+        <div class="fila">
+          <input type="text" id="del-operador" placeholder="OPERADOR" />
+          <button class="btn btn-peligro" id="btn-del-operador">Eliminar</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Informes</h2>
+        <label>Fecha (YYYY-MM-DD)</label>
+        <input type="text" id="informe-fecha" placeholder="2026-06-19" />
+        <div class="botonera grid-informes">
+          <button class="btn btn-info" data-informe="operador">Por operador</button>
+          <button class="btn btn-info" data-informe="dia">Del dia</button>
+          <button class="btn btn-info" data-informe="recaudo">Recaudo</button>
+          <button class="btn btn-info" data-informe="relacion">Relacion CE y RR</button>
+          <button class="btn btn-info" data-informe="devoluciones">Devoluciones (D)</button>
+          <button class="btn btn-info" data-informe="entregadas">Entregadas (E)</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="zona.js"></script>
+</body>
+</html>

@@ -7,7 +7,7 @@ import re
 from openpyxl.styles import Alignment, Font, PatternFill
 import pandas as pd
 
-from .exporter import MONTHS_ES
+from .exporter import MONTHS_ES, display_date
 from .repository import GuiaRepository
 
 
@@ -580,6 +580,65 @@ def _write_resumen_breakdown(worksheet, row: int, title: str, daily: pd.DataFram
         row += 1
 
     return row
+
+
+# Planilla de Devoluciones/Entregadas: (encabezado de salida, columna origen).
+# FECHA = fecha de entrega (F_ENTREGA); INGRESO = fecha de importacion (F_INGRESO).
+GESTION_DETAIL_COLUMNS = [
+    ("PLANILLA", "PLANILLA"),
+    ("COBRO", "SERVICIO"),
+    ("GUIA", "GUIA"),
+    ("UNID", "UNID"),
+    ("TIPO", "TIPO DE SERVICIO"),
+    ("DESTINATARIO", "DESTINATARIO"),
+    ("CIUDAD", "MUNICIPIO"),
+    ("VALOR", "VALOR"),
+    ("ESTADO", "ESTADO"),
+    ("COD", "CAUSAL"),
+    ("FECHA", "F_ENTREGA"),
+    ("INGRESO", "F_INGRESO"),
+]
+
+
+def generate_estado_report(
+    repository: GuiaRepository,
+    output_dir: Path,
+    target_date: date,
+    estado: str,
+    titulo: str,
+) -> Path:
+    """Planilla de toda la oficina con las guias de un estado (D o E), filtrando por
+    la fecha de ENTREGA (F_ENTREGA). Una sola hoja con el formato de la operacion."""
+    dataframe = repository.to_dataframe().fillna("").astype(str)
+    prefijo = target_date.isoformat()
+    seleccion = dataframe[
+        (dataframe["ESTADO"].str.upper() == estado.strip().upper())
+        & (dataframe["F_ENTREGA"].str.startswith(prefijo))
+    ]
+
+    detalle = pd.DataFrame()
+    for encabezado, origen in GESTION_DETAIL_COLUMNS:
+        columna = seleccion[origen]
+        if origen in ("F_ENTREGA", "F_INGRESO"):
+            columna = columna.map(display_date)
+        detalle[encabezado] = columna.values
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{target_date.strftime('%d-%m-%Y')} - {titulo}.xlsx"
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        detalle.to_excel(writer, index=False, sheet_name=titulo[:31])
+        apply_report_format(writer.sheets[titulo[:31]])
+
+    return output_path
+
+
+def generate_devoluciones_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
+    return generate_estado_report(repository, output_dir, target_date, "D", "Devoluciones")
+
+
+def generate_entregadas_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
+    return generate_estado_report(repository, output_dir, target_date, ESTADO_RECAUDO, "Entregadas")
 
 
 def value_to_number(value: object) -> int:
