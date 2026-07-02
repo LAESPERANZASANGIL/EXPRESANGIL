@@ -3,6 +3,9 @@ const contador = document.getElementById("contador");
 const campoMes = document.getElementById("mes");
 const tablaResumen = document.getElementById("tabla-resumen");
 const tablaGuias = document.getElementById("tabla-guias");
+const buscarGuia = document.getElementById("buscar-guia");
+
+let guiasMes = [];
 
 function mostrarLog(texto) {
   log.textContent = texto;
@@ -81,8 +84,25 @@ async function consultarMes() {
     tablaResumen.appendChild(tr);
   }
 
+  guiasMes = resultado.guias || [];
+  renderizarGuias();
+}
+
+function renderizarGuias() {
+  const texto = buscarGuia.value.trim().toUpperCase();
+  // Las guias se guardan con 12 digitos, pero se puede buscar sin los ceros iniciales.
+  const textoSinCero = texto.replace(/^0+(?=\d)/, "");
+  const filtradas = !texto
+    ? guiasMes
+    : guiasMes.filter((guia) => {
+        const numero = String(guia.guia || "").toUpperCase();
+        if (numero.includes(texto) || numero.includes(textoSinCero)) return true;
+        return [guia.destinatario, guia.municipio, guia.operador, guia.planilla]
+          .some((campo) => String(campo || "").toUpperCase().includes(texto));
+      });
+
   tablaGuias.innerHTML = "";
-  for (const guia of resultado.guias || []) {
+  for (const guia of filtradas) {
     const tr = document.createElement("tr");
     const valores = [
       guia.planilla, guia.guia, guia.servicio, guia.destinatario,
@@ -97,8 +117,17 @@ async function consultarMes() {
     tablaGuias.appendChild(tr);
   }
 
-  contador.textContent = `Guias entregadas en el mes: ${(resultado.guias || []).length}`;
+  contador.textContent = texto
+    ? `Guias visibles: ${filtradas.length} de ${guiasMes.length} entregadas en el mes`
+    : `Guias entregadas en el mes: ${guiasMes.length}`;
 }
+
+buscarGuia.addEventListener("input", renderizarGuias);
+
+document.getElementById("btn-limpiar-busqueda").addEventListener("click", () => {
+  buscarGuia.value = "";
+  renderizarGuias();
+});
 
 document.getElementById("btn-consultar").addEventListener("click", consultarMes);
 
