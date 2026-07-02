@@ -257,69 +257,154 @@ def generate_monthly_operator_report(
     return output_path
 
 
-def generate_cierre_mensual_entregadas_excel(
-    repository: GuiaRepository, output_dir: Path, target_date: date
-) -> Path:
-    """Informe final del mes con todas las guias en estado E y el promedio por empleado.
+COLUMNAS_ENTREGADAS_MES = [
+    "PLANILLA", "SERVICIO", "GUIA", "DESTINATARIO", "DIRECCION",
+    "MUNICIPIO", "VALOR", "OPERADOR", "CAUSAL", "F_INGRESO", "F_ENTREGA",
+]
 
-    Se genera ANTES de archivar las entregadas, porque toma las guias E que
-    todavia estan en la zona de trabajo.
-    """
-    dataframe = normalize_dataframe(repository.to_dataframe())
-    entregadas = dataframe[dataframe["ESTADO"].str.strip().str.upper() == ESTADO_RECAUDO]
 
-    columnas_detalle = [
-        "PLANILLA", "SERVICIO", "GUIA", "DESTINATARIO", "DIRECCION",
-        "MUNICIPIO", "VALOR", "OPERADOR", "CAUSAL", "F_INGRESO", "F_ENTREGA",
+def entregadas_mes_dataframe(repository: GuiaRepository, year: int, month: int) -> pd.DataFrame:
+    """Guias entregadas del mes (archivo + zona de trabajo) como DataFrame normalizado."""
+    rows = repository.entregadas_mes(year, month)
+    data = [
+        {
+            "PLANILLA": row["planilla"],
+            "SERVICIO": row["servicio"],
+            "GUIA": row["guia"],
+            "UNID": row["unid"],
+            "DESTINATARIO": row["destinatario"],
+            "DIRECCION": row["direccion"],
+            "MUNICIPIO": row["municipio"],
+            "VALOR": row["valor"],
+            "OPERADOR": row["operador"],
+            "ESTADO": row["estado"],
+            "CAUSAL": row["causal"],
+            "F_INGRESO": row["fecha"],
+            "F_ENTREGA": row["ingreso"],
+        }
+        for row in rows
     ]
+    return normalize_dataframe(pd.DataFrame(data, columns=COLUMNAS_ENTREGADAS_MES + ["ESTADO", "UNID"]))
+
+
+def build_entregadas_mes_resumen(entregadas: pd.DataFrame) -> pd.DataFrame:
+    """Estadistica por operador con TOTAL y PROMEDIO POR EMPLEADO."""
     if entregadas.empty:
-        detalle = pd.DataFrame(columns=columnas_detalle)
-        resumen = pd.DataFrame(columns=["OPERADOR", "GUIAS ENTREGADAS", "VALOR RECAUDADO"])
+        return pd.DataFrame(columns=["OPERADOR", "GUIAS ENTREGADAS", "VALOR RECAUDADO"])
+    resumen = (
+        entregadas.groupby("OPERADOR")
+        .agg(**{
+            "GUIAS ENTREGADAS": ("GUIA", "count"),
+            "VALOR RECAUDADO": ("VALOR_NUMERICO", "sum"),
+        })
+        .reset_index()
+        .sort_values("GUIAS ENTREGADAS", ascending=False)
+    )
+    total_guias = int(resumen["GUIAS ENTREGADAS"].sum())
+    total_valor = int(resumen["VALOR RECAUDADO"].sum())
+    empleados = len(resumen)
+    return pd.concat(
+        [
+            resumen,
+            pd.DataFrame(
+                [
+                    {"OPERADOR": "TOTAL", "GUIAS ENTREGADAS": total_guias, "VALOR RECAUDADO": total_valor},
+                    {
+                        "OPERADOR": "PROMEDIO POR EMPLEADO",
+                        "GUIAS ENTREGADAS": round(total_guias / empleados, 1),
+                        "VALOR RECAUDADO": round(total_valor / empleados),
+                    },
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+
+
+def generate_cierre_mensual_entregadas_excel(
+    repository: GuiaRepository, output_dir: Path, year: int, month: int
+) -> Path:
+    """Informe final del mes: detalle de todas las entregadas y estadistica por operador."""
+    entregadas = entregadas_mes_dataframe(repository, year, month)
+    resumen = build_entregadas_mes_resumen(entregadas)
+    if entregadas.empty:
+        detalle = pd.DataFrame(columns=COLUMNAS_ENTREGADAS_MES)
     else:
         detalle = (
-            entregadas[columnas_detalle]
+            entregadas[COLUMNAS_ENTREGADAS_MES]
             .assign(VALOR=entregadas["VALOR_NUMERICO"])
             .sort_values(["OPERADOR", "F_ENTREGA", "GUIA"])
             .reset_index(drop=True)
         )
-        resumen = (
-            entregadas.groupby("OPERADOR")
-            .agg(**{
-                "GUIAS ENTREGADAS": ("GUIA", "count"),
-                "VALOR RECAUDADO": ("VALOR_NUMERICO", "sum"),
-            })
-            .reset_index()
-            .sort_values("GUIAS ENTREGADAS", ascending=False)
-        )
-        total_guias = int(resumen["GUIAS ENTREGADAS"].sum())
-        total_valor = int(resumen["VALOR RECAUDADO"].sum())
-        empleados = len(resumen)
-        resumen = pd.concat(
-            [
-                resumen,
-                pd.DataFrame(
-                    [
-                        {"OPERADOR": "TOTAL", "GUIAS ENTREGADAS": total_guias, "VALOR RECAUDADO": total_valor},
-                        {
-                            "OPERADOR": "PROMEDIO POR EMPLEADO",
-                            "GUIAS ENTREGADAS": round(total_guias / empleados, 1),
-                            "VALOR RECAUDADO": round(total_valor / empleados),
-                        },
-                    ]
-                ),
-            ],
-            ignore_index=True,
-        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / (
-        f"informe mensual entregadas {MONTHS_ES[target_date.month]} {target_date.year}.xlsx"
+        f"informe mensual entregadas {MONTHS_ES[month]} {year}.xlsx"
     )
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         resumen.to_excel(writer, index=False, sheet_name="RESUMEN")
         detalle.to_excel(writer, index=False, sheet_name="ENTREGADAS")
         for sheet_name in writer.sheets:
             apply_report_format(writer.sheets[sheet_name])
+
+    return output_path
+
+
+def generate_cierre_mensual_entregadas_pdf(
+    repository: GuiaRepository, output_dir: Path, year: int, month: int
+) -> Path:
+    """Version PDF del informe final del mes: estadistica por operador."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet
+
+    entregadas = entregadas_mes_dataframe(repository, year, month)
+    resumen = build_entregadas_mes_resumen(entregadas)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / (
+        f"informe mensual entregadas {MONTHS_ES[month]} {year}.pdf"
+    )
+
+    estilos = getSampleStyleSheet()
+    elementos = [
+        Paragraph(f"INFORME MENSUAL DE ENTREGADAS - {MONTHS_ES[month].upper()} {year}", estilos["Title"]),
+        Paragraph("Oficina Expresangil - Estadistica por operador", estilos["Normal"]),
+        Spacer(1, 0.5 * cm),
+    ]
+
+    encabezado = ["OPERADOR", "GUIAS ENTREGADAS", "VALOR RECAUDADO"]
+    filas = [encabezado]
+    for _, row in resumen.iterrows():
+        filas.append([
+            str(row["OPERADOR"]),
+            str(row["GUIAS ENTREGADAS"]),
+            f"$ {int(row['VALOR RECAUDADO']):,}".replace(",", "."),
+        ])
+    if len(filas) == 1:
+        filas.append(["Sin entregas registradas en el mes", "", ""])
+
+    tabla = Table(filas, colWidths=[8 * cm, 4 * cm, 5 * cm])
+    estilo_tabla = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+    ]
+    # Resalta las filas TOTAL y PROMEDIO POR EMPLEADO.
+    for indice, fila in enumerate(filas):
+        if fila[0] in ("TOTAL", "PROMEDIO POR EMPLEADO"):
+            estilo_tabla.append(("BACKGROUND", (0, indice), (-1, indice), colors.HexColor("#FFF3CD")))
+            estilo_tabla.append(("FONTNAME", (0, indice), (-1, indice), "Helvetica-Bold"))
+    tabla.setStyle(TableStyle(estilo_tabla))
+    elementos.append(tabla)
+
+    documento = SimpleDocTemplate(str(output_path), pagesize=letter, title=output_path.stem)
+    documento.build(elementos)
 
     return output_path
 

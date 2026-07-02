@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entregas del Mes - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="zona-trabajo.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+      <h1>ENTREGAS DEL MES</h1>
+      <p class="subtitulo">Guias entregadas (E) del mes, informes finales y estadistica por operador</p>
+    </header>
+
+    <section class="opcion">
+      <div class="fila-archivo">
+        <input type="month" id="mes" />
+        <button class="boton boton-buscar" id="btn-consultar">Consultar mes</button>
+        <button class="boton boton-accion" id="btn-informe-excel">Informe final Excel</button>
+        <button class="boton boton-accion" id="btn-informe-pdf">Informe final PDF</button>
+      </div>
+      <p class="ayuda">Incluye las guias del archivo historico y las entregadas del dia que aun estan en la zona de trabajo. El informe trae el detalle completo (Excel) y la estadistica por operador con el promedio por empleado (Excel y PDF).</p>
+      <p id="contador" class="contador">Selecciona un mes y consulta.</p>
+    </section>
+
+    <section class="opcion">
+      <h3>Estadistica por operador</h3>
+      <div class="tabla-contenedor">
+        <table class="tabla-guias">
+          <thead>
+            <tr>
+              <th>OPERADOR</th>
+              <th>GUIAS ENTREGADAS</th>
+              <th>VALOR RECAUDADO</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-resumen"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <h3>Guias entregadas</h3>
+      <table class="tabla-guias">
+        <thead>
+          <tr>
+            <th>PLANILLA</th>
+            <th>GUIA</th>
+            <th>SERVICIO</th>
+            <th>DESTINATARIO</th>
+            <th>DIRECCION</th>
+            <th>MUNICIPIO</th>
+            <th>VALOR</th>
+            <th>OPERADOR</th>
+            <th>F. ENTREGA</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-guias"></tbody>
+      </table>
+    </section>
+
+    <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="entregas-mes.js"></script>
+</body>
+</html>

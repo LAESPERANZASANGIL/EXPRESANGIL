@@ -385,6 +385,38 @@ class GuiaRepository:
             )
             return cursor.rowcount
 
+    def entregadas_mes(self, anio: int, mes: int) -> list[dict]:
+        """Guias entregadas (E) del mes, por fecha de entrega (F_ENTREGA).
+
+        Une el archivo historico con las que siguen en la zona de trabajo
+        (entregadas hoy, aun sin archivar). Si una guia esta en ambos lados,
+        gana la version de la zona de trabajo por ser la mas reciente.
+        """
+        self.initialize()
+        prefijo = f"{anio:04d}-{mes:02d}%"
+        columnas = (
+            "guia, planilla, servicio, unid, tipo_de_servicio, destinatario, "
+            "direccion, municipio, valor, operador, estado, causal, fecha, ingreso"
+        )
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                f"""
+                SELECT {columnas} FROM guias_archivo
+                WHERE UPPER(TRIM(estado)) = 'E' AND ingreso LIKE ?
+                  AND guia NOT IN (
+                      SELECT guia FROM guias
+                      WHERE UPPER(TRIM(estado)) = 'E' AND ingreso LIKE ?
+                  )
+                UNION ALL
+                SELECT {columnas} FROM guias
+                WHERE UPPER(TRIM(estado)) = 'E' AND ingreso LIKE ?
+                ORDER BY operador, ingreso, guia
+                """,
+                (prefijo, prefijo, prefijo),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def archivar_entregadas(self) -> int:
         """Mueve todas las guias en estado E a guias_archivo (cierre mensual).
 

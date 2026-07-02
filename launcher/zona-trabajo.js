@@ -631,8 +631,7 @@ document.getElementById("btn-admin-regenerar-cierre").addEventListener("click", 
 });
 
 document.getElementById("btn-archivar-entregadas").addEventListener("click", async () => {
-  if (!confirm("¿Generar el informe mensual y archivar TODAS las guias en estado E? Saldran de la zona de trabajo y pasaran al archivo historico.")) return;
-  if (!confirm("Esta accion es el cierre del mes y no se puede deshacer desde el panel. ¿Confirmas?")) return;
+  if (!confirm("¿Cerrar el dia? TODAS las guias en estado E saldran de la zona de trabajo y pasaran al archivo del mes (consultables en Entregas del Mes).")) return;
   const resultado = await llamar("/api/admin/archivar-entregadas", {});
   if (resultado.ok) await cargarGuias();
 });
