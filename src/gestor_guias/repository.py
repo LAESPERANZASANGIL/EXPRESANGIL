@@ -385,6 +385,45 @@ class GuiaRepository:
             )
             return cursor.rowcount
 
+    # Columnas completas de la tabla guias, para snapshots de deshacer.
+    _COLUMNAS_GUIA = (
+        "guia", "planilla", "servicio", "unid", "tipo_de_servicio",
+        "destinatario", "direccion", "municipio", "valor", "operador",
+        "estado", "causal", "fecha", "ingreso", "orden_salida",
+    )
+
+    def snapshot_guias(self, where: str, params: tuple) -> list[dict]:
+        """Copia completa de las guias que cumplen la condicion (para deshacer)."""
+        self.initialize()
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                f"SELECT {', '.join(self._COLUMNAS_GUIA)} FROM guias WHERE {where}",
+                params,
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def snapshot_por_guias(self, guias: list[str]) -> list[dict]:
+        clean = [guia.strip() for guia in guias if guia.strip()]
+        if not clean:
+            return []
+        placeholders = ",".join("?" * len(clean))
+        return self.snapshot_guias(f"guia IN ({placeholders})", tuple(clean))
+
+    def restaurar_guias(self, rows: list[dict]) -> int:
+        """Reescribe guias completas desde un snapshot (deshacer)."""
+        if not rows:
+            return 0
+        self.initialize()
+        columnas = ", ".join(self._COLUMNAS_GUIA)
+        marcadores = ", ".join("?" * len(self._COLUMNAS_GUIA))
+        with self._connect() as connection:
+            connection.executemany(
+                f"INSERT OR REPLACE INTO guias ({columnas}) VALUES ({marcadores})",
+                [tuple(row[col] for col in self._COLUMNAS_GUIA) for row in rows],
+            )
+            return len(rows)
+
     def entregadas_mes(self, anio: int, mes: int) -> list[dict]:
         """Guias entregadas (E) del mes, por fecha de entrega (F_ENTREGA).
 

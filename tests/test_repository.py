@@ -428,3 +428,25 @@ def test_archivar_entregadas_mueve_guias_e_al_archivo(tmp_path: Path) -> None:
     assert rows[0][0] == "100"
     assert rows[0][1] == "E"
     assert rows[0][2] != ""
+
+
+def test_snapshot_y_restaurar_guias_permite_deshacer(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.update_tracking_fields("100", "KEVIN", "R", "")
+
+    snapshot = repository.snapshot_por_guias(["100"])
+    assert snapshot[0]["operador"] == "KEVIN"
+
+    # Se modifica y luego se elimina la guia.
+    repository.update_tracking_fields("100", "OMAR", "N", "no estaba")
+    repository.delete_many(["100"])
+    assert repository.obtener_guia("100") is None
+
+    restauradas = repository.restaurar_guias(snapshot)
+
+    assert restauradas == 1
+    guia = repository.obtener_guia("100")
+    assert guia["operador"] == "KEVIN"
+    assert guia["estado"] == "R"
