@@ -154,15 +154,12 @@ def cerrar_dia(
     guias = repository.guias_de_operador(operador, fecha)
     if simular:
         # En modo simulacion las guias en reparto (R) todavia no se movieron a
-        # recaudado (E) en la base de datos, asi que se proyecta el resultado
-        # sin escribir nada, para que el operador pueda revisar antes de
-        # confirmar el cierre real.
-        guias = [
-            {**guia, "estado": ESTADO_RECAUDO}
-            if (guia["estado"] or "").strip().upper() == ESTADO_SALIDA
-            else guia
-            for guia in guias
-        ]
+        # recaudado (E) ni tienen F_ENTREGA, asi que no aparecen en
+        # guias_de_operador (que filtra por fecha de entrega): se agregan aqui
+        # proyectadas como E, sin escribir nada, para que el operador pueda
+        # revisar antes de confirmar el cierre real.
+        en_reparto = repository.guias_en_salida(operador, ESTADO_SALIDA)
+        guias = guias + [{**guia, "estado": ESTADO_RECAUDO} for guia in en_reparto]
     conteos, recaudado = _contar_guias_operador(guias)
 
     gestionadas = len(guias)

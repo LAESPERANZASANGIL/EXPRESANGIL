@@ -427,3 +427,34 @@ def test_generate_devoluciones_report_no_data(tmp_path: Path) -> None:
     output_path = generate_devoluciones_report(repository, tmp_path / "output", date(2026, 6, 10))
 
     assert output_path.exists()
+
+
+def test_generate_cierre_mensual_entregadas_incluye_promedio_por_empleado(tmp_path: Path) -> None:
+    from gestor_guias.reports import generate_cierre_mensual_entregadas_excel
+
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.save_consolidated(build_dataframe("200", "", "", "20000"))
+    repository.update_tracking_fields("200", "OMAR", "E", "")
+    repository.save_consolidated(build_dataframe("300", "", "", "30000"))
+    repository.update_tracking_fields("300", "KEVIN", "E", "")
+    # Una guia sin entregar no debe aparecer en el informe.
+    repository.save_consolidated(build_dataframe("400", "KEVIN", "R", "5000"))
+
+    ruta = generate_cierre_mensual_entregadas_excel(repository, tmp_path, date(2026, 6, 30))
+
+    workbook = load_workbook(ruta)
+    assert "RESUMEN" in workbook.sheetnames
+    assert "ENTREGADAS" in workbook.sheetnames
+
+    resumen = list(workbook["RESUMEN"].values)
+    filas = {row[0]: row for row in resumen[1:]}
+    assert filas["TOTAL"][1] == 3
+    assert filas["TOTAL"][2] == 60_000
+    assert filas["PROMEDIO POR EMPLEADO"][1] == 1.5
+    assert filas["PROMEDIO POR EMPLEADO"][2] == 30_000
+
+    entregadas = list(workbook["ENTREGADAS"].values)
+    guias = {row[2] for row in entregadas[1:]}
+    assert guias == {"100", "200", "300"}

@@ -257,6 +257,73 @@ def generate_monthly_operator_report(
     return output_path
 
 
+def generate_cierre_mensual_entregadas_excel(
+    repository: GuiaRepository, output_dir: Path, target_date: date
+) -> Path:
+    """Informe final del mes con todas las guias en estado E y el promedio por empleado.
+
+    Se genera ANTES de archivar las entregadas, porque toma las guias E que
+    todavia estan en la zona de trabajo.
+    """
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    entregadas = dataframe[dataframe["ESTADO"].str.strip().str.upper() == ESTADO_RECAUDO]
+
+    columnas_detalle = [
+        "PLANILLA", "SERVICIO", "GUIA", "DESTINATARIO", "DIRECCION",
+        "MUNICIPIO", "VALOR", "OPERADOR", "CAUSAL", "F_INGRESO", "F_ENTREGA",
+    ]
+    if entregadas.empty:
+        detalle = pd.DataFrame(columns=columnas_detalle)
+        resumen = pd.DataFrame(columns=["OPERADOR", "GUIAS ENTREGADAS", "VALOR RECAUDADO"])
+    else:
+        detalle = (
+            entregadas[columnas_detalle]
+            .assign(VALOR=entregadas["VALOR_NUMERICO"])
+            .sort_values(["OPERADOR", "F_ENTREGA", "GUIA"])
+            .reset_index(drop=True)
+        )
+        resumen = (
+            entregadas.groupby("OPERADOR")
+            .agg(**{
+                "GUIAS ENTREGADAS": ("GUIA", "count"),
+                "VALOR RECAUDADO": ("VALOR_NUMERICO", "sum"),
+            })
+            .reset_index()
+            .sort_values("GUIAS ENTREGADAS", ascending=False)
+        )
+        total_guias = int(resumen["GUIAS ENTREGADAS"].sum())
+        total_valor = int(resumen["VALOR RECAUDADO"].sum())
+        empleados = len(resumen)
+        resumen = pd.concat(
+            [
+                resumen,
+                pd.DataFrame(
+                    [
+                        {"OPERADOR": "TOTAL", "GUIAS ENTREGADAS": total_guias, "VALOR RECAUDADO": total_valor},
+                        {
+                            "OPERADOR": "PROMEDIO POR EMPLEADO",
+                            "GUIAS ENTREGADAS": round(total_guias / empleados, 1),
+                            "VALOR RECAUDADO": round(total_valor / empleados),
+                        },
+                    ]
+                ),
+            ],
+            ignore_index=True,
+        )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / (
+        f"informe mensual entregadas {MONTHS_ES[target_date.month]} {target_date.year}.xlsx"
+    )
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        resumen.to_excel(writer, index=False, sheet_name="RESUMEN")
+        detalle.to_excel(writer, index=False, sheet_name="ENTREGADAS")
+        for sheet_name in writer.sheets:
+            apply_report_format(writer.sheets[sheet_name])
+
+    return output_path
+
+
 def generate_operator_report(
     repository: GuiaRepository, output_dir: Path, target_date: date | None = None, operador: str = ""
 ) -> Path:

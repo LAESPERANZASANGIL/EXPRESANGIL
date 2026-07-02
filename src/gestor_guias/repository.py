@@ -21,6 +21,18 @@ OPERADOR_PLANILLADA = "PLANILLADA"
 # No deben quedar con estado "N" al importar ni "R" al registrar salida.
 OPERADOR_BODEGA = "BODEGA"
 
+# Estados que representan una gestion del dia (entregada o novedad): al
+# asignarlos se sella F_ENTREGA con la fecha correspondiente.
+ESTADOS_GESTION = ("E", "D", "RO", "N")
+
+
+def fecha_entrega(nuevo_estado: str, fecha: str | None = None) -> str:
+    """Sello de F_ENTREGA: la fecha (YYYY-MM-DD 00:00:00) si el estado es de gestion, si no vacio."""
+    if (nuevo_estado or "").strip().upper() not in ESTADOS_GESTION:
+        return ""
+    dia = (fecha or "").strip()[:10] or date.today().isoformat()
+    return f"{dia} 00:00:00"
+
 
 
 class GuiaRepository:
@@ -104,6 +116,28 @@ class GuiaRepository:
                 connection.execute(
                     "ALTER TABLE cierres_operador ADD COLUMN denominaciones TEXT NOT NULL DEFAULT '{}'"
                 )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS guias_archivo (
+                    guia TEXT PRIMARY KEY,
+                    planilla TEXT,
+                    servicio TEXT,
+                    unid TEXT,
+                    tipo_de_servicio TEXT,
+                    destinatario TEXT,
+                    direccion TEXT,
+                    municipio TEXT,
+                    valor TEXT,
+                    operador TEXT,
+                    estado TEXT,
+                    causal TEXT,
+                    fecha TEXT,
+                    ingreso TEXT,
+                    orden_salida INTEGER NOT NULL DEFAULT 0,
+                    archivado_en TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
 
     def save_consolidated(self, dataframe: pd.DataFrame) -> None:
         self.initialize()
@@ -284,11 +318,16 @@ class GuiaRepository:
             )
             return cursor.rowcount
 
+    # Las guias entregadas (estado E) no se borran con las herramientas de
+    # limpieza: solo salen de la zona de trabajo con el cierre mensual
+    # (archivar_entregadas), porque alimentan el informe final del mes.
+    _PROTEGER_ENTREGADAS = "UPPER(TRIM(estado)) != 'E'"
+
     def clear_all(self) -> None:
         self.initialize()
         self._backup_antes_de_borrar()
         with self._connect() as connection:
-            connection.execute("DELETE FROM guias")
+            connection.execute(f"DELETE FROM guias WHERE {self._PROTEGER_ENTREGADAS}")
 
     def delete_many(self, guias: list[str]) -> int:
         self.initialize()
@@ -299,7 +338,7 @@ class GuiaRepository:
         self._backup_antes_de_borrar()
         with self._connect() as connection:
             cursor = connection.executemany(
-                "DELETE FROM guias WHERE guia = ?",
+                f"DELETE FROM guias WHERE guia = ? AND {self._PROTEGER_ENTREGADAS}",
                 [(guia,) for guia in clean_guides],
             )
             return cursor.rowcount
@@ -312,7 +351,10 @@ class GuiaRepository:
 
         self._backup_antes_de_borrar()
         with self._connect() as connection:
-            cursor = connection.execute("DELETE FROM guias WHERE fecha LIKE ?", (f"{fecha}%",))
+            cursor = connection.execute(
+                f"DELETE FROM guias WHERE fecha LIKE ? AND {self._PROTEGER_ENTREGADAS}",
+                (f"{fecha}%",),
+            )
             return cursor.rowcount
 
     def delete_by_operador(self, operador: str) -> int:
@@ -324,7 +366,7 @@ class GuiaRepository:
         self._backup_antes_de_borrar()
         with self._connect() as connection:
             cursor = connection.execute(
-                "DELETE FROM guias WHERE UPPER(TRIM(operador)) = UPPER(?)",
+                f"DELETE FROM guias WHERE UPPER(TRIM(operador)) = UPPER(?) AND {self._PROTEGER_ENTREGADAS}",
                 (operador,),
             )
             return cursor.rowcount
@@ -337,8 +379,40 @@ class GuiaRepository:
 
         self._backup_antes_de_borrar()
         with self._connect() as connection:
-            cursor = connection.execute("DELETE FROM guias WHERE estado = ?", (estado,))
+            cursor = connection.execute(
+                f"DELETE FROM guias WHERE estado = ? AND {self._PROTEGER_ENTREGADAS}",
+                (estado,),
+            )
             return cursor.rowcount
+
+    def archivar_entregadas(self) -> int:
+        """Mueve todas las guias en estado E a guias_archivo (cierre mensual).
+
+        Devuelve la cantidad de guias archivadas. Si una guia ya existia en el
+        archivo (reimportada y entregada de nuevo), se reemplaza con la version
+        mas reciente.
+        """
+        self.initialize()
+        self._backup_antes_de_borrar()
+        marca = datetime.now().isoformat(timespec="seconds")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT OR REPLACE INTO guias_archivo (
+                    guia, planilla, servicio, unid, tipo_de_servicio,
+                    destinatario, direccion, municipio, valor, operador,
+                    estado, causal, fecha, ingreso, orden_salida, archivado_en
+                )
+                SELECT guia, planilla, servicio, unid, tipo_de_servicio,
+                       destinatario, direccion, municipio, valor, operador,
+                       estado, causal, fecha, ingreso, orden_salida, ?
+                FROM guias WHERE UPPER(TRIM(estado)) = 'E'
+                """,
+                (marca,),
+            )
+            archivadas = cursor.rowcount
+            connection.execute("DELETE FROM guias WHERE UPPER(TRIM(estado)) = 'E'")
+            return archivadas
 
     def crear_operador(
         self,
@@ -509,7 +583,7 @@ class GuiaRepository:
                 UPDATE guias SET estado = ?, ingreso = ?
                 WHERE guia = ? AND operador = ?
                 """,
-                [(nuevo_estado, fecha, guia, operador) for guia in clean_guides],
+                [(nuevo_estado, entrega, guia, operador) for guia in clean_guides],
             )
             return cursor.rowcount
 
@@ -526,13 +600,14 @@ class GuiaRepository:
         if not clean_items:
             return 0
 
+        entrega = fecha_entrega(nuevo_estado, fecha)
         with self._connect() as connection:
             cursor = connection.executemany(
                 """
                 UPDATE guias SET estado = ?, causal = ?, ingreso = ?
                 WHERE guia = ? AND operador = ?
                 """,
-                [(nuevo_estado, causal, fecha, guia, operador) for guia, causal in clean_items],
+                [(nuevo_estado, causal, entrega, guia, operador) for guia, causal in clean_items],
             )
             return cursor.rowcount
 
@@ -543,16 +618,18 @@ class GuiaRepository:
             # Cierra TODAS las guias del repartidor en reparto, sin importar la
             # fecha de importacion, y estampa F_ENTREGA con la fecha del cierre.
             cursor = connection.execute(
-                "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND fecha LIKE ? AND estado = ?",
-                (nuevo_estado, fecha, operador, f"{fecha}%", estado_actual),
+                "UPDATE guias SET estado = ?, ingreso = ? WHERE operador = ? AND estado = ?",
+                (nuevo_estado, entrega, operador, estado_actual),
             )
             return cursor.rowcount
 
     def revertir_cierre_operador(self, operador: str, fecha: str) -> int:
         self.initialize()
         with self._connect() as connection:
+            # Se filtra por F_ENTREGA (columna "ingreso"): son las guias que se
+            # cerraron ESE dia, sin importar cuando se importaron.
             cursor = connection.execute(
-                "UPDATE guias SET estado = 'R', ingreso = '' WHERE operador = ? AND fecha LIKE ? AND estado = 'E'",
+                "UPDATE guias SET estado = 'R', ingreso = '' WHERE operador = ? AND ingreso LIKE ? AND estado = 'E'",
                 (operador, f"{fecha}%"),
             )
             return cursor.rowcount
@@ -570,7 +647,7 @@ class GuiaRepository:
         self.initialize()
         with self._connect() as connection:
             cursor_guias = connection.execute(
-                "UPDATE guias SET estado = 'R', ingreso = '' WHERE fecha LIKE ? AND estado = 'E'",
+                "UPDATE guias SET estado = 'R', ingreso = '' WHERE ingreso LIKE ? AND estado = 'E'",
                 (f"{fecha}%",),
             )
             cursor_cierres = connection.execute(

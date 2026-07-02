@@ -192,7 +192,8 @@ def test_delete_by_operador_ignores_case(tmp_path: Path) -> None:
 
     repository.save_consolidated(build_dataframe("100", "Persona A"))
     repository.save_consolidated(build_dataframe("200", "Persona B"))
-    repository.update_tracking_fields("100", "KEVIN", "E", "")
+    # Estado R (no E): las entregadas estan protegidas contra borrado.
+    repository.update_tracking_fields("100", "KEVIN", "R", "")
 
     deleted = repository.delete_by_operador("kevin")
     dataframe = repository.to_dataframe()
@@ -387,3 +388,43 @@ def test_obtener_guia(tmp_path: Path) -> None:
     assert encontrada["guia"] == "100"
 
     assert repository.obtener_guia("999") is None
+
+
+def test_guias_entregadas_no_se_borran_con_las_herramientas_de_eliminacion(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.save_consolidated(build_dataframe("200", "Persona B"))
+    repository.update_tracking_fields("100", "Operador 1", "E", "")
+
+    assert repository.delete_by_estado("E") == 0
+    assert repository.delete_many(["100"]) == 0
+    assert repository.delete_by_operador("Operador 1") == 0
+    # Por fecha solo cae la guia 200 (que no esta entregada).
+    assert repository.delete_by_fecha("2026-06-09") == 1
+    repository.clear_all()
+
+    dataframe = repository.to_dataframe()
+    assert list(dataframe["GUIA"]) == ["100"]
+
+
+def test_archivar_entregadas_mueve_guias_e_al_archivo(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.save_consolidated(build_dataframe("200", "Persona B"))
+    repository.update_tracking_fields("100", "Operador 1", "E", "")
+
+    archivadas = repository.archivar_entregadas()
+
+    assert archivadas == 1
+    dataframe = repository.to_dataframe()
+    assert list(dataframe["GUIA"]) == ["200"]
+    with repository._connect() as connection:
+        rows = connection.execute(
+            "SELECT guia, estado, archivado_en FROM guias_archivo"
+        ).fetchall()
+    assert len(rows) == 1
+    assert rows[0][0] == "100"
+    assert rows[0][1] == "E"
+    assert rows[0][2] != ""

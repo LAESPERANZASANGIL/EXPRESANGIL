@@ -33,6 +33,7 @@ from .excel_processor import hoy_colombia, normalize_guide
 from .exporter import export_marked_dataframe
 from .reports import (
     filter_by_date,
+    generate_cierre_mensual_entregadas_excel,
     generate_entregadas_operador_excel,
     generate_salidas_operador_excel,
     normalize_dataframe,
@@ -1086,6 +1087,38 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Cierre regenerado para {operador} ({fecha_texto}).",
                 "resumen": resumen,
                 "archivo_entregas": ruta_entregas.name,
+            })
+            return
+
+        if self.path == "/api/admin/archivar-entregadas":
+            if not self._require_admin():
+                return
+            hoy = hoy_colombia()
+            # El informe se genera primero, porque toma las guias E que aun
+            # estan en la zona de trabajo; despues se mueven al archivo.
+            ruta_informe = generate_cierre_mensual_entregadas_excel(
+                REPOSITORY, SETTINGS.paths.output_dir, hoy
+            )
+            archivadas = REPOSITORY.archivar_entregadas()
+            if not archivadas:
+                self._send_json({
+                    "ok": False,
+                    "output": "No hay guias en estado E para archivar.",
+                })
+                return
+            session = self._get_session() or {}
+            registrar_auditoria(
+                str(session.get("usuario", "")),
+                "archivar-entregadas",
+                f"{archivadas} guia(s) movidas al archivo mensual",
+            )
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Cierre mensual: {archivadas} guia(s) entregadas se movieron al archivo. "
+                    f"Informe generado: {ruta_informe.name}"
+                ),
+                "descargas": [ruta_informe.name],
             })
             return
 

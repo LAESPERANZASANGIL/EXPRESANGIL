@@ -630,6 +630,13 @@ document.getElementById("btn-admin-regenerar-cierre").addEventListener("click", 
   }
 });
 
+document.getElementById("btn-archivar-entregadas").addEventListener("click", async () => {
+  if (!confirm("¿Generar el informe mensual y archivar TODAS las guias en estado E? Saldran de la zona de trabajo y pasaran al archivo historico.")) return;
+  if (!confirm("Esta accion es el cierre del mes y no se puede deshacer desde el panel. ¿Confirmas?")) return;
+  const resultado = await llamar("/api/admin/archivar-entregadas", {});
+  if (resultado.ok) await cargarGuias();
+});
+
 document.getElementById("btn-eliminar-operador").addEventListener("click", async () => {
   const operador = document.getElementById("del-operador").value.trim();
   if (!operador) {
