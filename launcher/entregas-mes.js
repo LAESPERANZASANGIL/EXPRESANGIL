@@ -76,7 +76,7 @@ async function consultarMes() {
     const tr = document.createElement("tr");
     const esTotal = fila["OPERADOR"] === "TOTAL" || fila["OPERADOR"] === "PROMEDIO POR EMPLEADO";
     if (esTotal) tr.style.fontWeight = "bold";
-    for (const valor of [fila["OPERADOR"], fila["GUIAS ENTREGADAS"], formatoPesos(fila["VALOR RECAUDADO"])]) {
+    for (const valor of [fila["OPERADOR"], fila["GUIAS ENTREGADAS"], fila["UNIDADES ENTREGADAS"], formatoPesos(fila["VALOR RECAUDADO"])]) {
       const td = document.createElement("td");
       td.textContent = valor;
       tr.appendChild(td);
@@ -105,7 +105,7 @@ function renderizarGuias() {
   for (const guia of filtradas) {
     const tr = document.createElement("tr");
     const valores = [
-      guia.planilla, guia.guia, guia.servicio, guia.destinatario,
+      guia.planilla, guia.guia, guia.unid, guia.servicio, guia.destinatario,
       guia.direccion, guia.municipio, formatoPesos(guia.valor),
       guia.operador, formatoFecha(guia.entrega),
     ];

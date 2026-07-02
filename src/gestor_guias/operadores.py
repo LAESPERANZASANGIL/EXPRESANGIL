@@ -124,16 +124,18 @@ def calcular_diferencia_caja(efectivo_esperado: int, denominaciones: dict[int, i
     return {"efectivo_contado": efectivo_contado, "diferencia": diferencia, "nota": nota}
 
 
-def _contar_guias_operador(guias: list[dict]) -> tuple[dict[str, int], int]:
+def _contar_guias_operador(guias: list[dict]) -> tuple[dict[str, int], int, int]:
     conteos = {"RO": 0, "N": 0, "D": 0, ESTADO_RECAUDO: 0}
     recaudado = 0
+    unidades = 0
     for guia in guias:
         estado = (guia["estado"] or "").strip().upper()
         if estado in conteos:
             conteos[estado] += 1
         if estado == ESTADO_RECAUDO:
             recaudado += value_to_number(guia["valor"])
-    return conteos, recaudado
+            unidades += value_to_number(guia.get("unid", ""))
+    return conteos, recaudado, unidades
 
 
 def cerrar_dia(
@@ -160,7 +162,7 @@ def cerrar_dia(
         # revisar antes de confirmar el cierre real.
         en_reparto = repository.guias_en_salida(operador, ESTADO_SALIDA)
         guias = guias + [{**guia, "estado": ESTADO_RECAUDO} for guia in en_reparto]
-    conteos, recaudado = _contar_guias_operador(guias)
+    conteos, recaudado, unidades = _contar_guias_operador(guias)
 
     gestionadas = len(guias)
     efectivo = recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
@@ -192,6 +194,7 @@ def cerrar_dia(
         "n": conteos["N"],
         "d": conteos["D"],
         "e": conteos[ESTADO_RECAUDO],
+        "unidades": unidades,
         "recaudado": recaudado,
         "bancos": bancos,
         "nequi": nequi,
@@ -219,7 +222,7 @@ def recalcular_cierre(repository: GuiaRepository, operador: str, fecha: str) -> 
     adelanto_salario = cierre_anterior["adelanto_salario"] if cierre_anterior else 0
 
     guias = repository.guias_de_operador(operador, fecha)
-    conteos, recaudado = _contar_guias_operador(guias)
+    conteos, recaudado, unidades = _contar_guias_operador(guias)
 
     gestionadas = len(guias)
     efectivo = recaudado - (bancos + nequi + envia + gastos + adelanto_salario)
@@ -247,6 +250,7 @@ def recalcular_cierre(repository: GuiaRepository, operador: str, fecha: str) -> 
         "n": conteos["N"],
         "d": conteos["D"],
         "e": conteos[ESTADO_RECAUDO],
+        "unidades": unidades,
         "recaudado": recaudado,
         "bancos": bancos,
         "nequi": nequi,

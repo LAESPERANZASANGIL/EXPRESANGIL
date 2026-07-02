@@ -151,6 +151,7 @@ def build_cierre_breakdown(
                 "N",
                 "D",
                 "E",
+                "UNIDADES ENTREGADAS",
                 "RECAUDADO",
                 "BANCOS",
                 "NEQUI",
@@ -171,6 +172,7 @@ def build_cierre_breakdown(
         d = int((guias_operador["ESTADO"].str.upper() == "D").sum())
         entregadas = guias_operador[guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO]
         e = len(entregadas)
+        unidades_entregadas = int(entregadas["UNID_NUMERICA"].sum())
         recaudado = int(entregadas["VALOR_NUMERICO"].sum())
 
         cierre = repository.obtener_cierre(fecha_texto, nombre_operador) if fecha_texto else None
@@ -192,6 +194,7 @@ def build_cierre_breakdown(
             "N": n,
             "D": d,
             "E": e,
+            "UNIDADES ENTREGADAS": unidades_entregadas,
             "RECAUDADO": recaudado,
             "BANCOS": bancos,
             "NEQUI": nequi,
@@ -210,7 +213,7 @@ def build_cierre_breakdown(
 def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
     monthly = filter_by_month(dataframe, year, month)
 
-    columns = ["OPERADOR", "GASTOS", "ADELANTO_SALARIO", "GESTIONADAS", "ENTREGADAS", "EFECTIVIDAD"]
+    columns = ["OPERADOR", "GASTOS", "ADELANTO_SALARIO", "GESTIONADAS", "ENTREGADAS", "UNIDADES ENTREGADAS", "EFECTIVIDAD"]
     if monthly.empty:
         return pd.DataFrame(columns=columns)
 
@@ -221,7 +224,9 @@ def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame,
     for nombre_operador in operadores:
         guias_operador = monthly[monthly["OPERADOR"] == nombre_operador]
         gestionadas = len(guias_operador)
-        entregadas = int((guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO).sum())
+        filas_entregadas = guias_operador[guias_operador["ESTADO"].str.upper() == ESTADO_RECAUDO]
+        entregadas = len(filas_entregadas)
+        unidades_entregadas = int(filas_entregadas["UNID_NUMERICA"].sum())
         efectividad = round(entregadas / gestionadas * 100, 1) if gestionadas else 0.0
         extra = gastos_adelantos.get(nombre_operador, {})
 
@@ -232,6 +237,7 @@ def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame,
                 "ADELANTO_SALARIO": extra.get("adelanto_salario", 0),
                 "GESTIONADAS": gestionadas,
                 "ENTREGADAS": entregadas,
+                "UNIDADES ENTREGADAS": unidades_entregadas,
                 "EFECTIVIDAD": efectividad,
             }
         )
@@ -258,7 +264,7 @@ def generate_monthly_operator_report(
 
 
 COLUMNAS_ENTREGADAS_MES = [
-    "PLANILLA", "SERVICIO", "GUIA", "DESTINATARIO", "DIRECCION",
+    "PLANILLA", "SERVICIO", "GUIA", "UNID", "DESTINATARIO", "DIRECCION",
     "MUNICIPIO", "VALOR", "OPERADOR", "CAUSAL", "F_INGRESO", "F_ENTREGA",
 ]
 
@@ -284,23 +290,25 @@ def entregadas_mes_dataframe(repository: GuiaRepository, year: int, month: int) 
         }
         for row in rows
     ]
-    return normalize_dataframe(pd.DataFrame(data, columns=COLUMNAS_ENTREGADAS_MES + ["ESTADO", "UNID"]))
+    return normalize_dataframe(pd.DataFrame(data, columns=COLUMNAS_ENTREGADAS_MES + ["ESTADO"]))
 
 
 def build_entregadas_mes_resumen(entregadas: pd.DataFrame) -> pd.DataFrame:
     """Estadistica por operador con TOTAL y PROMEDIO POR EMPLEADO."""
     if entregadas.empty:
-        return pd.DataFrame(columns=["OPERADOR", "GUIAS ENTREGADAS", "VALOR RECAUDADO"])
+        return pd.DataFrame(columns=["OPERADOR", "GUIAS ENTREGADAS", "UNIDADES ENTREGADAS", "VALOR RECAUDADO"])
     resumen = (
         entregadas.groupby("OPERADOR")
         .agg(**{
             "GUIAS ENTREGADAS": ("GUIA", "count"),
+            "UNIDADES ENTREGADAS": ("UNID_NUMERICA", "sum"),
             "VALOR RECAUDADO": ("VALOR_NUMERICO", "sum"),
         })
         .reset_index()
         .sort_values("GUIAS ENTREGADAS", ascending=False)
     )
     total_guias = int(resumen["GUIAS ENTREGADAS"].sum())
+    total_unidades = int(resumen["UNIDADES ENTREGADAS"].sum())
     total_valor = int(resumen["VALOR RECAUDADO"].sum())
     empleados = len(resumen)
     return pd.concat(
@@ -308,10 +316,16 @@ def build_entregadas_mes_resumen(entregadas: pd.DataFrame) -> pd.DataFrame:
             resumen,
             pd.DataFrame(
                 [
-                    {"OPERADOR": "TOTAL", "GUIAS ENTREGADAS": total_guias, "VALOR RECAUDADO": total_valor},
+                    {
+                        "OPERADOR": "TOTAL",
+                        "GUIAS ENTREGADAS": total_guias,
+                        "UNIDADES ENTREGADAS": total_unidades,
+                        "VALOR RECAUDADO": total_valor,
+                    },
                     {
                         "OPERADOR": "PROMEDIO POR EMPLEADO",
                         "GUIAS ENTREGADAS": round(total_guias / empleados, 1),
+                        "UNIDADES ENTREGADAS": round(total_unidades / empleados, 1),
                         "VALOR RECAUDADO": round(total_valor / empleados),
                     },
                 ]
@@ -375,18 +389,19 @@ def generate_cierre_mensual_entregadas_pdf(
         Spacer(1, 0.5 * cm),
     ]
 
-    encabezado = ["OPERADOR", "GUIAS ENTREGADAS", "VALOR RECAUDADO"]
+    encabezado = ["OPERADOR", "GUIAS ENTREGADAS", "UNIDADES ENTREGADAS", "VALOR RECAUDADO"]
     filas = [encabezado]
     for _, row in resumen.iterrows():
         filas.append([
             str(row["OPERADOR"]),
             str(row["GUIAS ENTREGADAS"]),
+            str(row["UNIDADES ENTREGADAS"]),
             f"$ {int(row['VALOR RECAUDADO']):,}".replace(",", "."),
         ])
     if len(filas) == 1:
-        filas.append(["Sin entregas registradas en el mes", "", ""])
+        filas.append(["Sin entregas registradas en el mes", "", "", ""])
 
-    tabla = Table(filas, colWidths=[8 * cm, 4 * cm, 5 * cm])
+    tabla = Table(filas, colWidths=[7 * cm, 3.5 * cm, 3.5 * cm, 4 * cm])
     estilo_tabla = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -434,7 +449,7 @@ def generate_operator_report(
 
 
 def build_entregadas_detalle(dataframe: pd.DataFrame, operador: str = "") -> pd.DataFrame:
-    columnas = ["OPERADOR", "GUIA", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR", "F_ENTREGA"]
+    columnas = ["OPERADOR", "GUIA", "UNID", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR", "F_ENTREGA"]
     entregadas = dataframe[dataframe["ESTADO"].str.upper() == ESTADO_RECAUDO]
     if operador:
         entregadas = entregadas[entregadas["OPERADOR"] == operador]
@@ -465,21 +480,25 @@ def generate_salidas_operador_excel(
 
     filas = []
     total_valor = 0
+    total_unidades = 0
     for guia in guias:
         valor = value_to_number(guia.get("valor", ""))
+        unidades = value_to_number(guia.get("unid", ""))
         total_valor += valor
+        total_unidades += unidades
         filas.append(
             {
                 "GUIA": guia.get("guia", ""),
+                "UNID": unidades,
                 "DESTINATARIO": guia.get("destinatario", ""),
                 "DIRECCION": guia.get("direccion", ""),
                 "VALOR": valor,
             }
         )
 
-    filas.append({"GUIA": "", "DESTINATARIO": "", "DIRECCION": "TOTAL", "VALOR": total_valor})
+    filas.append({"GUIA": "", "UNID": total_unidades, "DESTINATARIO": "", "DIRECCION": "TOTAL", "VALOR": total_valor})
 
-    dataframe = pd.DataFrame(filas, columns=["GUIA", "DESTINATARIO", "DIRECCION", "VALOR"])
+    dataframe = pd.DataFrame(filas, columns=["GUIA", "UNID", "DESTINATARIO", "DIRECCION", "VALOR"])
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         dataframe.to_excel(writer, index=False, sheet_name="SALIDAS")
@@ -494,6 +513,7 @@ RESUMEN_CIERRE_ETIQUETAS = (
     ("n", "Novedades operativas (N)"),
     ("d", "Devoluciones (D)"),
     ("e", "Entregadas y recaudadas (E)"),
+    ("unidades", "Unidades entregadas"),
     ("recaudado", "Dinero recaudado"),
     ("bancos", "Dinero en bancos"),
     ("nequi", "Dinero en Nequi"),
@@ -586,12 +606,16 @@ def generate_entregadas_operador_excel(
 
     filas = []
     total_valor = 0
+    total_unidades = 0
     for guia in entregadas:
         valor = value_to_number(guia.get("valor", ""))
+        unidades = value_to_number(guia.get("unid", ""))
         total_valor += valor
+        total_unidades += unidades
         filas.append(
             {
                 "GUIA": guia.get("guia", ""),
+                "UNID": unidades,
                 "DESTINATARIO": guia.get("destinatario", ""),
                 "DIRECCION": guia.get("direccion", ""),
                 "MUNICIPIO": guia.get("municipio", ""),
@@ -600,10 +624,10 @@ def generate_entregadas_operador_excel(
         )
 
     filas.append(
-        {"GUIA": "", "DESTINATARIO": "", "DIRECCION": "", "MUNICIPIO": "TOTAL", "VALOR": total_valor}
+        {"GUIA": "", "UNID": total_unidades, "DESTINATARIO": "", "DIRECCION": "", "MUNICIPIO": "TOTAL", "VALOR": total_valor}
     )
 
-    dataframe = pd.DataFrame(filas, columns=["GUIA", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR"])
+    dataframe = pd.DataFrame(filas, columns=["GUIA", "UNID", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR"])
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         dataframe.to_excel(writer, index=False, sheet_name="ENTREGAS")

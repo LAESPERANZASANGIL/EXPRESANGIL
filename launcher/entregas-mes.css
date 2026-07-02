@@ -12,28 +12,30 @@
 }
 
 /* Columnas cortas centradas y sin quiebre de linea. */
-#tabla-guias td:nth-child(1),  /* PLANILLA */
-#tabla-guias td:nth-child(2),  /* GUIA */
-#tabla-guias td:nth-child(3),  /* SERVICIO */
-#tabla-guias td:nth-child(9) { /* F. ENTREGA */
+#tabla-guias td:nth-child(1),   /* PLANILLA */
+#tabla-guias td:nth-child(2),   /* GUIA */
+#tabla-guias td:nth-child(3),   /* UNID */
+#tabla-guias td:nth-child(4),   /* SERVICIO */
+#tabla-guias td:nth-child(10) { /* F. ENTREGA */
   text-align: center;
   white-space: nowrap;
   width: 1%;
 }
 
 /* VALOR alineado a la derecha, como cifra. */
-#tabla-guias td:nth-child(7) {
+#tabla-guias td:nth-child(8) {
   text-align: right;
   white-space: nowrap;
   width: 1%;
 }
 
 /* La estadistica por operador tambien centrada en sus cifras. */
-#tabla-resumen td:nth-child(2) {
+#tabla-resumen td:nth-child(2),
+#tabla-resumen td:nth-child(3) {
   text-align: center;
 }
 
-#tabla-resumen td:nth-child(3) {
+#tabla-resumen td:nth-child(4) {
   text-align: right;
 }
 
