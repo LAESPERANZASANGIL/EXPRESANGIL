@@ -1156,6 +1156,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                         "planilla": fila["PLANILLA"],
                         "servicio": fila["SERVICIO"],
                         "guia": fila["GUIA"],
+                        "unid": int(fila["UNID_NUMERICA"]),
                         "destinatario": fila["DESTINATARIO"],
                         "direccion": fila["DIRECCION"],
                         "municipio": fila["MUNICIPIO"],

@@ -457,9 +457,11 @@ def test_generate_cierre_mensual_entregadas_incluye_promedio_por_empleado(tmp_pa
     resumen = list(workbook["RESUMEN"].values)
     filas = {row[0]: row for row in resumen[1:]}
     assert filas["TOTAL"][1] == 3
-    assert filas["TOTAL"][2] == 60_000
+    assert filas["TOTAL"][2] == 3  # unidades entregadas (1 por guia)
+    assert filas["TOTAL"][3] == 60_000
     assert filas["PROMEDIO POR EMPLEADO"][1] == 1.5
-    assert filas["PROMEDIO POR EMPLEADO"][2] == 30_000
+    assert filas["PROMEDIO POR EMPLEADO"][2] == 1.5
+    assert filas["PROMEDIO POR EMPLEADO"][3] == 30_000
 
     entregadas = list(workbook["ENTREGADAS"].values)
     guias = {row[2] for row in entregadas[1:]}
