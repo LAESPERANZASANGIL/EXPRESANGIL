@@ -108,6 +108,7 @@ STATIC_FILES = {
     "/entregas-mes": ("entregas-mes.html", "text/html; charset=utf-8"),
     "/entregas-mes.html": ("entregas-mes.html", "text/html; charset=utf-8"),
     "/entregas-mes.js": ("entregas-mes.js", "application/javascript; charset=utf-8"),
+    "/entregas-mes.css": ("entregas-mes.css", "text/css; charset=utf-8"),
     "/dashboard": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
