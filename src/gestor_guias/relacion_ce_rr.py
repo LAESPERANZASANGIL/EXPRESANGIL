@@ -42,7 +42,9 @@ def generate_relacion_ce_rr_report(
 
     if not daily.empty:
         relevant = daily[
-            (daily["ESTADO"].str.upper() == ESTADO_RECAUDO) & (daily["SERVICIO"].str.upper().isin(SERVICIOS_RELACION))
+            (daily["ESTADO"].str.upper() == ESTADO_RECAUDO)
+            & (daily["SERVICIO"].str.upper().isin(SERVICIOS_RELACION))
+            & (daily["VALOR_NUMERICO"] > 1)
         ].sort_values(["OPERADOR", "SERVICIO"])
     else:
         relevant = daily
