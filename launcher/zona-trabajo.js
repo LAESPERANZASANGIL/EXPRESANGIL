@@ -630,6 +630,12 @@ document.getElementById("btn-admin-regenerar-cierre").addEventListener("click", 
   }
 });
 
+document.getElementById("btn-archivar-entregadas").addEventListener("click", async () => {
+  if (!confirm("¿Cerrar el dia? TODAS las guias en estado E saldran de la zona de trabajo y pasaran al archivo del mes (consultables en Entregas del Mes).")) return;
+  const resultado = await llamar("/api/admin/archivar-entregadas", {});
+  if (resultado.ok) await cargarGuias();
+});
+
 document.getElementById("btn-eliminar-operador").addEventListener("click", async () => {
   const operador = document.getElementById("del-operador").value.trim();
   if (!operador) {

@@ -32,7 +32,11 @@ from .operadores import (
 from .excel_processor import hoy_colombia, normalize_guide
 from .exporter import export_marked_dataframe
 from .reports import (
+    build_entregadas_mes_resumen,
+    entregadas_mes_dataframe,
     filter_by_date,
+    generate_cierre_mensual_entregadas_excel,
+    generate_cierre_mensual_entregadas_pdf,
     generate_entregadas_operador_excel,
     generate_salidas_operador_excel,
     normalize_dataframe,
@@ -101,6 +105,9 @@ STATIC_FILES = {
     "/zona-trabajo.html": ("zona-trabajo.html", "text/html; charset=utf-8"),
     "/zona-trabajo.css": ("zona-trabajo.css", "text/css; charset=utf-8"),
     "/zona-trabajo.js": ("zona-trabajo.js", "application/javascript; charset=utf-8"),
+    "/entregas-mes": ("entregas-mes.html", "text/html; charset=utf-8"),
+    "/entregas-mes.html": ("entregas-mes.html", "text/html; charset=utf-8"),
+    "/entregas-mes.js": ("entregas-mes.js", "application/javascript; charset=utf-8"),
     "/dashboard": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
@@ -122,6 +129,18 @@ GUIA_FIELDS = (
 
 
 AUDITORIA_FILE = SETTINGS.paths.database_file.parent / "auditoria.log"
+
+
+def _parse_mes(texto: str) -> tuple[int | None, int | None]:
+    """Convierte 'AAAA-MM' (valor de un input type=month) en (anio, mes)."""
+    try:
+        anio, mes = texto.strip().split("-")
+        anio_num, mes_num = int(anio), int(mes)
+        if not 1 <= mes_num <= 12:
+            return None, None
+        return anio_num, mes_num
+    except (ValueError, AttributeError):
+        return None, None
 
 
 def _validar_fecha_opcional(valor: object) -> str:
@@ -1086,6 +1105,89 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Cierre regenerado para {operador} ({fecha_texto}).",
                 "resumen": resumen,
                 "archivo_entregas": ruta_entregas.name,
+            })
+            return
+
+        if self.path == "/api/admin/archivar-entregadas":
+            if not self._require_admin():
+                return
+            archivadas = REPOSITORY.archivar_entregadas()
+            if not archivadas:
+                self._send_json({
+                    "ok": False,
+                    "output": "No hay guias en estado E para mover al archivo.",
+                })
+                return
+            session = self._get_session() or {}
+            registrar_auditoria(
+                str(session.get("usuario", "")),
+                "archivar-entregadas",
+                f"{archivadas} guia(s) movidas al archivo al cerrar el dia",
+            )
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Dia cerrado: {archivadas} guia(s) entregadas salieron de la zona de "
+                    "trabajo hacia el archivo del mes. Consultalas en Entregas del Mes."
+                ),
+            })
+            return
+
+        if self.path == "/api/admin/entregas-mes":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            entregadas = entregadas_mes_dataframe(REPOSITORY, anio, mes)
+            resumen = build_entregadas_mes_resumen(entregadas)
+            detalle = (
+                entregadas.sort_values(["OPERADOR", "F_ENTREGA", "GUIA"]).to_dict(orient="records")
+                if not entregadas.empty
+                else []
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"{len(detalle)} guia(s) entregadas en {mes:02d}/{anio}.",
+                "guias": [
+                    {
+                        "planilla": fila["PLANILLA"],
+                        "servicio": fila["SERVICIO"],
+                        "guia": fila["GUIA"],
+                        "destinatario": fila["DESTINATARIO"],
+                        "direccion": fila["DIRECCION"],
+                        "municipio": fila["MUNICIPIO"],
+                        "valor": int(fila["VALOR_NUMERICO"]),
+                        "operador": fila["OPERADOR"],
+                        "entrega": fila["F_ENTREGA"],
+                    }
+                    for fila in detalle
+                ],
+                "resumen": resumen.to_dict(orient="records"),
+            })
+            return
+
+        if self.path == "/api/admin/entregas-mes/informe":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            formato = str(data.get("formato", "excel")).strip().lower()
+            if formato == "pdf":
+                ruta = generate_cierre_mensual_entregadas_pdf(
+                    REPOSITORY, SETTINGS.paths.output_dir, anio, mes
+                )
+            else:
+                ruta = generate_cierre_mensual_entregadas_excel(
+                    REPOSITORY, SETTINGS.paths.output_dir, anio, mes
+                )
+            self._send_json({
+                "ok": True,
+                "output": f"Informe generado: {ruta.name}",
+                "descargas": [ruta.name],
             })
             return
 

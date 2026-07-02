@@ -427,3 +427,70 @@ def test_generate_devoluciones_report_no_data(tmp_path: Path) -> None:
     output_path = generate_devoluciones_report(repository, tmp_path / "output", date(2026, 6, 10))
 
     assert output_path.exists()
+
+
+def _preparar_entregadas_del_mes(tmp_path: Path) -> GuiaRepository:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.save_consolidated(build_dataframe("200", "", "", "20000"))
+    repository.update_tracking_fields("200", "OMAR", "E", "")
+    repository.save_consolidated(build_dataframe("300", "", "", "30000"))
+    repository.update_tracking_fields("300", "KEVIN", "E", "")
+    # Una guia sin entregar no debe aparecer en el informe.
+    repository.save_consolidated(build_dataframe("400", "KEVIN", "R", "5000"))
+    return repository
+
+
+def test_generate_cierre_mensual_entregadas_incluye_promedio_por_empleado(tmp_path: Path) -> None:
+    from gestor_guias.reports import generate_cierre_mensual_entregadas_excel
+
+    repository = _preparar_entregadas_del_mes(tmp_path)
+    hoy = hoy_colombia()
+
+    ruta = generate_cierre_mensual_entregadas_excel(repository, tmp_path, hoy.year, hoy.month)
+
+    workbook = load_workbook(ruta)
+    assert "RESUMEN" in workbook.sheetnames
+    assert "ENTREGADAS" in workbook.sheetnames
+
+    resumen = list(workbook["RESUMEN"].values)
+    filas = {row[0]: row for row in resumen[1:]}
+    assert filas["TOTAL"][1] == 3
+    assert filas["TOTAL"][2] == 60_000
+    assert filas["PROMEDIO POR EMPLEADO"][1] == 1.5
+    assert filas["PROMEDIO POR EMPLEADO"][2] == 30_000
+
+    entregadas = list(workbook["ENTREGADAS"].values)
+    guias = {row[2] for row in entregadas[1:]}
+    assert guias == {"100", "200", "300"}
+
+
+def test_entregadas_mes_une_archivo_con_zona_de_trabajo(tmp_path: Path) -> None:
+    from gestor_guias.reports import entregadas_mes_dataframe
+
+    repository = _preparar_entregadas_del_mes(tmp_path)
+    hoy = hoy_colombia()
+    # Las dos primeras se archivan (cierre del dia); la tercera se entrega despues.
+    repository.update_tracking_fields("300", "KEVIN", "R", "")
+    assert repository.archivar_entregadas() == 2
+    repository.update_tracking_fields("300", "KEVIN", "E", "")
+
+    entregadas = entregadas_mes_dataframe(repository, hoy.year, hoy.month)
+
+    assert sorted(entregadas["GUIA"]) == ["100", "200", "300"]
+    # Un mes sin entregas no trae nada.
+    assert entregadas_mes_dataframe(repository, 2020, 1).empty
+
+
+def test_generate_cierre_mensual_entregadas_pdf(tmp_path: Path) -> None:
+    from gestor_guias.reports import generate_cierre_mensual_entregadas_pdf
+
+    repository = _preparar_entregadas_del_mes(tmp_path)
+    hoy = hoy_colombia()
+
+    ruta = generate_cierre_mensual_entregadas_pdf(repository, tmp_path, hoy.year, hoy.month)
+
+    assert ruta.exists()
+    assert ruta.suffix == ".pdf"
+    assert ruta.stat().st_size > 0
