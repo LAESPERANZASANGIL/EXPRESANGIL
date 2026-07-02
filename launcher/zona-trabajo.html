@@ -29,7 +29,7 @@
           <option value="estado">Estado</option>
           <option value="causal">Causal</option>
           <option value="fecha">Fecha de ingreso</option>
-          <option value="ingreso">Fecha de entrega</option>
+          <option value="ingreso">Fecha de gestion</option>
         </select>
         <input type="text" id="buscar" placeholder="Buscar por guia, destinatario, direccion, municipio, operador, estado..." />
         <button class="boton boton-buscar" id="btn-limpiar-filtro">Limpiar filtro</button>
@@ -60,7 +60,7 @@
             <th>ESTADO <button type="button" class="btn-filtro-excel" data-campo="estado">&#9662;</button></th>
             <th>CAUSAL <button type="button" class="btn-filtro-excel" data-campo="causal">&#9662;</button></th>
             <th>F. IMPORTACION</th>
-            <th>F. ENTREGA</th>
+            <th>F. GESTION</th>
           </tr>
         </thead>
         <tbody id="tabla-body"></tbody>
@@ -111,7 +111,7 @@
           <input type="date" id="form-fecha" />
         </div>
         <div class="campo">
-          <label>FECHA DE ENTREGA</label>
+          <label>FECHA DE GESTION</label>
           <input type="date" id="form-entrega" />
         </div>
         <div class="campo">
