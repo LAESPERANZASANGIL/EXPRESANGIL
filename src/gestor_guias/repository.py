@@ -456,6 +456,29 @@ class GuiaRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def eliminar_entregadas_mes(self, anio: int, mes: int) -> dict:
+        """Borra definitivamente las entregadas del mes (archivo + zona de trabajo).
+
+        Es la unica via para eliminar guias E: accion explicita del admin
+        desde Entregas del Mes. Hace respaldo antes de borrar.
+        """
+        self.initialize()
+        self._backup_antes_de_borrar()
+        prefijo = f"{anio:04d}-{mes:02d}%"
+        with self._connect() as connection:
+            cursor_archivo = connection.execute(
+                "DELETE FROM guias_archivo WHERE ingreso LIKE ?",
+                (prefijo,),
+            )
+            cursor_zona = connection.execute(
+                "DELETE FROM guias WHERE UPPER(TRIM(estado)) = 'E' AND ingreso LIKE ?",
+                (prefijo,),
+            )
+            return {
+                "archivo": cursor_archivo.rowcount,
+                "zona": cursor_zona.rowcount,
+            }
+
     def archivar_entregadas(self) -> int:
         """Mueve todas las guias en estado E a guias_archivo (cierre mensual).
 

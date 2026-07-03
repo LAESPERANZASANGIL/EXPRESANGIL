@@ -450,3 +450,26 @@ def test_snapshot_y_restaurar_guias_permite_deshacer(tmp_path: Path) -> None:
     guia = repository.obtener_guia("100")
     assert guia["operador"] == "KEVIN"
     assert guia["estado"] == "R"
+
+
+def test_eliminar_entregadas_mes_borra_archivo_y_zona(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    repository.update_tracking_fields("100", "KEVIN", "E", "")
+    repository.save_consolidated(build_dataframe("200", "Persona B"))
+    repository.update_tracking_fields("200", "KEVIN", "E", "")
+    repository.save_consolidated(build_dataframe("300", "Persona C"))
+
+    # La 100 se archiva (cierre del dia); la 200 queda entregada en la zona.
+    repository.update_tracking_fields("200", "KEVIN", "R", "")
+    repository.archivar_entregadas()
+    repository.update_tracking_fields("200", "KEVIN", "E", "")
+
+    hoy = hoy_colombia()
+    resultado = repository.eliminar_entregadas_mes(hoy.year, hoy.month)
+
+    assert resultado == {"archivo": 1, "zona": 1}
+    assert repository.entregadas_mes(hoy.year, hoy.month) == []
+    # La guia sin entregar no se toca.
+    assert list(repository.to_dataframe()["GUIA"]) == ["300"]
