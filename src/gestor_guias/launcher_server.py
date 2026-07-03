@@ -1243,6 +1243,29 @@ class LauncherHandler(BaseHTTPRequestHandler):
             })
             return
 
+        if self.path == "/api/admin/entregas-mes/eliminar":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            resultado = REPOSITORY.eliminar_entregadas_mes(anio, mes)
+            total = resultado["archivo"] + resultado["zona"]
+            registrar_auditoria(
+                self._get_session()["usuario"],
+                "eliminar-entregadas-mes",
+                f"{mes:02d}/{anio}: {resultado['archivo']} del archivo + {resultado['zona']} de la zona",
+            )
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Se eliminaron {total} guia(s) entregadas de {mes:02d}/{anio} "
+                    f"({resultado['archivo']} del archivo y {resultado['zona']} de la zona de trabajo)."
+                ),
+            })
+            return
+
         if self.path == "/api/admin/rendimiento-mensual":
             if not self._require_admin():
                 return

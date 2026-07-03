@@ -143,6 +143,15 @@ document.getElementById("btn-informe-pdf").addEventListener("click", async () =>
   await llamar("/api/admin/entregas-mes/informe", { mes, formato: "pdf" });
 });
 
+document.getElementById("btn-eliminar-mes").addEventListener("click", async () => {
+  const mes = mesSeleccionado();
+  if (!mes) return;
+  if (!confirm(`¿Borrar TODAS las guias entregadas de ${mes}? Se eliminan del archivo historico y de la zona de trabajo.`)) return;
+  if (!confirm("Esta accion es definitiva y no se puede deshacer desde el panel (queda un respaldo automatico de la base). ¿Confirmas?")) return;
+  const resultado = await llamar("/api/admin/entregas-mes/eliminar", { mes });
+  if (resultado.ok) await consultarMes();
+});
+
 const rendimientoOperador = document.getElementById("rendimiento-operador");
 
 async function cargarOperadores() {
