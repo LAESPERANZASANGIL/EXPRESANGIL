@@ -957,6 +957,11 @@ class GuiaRepository:
         connection.execute("PRAGMA journal_mode=WAL")
         return connection
 
+    # Cantidad maxima de respaldos automaticos que se conservan. Sin este
+    # limite la carpeta backups/ crecia con cada borrado hasta llenar el
+    # disco del servidor y SQLite empezaba a fallar con "disk I/O error".
+    MAX_BACKUPS = 10
+
     def _backup_antes_de_borrar(self) -> None:
         # Copia de seguridad de la base completa antes de un borrado masivo,
         # para poder recuperar la informacion si el borrado fue un error.
@@ -964,6 +969,17 @@ class GuiaRepository:
             return
         carpeta_backup = self.database_file.parent / "backups"
         carpeta_backup.mkdir(parents=True, exist_ok=True)
-        marca = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Vuelca el WAL al archivo principal para que la copia quede completa
+        # y el .db-wal no crezca sin limite.
+        with self._connect() as connection:
+            connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+        marca = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         destino = carpeta_backup / f"{self.database_file.stem}_{marca}.db"
         shutil.copy2(self.database_file, destino)
+
+        # Rotacion: conserva solo los respaldos mas recientes.
+        respaldos = sorted(carpeta_backup.glob(f"{self.database_file.stem}_*.db"))
+        for viejo in respaldos[:-self.MAX_BACKUPS]:
+            viejo.unlink(missing_ok=True)

@@ -473,3 +473,16 @@ def test_eliminar_entregadas_mes_borra_archivo_y_zona(tmp_path: Path) -> None:
     assert repository.entregadas_mes(hoy.year, hoy.month) == []
     # La guia sin entregar no se toca.
     assert list(repository.to_dataframe()["GUIA"]) == ["300"]
+
+
+def test_backups_automaticos_se_rotan_y_no_llenan_el_disco(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    # Cada borrado genera un respaldo; muchos borrados no deben acumular
+    # mas de MAX_BACKUPS archivos.
+    for _ in range(GuiaRepository.MAX_BACKUPS + 5):
+        repository.delete_by_estado("X")
+
+    respaldos = list((tmp_path / "backups").glob("guias_*.db"))
+    assert len(respaldos) == GuiaRepository.MAX_BACKUPS
