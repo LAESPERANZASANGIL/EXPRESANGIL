@@ -783,6 +783,9 @@ def generate_entregadas_operador_excel(
     entregadas = [
         guia for guia in guias if (guia.get("estado") or "").strip().upper() == ESTADO_RECAUDO
     ]
+    novedades = [
+        guia for guia in guias if (guia.get("estado") or "").strip().upper() in ("RO", "N", "D")
+    ]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}"
@@ -813,9 +816,30 @@ def generate_entregadas_operador_excel(
 
     dataframe = pd.DataFrame(filas, columns=["GUIA", "UNID", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR"])
 
+    filas_novedades = [
+        {
+            "GUIA": guia.get("guia", ""),
+            "ESTADO": (guia.get("estado") or "").strip().upper(),
+            "CAUSAL": guia.get("causal", ""),
+            "UNID": value_to_number(guia.get("unid", "")),
+            "DESTINATARIO": guia.get("destinatario", ""),
+            "DIRECCION": guia.get("direccion", ""),
+            "MUNICIPIO": guia.get("municipio", ""),
+            "VALOR": value_to_number(guia.get("valor", "")),
+        }
+        for guia in novedades
+    ]
+    dataframe_novedades = pd.DataFrame(
+        filas_novedades,
+        columns=["GUIA", "ESTADO", "CAUSAL", "UNID", "DESTINATARIO", "DIRECCION", "MUNICIPIO", "VALOR"],
+    )
+
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         dataframe.to_excel(writer, index=False, sheet_name="ENTREGAS")
         apply_report_format(writer.sheets["ENTREGAS"])
+
+        dataframe_novedades.to_excel(writer, index=False, sheet_name="NOVEDADES")
+        apply_report_format(writer.sheets["NOVEDADES"])
 
         if resumen or denominaciones:
             cierre_sheet = writer.book.create_sheet("CIERRE")
