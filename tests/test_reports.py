@@ -527,3 +527,30 @@ def test_build_rendimiento_mensual_y_pdfs(tmp_path: Path) -> None:
     ruta_todos = generate_rendimiento_mensual_pdf(repository, tmp_path, hoy.year, hoy.month)
     assert ruta_operador.exists() and ruta_operador.stat().st_size > 0
     assert ruta_todos.exists() and ruta_todos.stat().st_size > 0
+
+
+def test_entregadas_operador_excel_incluye_hoja_de_novedades(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    hoy = hoy_colombia()
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.asignar_salida(["100"], "KEVIN", "R")
+    repository.save_consolidated(build_dataframe("200", "", "", "20000"))
+    repository.asignar_salida(["200"], "KEVIN", "R")
+    repository.save_consolidated(build_dataframe("300", "", "", "30000"))
+    repository.asignar_salida(["300"], "KEVIN", "R")
+
+    repository.registrar_novedad(["100"], "KEVIN", hoy.isoformat(), "RO")
+    repository.registrar_devolucion([("200", "10")], "KEVIN", hoy.isoformat(), "D")
+    repository.cerrar_dia_operador("KEVIN", hoy.isoformat(), "R", "E")
+
+    ruta = generate_entregadas_operador_excel(repository, tmp_path, "KEVIN", hoy)
+
+    workbook = load_workbook(ruta)
+    assert "NOVEDADES" in workbook.sheetnames
+    hoja = workbook["NOVEDADES"]
+    filas = {hoja.cell(row=r, column=1).value: hoja.cell(row=r, column=2).value for r in range(2, hoja.max_row + 1)}
+    assert filas == {"100": "RO", "200": "D"}
+    # La causal de la devolucion queda registrada.
+    fila_d = next(r for r in range(2, hoja.max_row + 1) if hoja.cell(row=r, column=1).value == "200")
+    assert hoja.cell(row=fila_d, column=3).value == "10"
