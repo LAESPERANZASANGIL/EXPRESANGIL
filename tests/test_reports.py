@@ -554,3 +554,27 @@ def test_entregadas_operador_excel_incluye_hoja_de_novedades(tmp_path: Path) -> 
     # La causal de la devolucion queda registrada.
     fila_d = next(r for r in range(2, hoja.max_row + 1) if hoja.cell(row=r, column=1).value == "200")
     assert hoja.cell(row=fila_d, column=3).value == "10"
+
+
+def test_recaudo_incluye_operadores_con_cierre_sin_guias(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+
+    # PARRA no gestiono guias el 10/06 pero registro gastos y adelanto en su cierre.
+    repository.guardar_cierre(
+        fecha="2026-06-10", operador="PARRA", gestionadas=0, ro=0, n=0, d=0, e=0,
+        recaudado=0, bancos=0, nequi=0, envia=0, efectivo=0,
+        gastos=15_000, adelanto_salario=50_000,
+    )
+
+    ruta = generate_recaudo_report(repository, tmp_path / "output", date(2026, 6, 10))
+
+    hoja = load_workbook(ruta)["RECAUDO"]
+    operadores = [hoja.cell(row=r, column=1).value for r in range(5, hoja.max_row + 1)]
+    assert "PARRA" in operadores
+    # La tabla de detalle de gastos ya no existe.
+    textos = [hoja.cell(row=r, column=1).value for r in range(1, hoja.max_row + 1)]
+    assert "DETALLE DE GASTOS / DESCUENTOS" not in textos
+    assert "Adelantos del dia" in textos
