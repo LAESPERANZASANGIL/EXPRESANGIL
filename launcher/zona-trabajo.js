@@ -265,9 +265,17 @@ document.querySelectorAll(".btn-orden").forEach((boton) => {
   });
 });
 
+// Cuando esta activo, la tabla muestra unicamente las guias marcadas
+// (se activa al usar "Marcar lista" en la edicion masiva).
+let soloMarcadas = false;
+
 function filasFiltradas() {
   const texto = buscar.value.trim().toUpperCase();
   let filas = guias;
+
+  if (soloMarcadas) {
+    filas = filas.filter((fila) => marcadas.has(fila.guia));
+  }
 
   if (texto) {
     // Las guias se guardan siempre con 12 digitos (normalize_guide), pero el
@@ -404,6 +412,7 @@ document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
   ordenColumna = null;
   ordenDireccion = null;
   ordenTipo = null;
+  soloMarcadas = false;
   document.querySelectorAll(".btn-orden").forEach((b) => {
     b.classList.remove("activo");
     b.innerHTML = "&#8645;";
@@ -430,6 +439,7 @@ document.getElementById("btn-desmarcar-todas").addEventListener("click", () => {
   }
   const cantidad = marcadas.size;
   marcadas = new Set();
+  soloMarcadas = false;
   renderizarTabla();
   mostrarLog(`Se desmarcaron ${cantidad} guia(s).`);
 });
@@ -526,9 +536,22 @@ document.getElementById("btn-marcar-lista").addEventListener("click", () => {
     mostrarLog("Pega o escribe una lista de guias.");
     return;
   }
-  marcadas = new Set(lista);
+  // Empareja contra las guias reales (guardadas con ceros iniciales),
+  // acepte o no el usuario los ceros al pegar la lista.
+  const buscadas = new Set(lista.map((guia) => guia.replace(/^0+(?=\d)/, "")));
+  marcadas = new Set(
+    guias
+      .filter((fila) => buscadas.has(String(fila.guia || "").replace(/^0+(?=\d)/, "")))
+      .map((fila) => fila.guia)
+  );
+  const noEncontradas = lista.length - marcadas.size;
+  soloMarcadas = marcadas.size > 0;
   renderizarTabla();
-  mostrarLog(`Guias marcadas: ${marcadas.size}`);
+  mostrarLog(
+    `Guias marcadas: ${marcadas.size}. La tabla muestra solo las marcadas` +
+    ` (usa "Limpiar filtro" o "Desmarcar todas" para ver todas).` +
+    (noEncontradas > 0 ? ` ${noEncontradas} guia(s) de la lista no estan en la base.` : "")
+  );
 });
 
 document.getElementById("btn-aplicar-lista").addEventListener("click", async () => {
