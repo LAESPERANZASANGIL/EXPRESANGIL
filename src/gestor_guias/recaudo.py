@@ -23,7 +23,6 @@ WARNING_FONT = Font(bold=True, color="C00000")
 THIN_BORDER = Border(*(Side(style="thin", color="BFBFBF") for _ in range(4)))
 
 EXTRA_OPERATOR_ROWS = 5
-EXPENSE_ROWS = 10
 
 COLUMNS = ["OPERADOR", "UNID", "VALOR RECAUDADO", "BANCOS", "NEQUI", "ENVIA", "GASTOS", "ADELANTO SALARIO", "TOTAL"]
 
@@ -36,9 +35,8 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     output_path = output_dir / f"informe de recaudo {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
 
     if daily.empty:
-        operators: list[str] = []
-        totals = {}
-        recaudo = {}
+        totals: dict[str, int] = {}
+        recaudo: dict[str, float] = {}
         total_guias = 0
     else:
         totals = daily.groupby("OPERADOR")["GUIA"].count().to_dict()
@@ -46,8 +44,16 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
             daily[daily["ESTADO"].str.upper() == ESTADO_RECAUDO].groupby("OPERADOR")["VALOR_NUMERICO"].sum()
         )
         recaudo = recaudo_series.to_dict()
-        operators = sorted(totals, key=lambda operador: totals[operador], reverse=True)
         total_guias = len(daily)
+
+    # Todos los operadores del dia: los que gestionaron guias Y los que
+    # registraron cierre (un operador puede no tener entregas pero si
+    # gastos o adelantos en su cierre).
+    con_cierre = repository.operadores_con_cierre(target_date.isoformat())
+    operators = sorted(
+        {*totals, *con_cierre},
+        key=lambda operador: (-totals.get(operador, 0), operador),
+    )
 
     workbook = Workbook()
     sheet = workbook.active
@@ -153,6 +159,7 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     nequi_total_cell = f"E{total_row}"
     envia_total_cell = f"F{total_row}"
     gastos_total_cell = f"G{total_row}"
+    adelantos_total_cell = f"H{total_row}"
 
     summary_row = total_row + 2
     sheet.merge_cells(f"A{summary_row}:B{summary_row}")
@@ -162,18 +169,16 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     summary_title_cell.font = HEADER_FONT
     summary_title_cell.alignment = Alignment(horizontal="left", vertical="center")
 
-    expenses_title_row = summary_row + 8
-    expenses_total_cell = f"B{expenses_title_row + 1 + EXPENSE_ROWS + 1}"
-
     summary_rows = [
         ("Total guias del dia", total_guias, None),
         ("Valor total", float(daily["VALOR_NUMERICO"].sum()) if not daily.empty else 0, None),
         ("Valor total recaudado (= lista)", f"={valor_recaudado_total_cell}-{envia_total_cell}", HIGHLIGHT_FILL),
         ("Total a pagar (Bancos + Nequi)", f"={bancos_total_cell}+{nequi_total_cell}", None),
-        ("Gastos del dia", f"={gastos_total_cell}+{expenses_total_cell}", None),
+        ("Gastos del dia", f"={gastos_total_cell}", None),
+        ("Adelantos del dia", f"={adelantos_total_cell}", None),
         (
-            "Saldo pendiente (= recaudo - pagar - gastos)",
-            f"=B{summary_row + 3}-B{summary_row + 4}-B{summary_row + 5}",
+            "Saldo pendiente (= recaudo - pagar - gastos - adelantos)",
+            f"=B{summary_row + 3}-B{summary_row + 4}-B{summary_row + 5}-B{summary_row + 6}",
             None,
         ),
     ]
@@ -188,40 +193,6 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
         if "Saldo pendiente" in label:
             label_cell.font = WARNING_FONT
             value_cell.font = WARNING_FONT
-
-    sheet.merge_cells(f"A{expenses_title_row}:B{expenses_title_row}")
-    expenses_title = sheet[f"A{expenses_title_row}"]
-    expenses_title.value = "DETALLE DE GASTOS / DESCUENTOS"
-    expenses_title.fill = HEADER_FILL
-    expenses_title.font = HEADER_FONT
-    expenses_title.alignment = Alignment(horizontal="left", vertical="center")
-
-    expenses_header_row = expenses_title_row + 1
-    for column_index, column_name in enumerate(("DETALLE", "VALOR"), start=1):
-        cell = sheet.cell(row=expenses_header_row, column=column_index, value=column_name)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = THIN_BORDER
-
-    expenses_first_row = expenses_header_row + 1
-    for offset in range(EXPENSE_ROWS):
-        row = expenses_first_row + offset
-        sheet.cell(row=row, column=1).border = THIN_BORDER
-        value_cell = sheet.cell(row=row, column=2)
-        value_cell.number_format = CURRENCY_FORMAT
-        value_cell.border = THIN_BORDER
-
-    expenses_last_row = expenses_first_row + EXPENSE_ROWS - 1
-    expenses_total_row = expenses_last_row + 1
-    sheet.cell(row=expenses_total_row, column=1, value="TOTAL GASTOS").font = Font(bold=True)
-    expenses_total = sheet.cell(
-        row=expenses_total_row,
-        column=2,
-        value=f"=SUM(B{expenses_first_row}:B{expenses_last_row})",
-    )
-    expenses_total.number_format = CURRENCY_FORMAT
-    expenses_total.font = Font(bold=True)
 
     widths = {"A": 28, "B": 12, "C": 18, "D": 14, "E": 14, "F": 14, "G": 14, "H": 18, "I": 16}
     for column_letter, width in widths.items():
