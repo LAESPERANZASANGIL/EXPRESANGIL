@@ -746,6 +746,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             efectivo_esperado = totales["efectivo"]
 
             caja = calcular_diferencia_caja(efectivo_esperado, denominaciones)
+            # El conteo queda guardado para que el informe diario lo incluya.
+            REPOSITORY.guardar_cierre_general(
+                fecha.isoformat(), denominaciones, caja["efectivo_contado"]
+            )
             aviso = (
                 f"Advertencia: hay {en_reparto} guia(s) en estado R aun sin cerrar para esta fecha."
                 if en_reparto else ""

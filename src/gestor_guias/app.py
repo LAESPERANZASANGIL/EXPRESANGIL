@@ -13,7 +13,6 @@ from .operadores import hash_password
 from .recaudo import generate_recaudo_report
 from .relacion_ce_rr import generate_relacion_ce_rr_report
 from .reports import (
-    generate_daily_report,
     generate_entregadas_operador_excel,
     generate_monthly_operator_report,
     generate_operator_report,
@@ -120,9 +119,11 @@ def report_by_operator(target_date: date | None, operador: str = "") -> Path:
 
 
 def report_of_day(target_date: date) -> Path:
+    # El informe del dia y el de recaudo salen juntos en un solo archivo
+    # "informe diario", generado por generate_recaudo_report.
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
-    output_path = generate_daily_report(repository, settings.paths.output_dir, target_date)
+    output_path = generate_recaudo_report(repository, settings.paths.output_dir, target_date)
     print(f"Informe generado: {output_path}")
     return output_path
 

@@ -118,6 +118,15 @@ class GuiaRepository:
                 )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS cierres_generales (
+                    fecha TEXT PRIMARY KEY,
+                    denominaciones TEXT NOT NULL DEFAULT '{}',
+                    efectivo_contado INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS guias_archivo (
                     guia TEXT PRIMARY KEY,
                     planilla TEXT,
@@ -423,6 +432,35 @@ class GuiaRepository:
                 [tuple(row[col] for col in self._COLUMNAS_GUIA) for row in rows],
             )
             return len(rows)
+
+    def guardar_cierre_general(self, fecha: str, denominaciones: dict[int, int], efectivo_contado: int) -> None:
+        """Guarda el conteo de billetes del cierre general del dia (para el informe diario)."""
+        self.initialize()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO cierres_generales (fecha, denominaciones, efectivo_contado)
+                VALUES (?, ?, ?)
+                ON CONFLICT(fecha) DO UPDATE SET
+                    denominaciones = excluded.denominaciones,
+                    efectivo_contado = excluded.efectivo_contado
+                """,
+                (fecha, json.dumps({str(d): int(c) for d, c in denominaciones.items()}), int(efectivo_contado)),
+            )
+
+    def obtener_cierre_general(self, fecha: str) -> dict | None:
+        self.initialize()
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT denominaciones, efectivo_contado FROM cierres_generales WHERE fecha = ?",
+                (fecha,),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                "denominaciones": {int(d): int(c) for d, c in json.loads(row[0] or "{}").items()},
+                "efectivo_contado": row[1],
+            }
 
     def entregadas_mes(self, anio: int, mes: int) -> list[dict]:
         """Guias entregadas (E) del mes, por fecha de entrega (F_ENTREGA).
