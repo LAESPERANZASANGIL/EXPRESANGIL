@@ -8,7 +8,16 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from .exporter import MONTHS_ES
-from .reports import ESTADO_RECAUDO, filter_by_date, normalize_dataframe
+from .reports import (
+    DENOMINACIONES,
+    DETAIL_COLUMNS,
+    ESTADO_RECAUDO,
+    apply_report_format,
+    build_breakdown,
+    build_resumen_sheet,
+    filter_by_date,
+    normalize_dataframe,
+)
 from .repository import GuiaRepository
 
 
@@ -28,11 +37,12 @@ COLUMNS = ["OPERADOR", "UNID", "VALOR RECAUDADO", "BANCOS", "NEQUI", "ENVIA", "G
 
 
 def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
+    """Genera el INFORME DIARIO: recaudo (con cierre general) + resumen del dia en un solo Excel."""
     dataframe = normalize_dataframe(repository.to_dataframe())
     daily = filter_by_date(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"informe de recaudo {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
+    output_path = output_dir / f"informe diario {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
 
     if daily.empty:
         totals: dict[str, int] = {}
@@ -194,9 +204,73 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
             label_cell.font = WARNING_FONT
             value_cell.font = WARNING_FONT
 
+    # --- Tabla del cierre general del dia (conteo de billetes de la oficina) ---
+    cierre_general = repository.obtener_cierre_general(target_date.isoformat())
+    denominaciones_contadas = cierre_general["denominaciones"] if cierre_general else {}
+
+    cierre_title_row = summary_row + len(summary_rows) + 2
+    sheet.merge_cells(f"A{cierre_title_row}:C{cierre_title_row}")
+    cierre_title = sheet[f"A{cierre_title_row}"]
+    cierre_title.value = "CIERRE GENERAL DEL DIA (EFECTIVO CONTADO)"
+    cierre_title.fill = HEADER_FILL
+    cierre_title.font = HEADER_FONT
+    cierre_title.alignment = Alignment(horizontal="left", vertical="center")
+
+    cierre_header_row = cierre_title_row + 1
+    for column_index, column_name in enumerate(("DENOMINACION", "CANTIDAD", "SUBTOTAL"), start=1):
+        cell = sheet.cell(row=cierre_header_row, column=column_index, value=column_name)
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = THIN_BORDER
+
+    fila_cierre = cierre_header_row + 1
+    for denominacion in DENOMINACIONES:
+        cantidad = int(denominaciones_contadas.get(denominacion, 0))
+        denominacion_cell = sheet.cell(row=fila_cierre, column=1, value=denominacion)
+        denominacion_cell.number_format = CURRENCY_FORMAT
+        denominacion_cell.border = THIN_BORDER
+        cantidad_cell = sheet.cell(row=fila_cierre, column=2, value=cantidad)
+        cantidad_cell.fill = INPUT_FILL
+        cantidad_cell.border = THIN_BORDER
+        subtotal_cell = sheet.cell(row=fila_cierre, column=3, value=f"=A{fila_cierre}*B{fila_cierre}")
+        subtotal_cell.number_format = CURRENCY_FORMAT
+        subtotal_cell.border = THIN_BORDER
+        fila_cierre += 1
+
+    subtotal_row = fila_cierre
+    subtotal_label = sheet.cell(row=subtotal_row, column=1, value="SUBTOTAL CONTADO")
+    subtotal_label.fill = HEADER_FILL
+    subtotal_label.font = HEADER_FONT
+    sheet.cell(row=subtotal_row, column=2).fill = HEADER_FILL
+    subtotal_total = sheet.cell(
+        row=subtotal_row, column=3,
+        value=f"=SUM(C{cierre_header_row + 1}:C{subtotal_row - 1})",
+    )
+    subtotal_total.fill = HEADER_FILL
+    subtotal_total.font = HEADER_FONT
+    subtotal_total.number_format = CURRENCY_FORMAT
+
     widths = {"A": 28, "B": 12, "C": 18, "D": 14, "E": 14, "F": 14, "G": 14, "H": 18, "I": 16}
     for column_letter, width in widths.items():
         sheet.column_dimensions[column_letter].width = width
+
+    # --- Hojas del informe del dia (antes eran un archivo aparte) ---
+    resumen_sheet = workbook.create_sheet("RESUMEN")
+    build_resumen_sheet(resumen_sheet, daily, target_date)
+
+    hojas_desglose = (
+        ("POR ESTADO", build_breakdown(daily, "ESTADO")),
+        ("POR MUNICIPIO", build_breakdown(daily, "MUNICIPIO")),
+        ("POR OPERADOR", build_breakdown(daily, "OPERADOR")),
+        ("DETALLE", daily[DETAIL_COLUMNS] if not daily.empty else daily.reindex(columns=DETAIL_COLUMNS)),
+    )
+    for nombre_hoja, datos in hojas_desglose:
+        hoja = workbook.create_sheet(nombre_hoja)
+        hoja.append(list(datos.columns))
+        for fila in datos.itertuples(index=False):
+            hoja.append(list(fila))
+        apply_report_format(hoja)
 
     workbook.save(output_path)
     return output_path

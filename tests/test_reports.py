@@ -578,3 +578,27 @@ def test_recaudo_incluye_operadores_con_cierre_sin_guias(tmp_path: Path) -> None
     textos = [hoja.cell(row=r, column=1).value for r in range(1, hoja.max_row + 1)]
     assert "DETALLE DE GASTOS / DESCUENTOS" not in textos
     assert "Adelantos del dia" in textos
+
+
+def test_informe_diario_combina_recaudo_resumen_y_cierre_general(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    repository.save_consolidated(build_dataframe("100", "", "", "10000"))
+    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.guardar_cierre_general(
+        "2026-06-10", {100_000: 2, 50_000: 1}, 250_000
+    )
+
+    ruta = generate_recaudo_report(repository, tmp_path / "output", date(2026, 6, 10))
+
+    assert ruta.name == "informe diario 10 junio.xlsx"
+    workbook = load_workbook(ruta)
+    for hoja in ("RECAUDO", "RESUMEN", "POR ESTADO", "POR MUNICIPIO", "POR OPERADOR", "DETALLE"):
+        assert hoja in workbook.sheetnames
+
+    hoja_recaudo = workbook["RECAUDO"]
+    textos = [hoja_recaudo.cell(row=r, column=1).value for r in range(1, hoja_recaudo.max_row + 1)]
+    assert "CIERRE GENERAL DEL DIA (EFECTIVO CONTADO)" in textos
+    # El conteo guardado del cierre general aparece en la tabla.
+    fila_100k = next(r for r in range(1, hoja_recaudo.max_row + 1) if hoja_recaudo.cell(row=r, column=1).value == 100_000)
+    assert hoja_recaudo.cell(row=fila_100k, column=2).value == 2
