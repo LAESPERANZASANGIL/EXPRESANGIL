@@ -19,6 +19,24 @@ function hoy() {
 
 fechaTrabajo.value = hoy();
 
+// La fecha de trabajo se mantiene al dia aunque la pestana quede abierta de
+// un dia para otro: si el operador no la cambio a mano, se refresca sola.
+// Sin esto, un cierre hecho al dia siguiente quedaba guardado con la fecha
+// vieja y el cierre general del dia no lo sumaba.
+let fechaTrabajoManual = false;
+fechaTrabajo.addEventListener("input", () => {
+  fechaTrabajoManual = true;
+});
+
+function refrescarFechaTrabajo() {
+  if (!fechaTrabajoManual && fechaTrabajo.value !== hoy()) {
+    fechaTrabajo.value = hoy();
+  }
+}
+
+window.addEventListener("focus", refrescarFechaTrabajo);
+setInterval(refrescarFechaTrabajo, 60_000);
+
 async function llamar(ruta, datos) {
   mostrarLog("Procesando...");
   try {

@@ -167,6 +167,26 @@ document.getElementById("btn-iniciar").addEventListener("click", () => {
   if (campoRecalcularFecha && !campoRecalcularFecha.value) campoRecalcularFecha.value = hoy();
 });
 
+// Mantiene las fechas del cierre general y del recalculo al dia aunque la
+// pestana quede abierta de un dia para otro (si el admin no las cambio a mano).
+const fechasTocadas = new Set();
+for (const id of ["cierre-general-fecha", "recalcular-fecha"]) {
+  const campo = document.getElementById(id);
+  if (campo) campo.addEventListener("input", () => fechasTocadas.add(id));
+}
+
+function refrescarFechasDeTrabajo() {
+  for (const id of ["cierre-general-fecha", "recalcular-fecha"]) {
+    const campo = document.getElementById(id);
+    if (campo && campo.value && !fechasTocadas.has(id) && campo.value !== hoy()) {
+      campo.value = hoy();
+    }
+  }
+}
+
+window.addEventListener("focus", refrescarFechasDeTrabajo);
+setInterval(refrescarFechasDeTrabajo, 60_000);
+
 document.getElementById("btn-volver").addEventListener("click", () => {
   pantallaIniciar.classList.add("oculto");
   pantallaPrincipal.classList.remove("oculto");
