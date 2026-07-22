@@ -259,10 +259,12 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     resumen_sheet = workbook.create_sheet("RESUMEN")
     build_resumen_sheet(resumen_sheet, daily, target_date)
 
+    # POR OPERADOR relaciona solo las guias entregadas (E) de cada operador.
+    entregadas_dia = daily[daily["ESTADO"].str.upper() == ESTADO_RECAUDO]
     hojas_desglose = (
         ("POR ESTADO", build_breakdown(daily, "ESTADO")),
         ("POR MUNICIPIO", build_breakdown(daily, "MUNICIPIO")),
-        ("POR OPERADOR", build_breakdown(daily, "OPERADOR")),
+        ("POR OPERADOR", build_breakdown(entregadas_dia, "OPERADOR")),
         ("DETALLE", daily[DETAIL_COLUMNS] if not daily.empty else daily.reindex(columns=DETAIL_COLUMNS)),
     )
     for nombre_hoja, datos in hojas_desglose:
