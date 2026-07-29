@@ -486,3 +486,23 @@ def test_backups_automaticos_se_rotan_y_no_llenan_el_disco(tmp_path: Path) -> No
 
     respaldos = list((tmp_path / "backups").glob("guias_*.db"))
     assert len(respaldos) == GuiaRepository.MAX_BACKUPS
+
+
+def test_respaldo_periodico_crea_copia_integra_y_rota(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    destino = repository.respaldo_periodico()
+
+    assert destino is not None and destino.exists()
+    import sqlite3
+    copia = sqlite3.connect(destino)
+    assert copia.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert copia.execute("SELECT COUNT(*) FROM guias").fetchone()[0] == 1
+
+    # La rotacion conserva como maximo MAX_BACKUPS_PERIODICOS copias.
+    carpeta = tmp_path / "backups"
+    for indice in range(GuiaRepository.MAX_BACKUPS_PERIODICOS + 3):
+        (carpeta / f"periodico_2020010{indice:02d}_000000.db").touch()
+    repository.respaldo_periodico()
+    assert len(list(carpeta.glob("periodico_*.db"))) == GuiaRepository.MAX_BACKUPS_PERIODICOS
