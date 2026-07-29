@@ -1000,6 +1000,36 @@ class GuiaRepository:
     # disco del servidor y SQLite empezaba a fallar con "disk I/O error".
     MAX_BACKUPS = 10
 
+    # Respaldos periodicos (cada pocas horas, ver launcher_server): se
+    # conservan mas copias que las de borrado para poder volver a un punto
+    # cercano en el tiempo si la base se dana.
+    MAX_BACKUPS_PERIODICOS = 24
+
+    def respaldo_periodico(self) -> Path | None:
+        """Copia consistente de la base en caliente, con rotacion propia.
+
+        Usa la API de backup de SQLite (no un copiado de archivo), que
+        produce una copia integra aunque la base este en uso.
+        """
+        if not self.database_file.exists():
+            return None
+        carpeta_backup = self.database_file.parent / "backups"
+        carpeta_backup.mkdir(parents=True, exist_ok=True)
+
+        marca = datetime.now().strftime("%Y%m%d_%H%M%S")
+        destino = carpeta_backup / f"periodico_{marca}.db"
+        with self._connect() as origen:
+            copia = sqlite3.connect(destino)
+            try:
+                origen.backup(copia)
+            finally:
+                copia.close()
+
+        respaldos = sorted(carpeta_backup.glob("periodico_*.db"))
+        for viejo in respaldos[:-self.MAX_BACKUPS_PERIODICOS]:
+            viejo.unlink(missing_ok=True)
+        return destino
+
     def _backup_antes_de_borrar(self) -> None:
         # Copia de seguridad de la base completa antes de un borrado masivo,
         # para poder recuperar la informacion si el borrado fue un error.

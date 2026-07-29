@@ -1322,8 +1322,25 @@ class LauncherHandler(BaseHTTPRequestHandler):
         pass
 
 
+# Respaldo automatico de la base cada 2 horas, ademas del que se hace
+# antes de cada borrado, para poder volver a un punto cercano si la base
+# se dana o se pierde trabajo.
+INTERVALO_RESPALDO_SEGUNDOS = 2 * 60 * 60
+
+
+def _bucle_respaldo_periodico() -> None:
+    while True:
+        try:
+            REPOSITORY.respaldo_periodico()
+        except Exception as error:  # noqa: BLE001 - no debe tumbar el panel
+            print(f"Aviso: fallo el respaldo periodico: {error}")
+        time.sleep(INTERVALO_RESPALDO_SEGUNDOS)
+
+
 def main() -> None:
     global COOKIE_SECURE
+
+    threading.Thread(target=_bucle_respaldo_periodico, daemon=True).start()
 
     server = ThreadingHTTPServer((HOST, PORT), LauncherHandler)
     esquema = "http"
