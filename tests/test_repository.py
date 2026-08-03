@@ -506,3 +506,19 @@ def test_respaldo_periodico_crea_copia_integra_y_rota(tmp_path: Path) -> None:
         (carpeta / f"periodico_2020010{indice:02d}_000000.db").touch()
     repository.respaldo_periodico()
     assert len(list(carpeta.glob("periodico_*.db"))) == GuiaRepository.MAX_BACKUPS_PERIODICOS
+
+
+def test_verificar_integridad_reporta_ok_en_base_sana(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+
+    assert repository.verificar_integridad() == "ok"
+
+
+def test_conexion_usa_synchronous_full(tmp_path: Path) -> None:
+    # synchronous=FULL (2) protege la base ante apagones del servidor.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.initialize()
+
+    with repository._connect() as connection:
+        assert connection.execute("PRAGMA synchronous").fetchone()[0] == 2
