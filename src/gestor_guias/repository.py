@@ -993,7 +993,24 @@ class GuiaRepository:
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_file, timeout=30)
         connection.execute("PRAGMA journal_mode=WAL")
+        # synchronous=FULL: cada transaccion se confirma al disco antes de
+        # darla por buena. Con el valor por defecto (NORMAL) un apagon o un
+        # reinicio inesperado del servidor puede dejar la base corrupta
+        # ("database disk image is malformed"), que es justo lo que pasaba.
+        connection.execute("PRAGMA synchronous=FULL")
+        connection.execute("PRAGMA foreign_keys=ON")
         return connection
+
+    def verificar_integridad(self) -> str:
+        """Devuelve 'ok' si la base esta sana, o el detalle del dano."""
+        self.database_file.parent.mkdir(parents=True, exist_ok=True)
+        if not self.database_file.exists():
+            return "ok"
+        try:
+            with self._connect() as connection:
+                return str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+        except sqlite3.DatabaseError as error:
+            return str(error)
 
     # Cantidad maxima de respaldos automaticos que se conservan. Sin este
     # limite la carpeta backups/ crecia con cada borrado hasta llenar el

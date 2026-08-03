@@ -1340,6 +1340,14 @@ def _bucle_respaldo_periodico() -> None:
 def main() -> None:
     global COOKIE_SECURE
 
+    estado_base = REPOSITORY.verificar_integridad()
+    if estado_base != "ok":
+        print(
+            "AVISO: la base de datos presenta danos y el panel puede fallar.\n"
+            f"  Detalle: {estado_base}\n"
+            f"  Restaura el respaldo mas reciente de {SETTINGS.paths.database_file.parent / 'backups'}."
+        )
+
     threading.Thread(target=_bucle_respaldo_periodico, daemon=True).start()
 
     server = ThreadingHTTPServer((HOST, PORT), LauncherHandler)
