@@ -1028,9 +1028,22 @@ class GuiaRepository:
 
         Usa la API de backup de SQLite (no un copiado de archivo), que
         produce una copia integra aunque la base este en uso.
+
+        Si la base de origen esta danada NO se genera copia ni se rota: de
+        lo contrario los respaldos sanos se irian reemplazando por copias
+        corruptas y al cabo de unas horas no quedaria ninguno util.
         """
         if not self.database_file.exists():
             return None
+
+        estado = self.verificar_integridad()
+        if estado != "ok":
+            print(
+                "AVISO: se omite el respaldo periodico porque la base esta danada "
+                f"({estado}). Los respaldos sanos existentes se conservan."
+            )
+            return None
+
         carpeta_backup = self.database_file.parent / "backups"
         carpeta_backup.mkdir(parents=True, exist_ok=True)
 
@@ -1042,6 +1055,14 @@ class GuiaRepository:
                 origen.backup(copia)
             finally:
                 copia.close()
+
+        # Comprobacion final: una copia que no pase el chequeo no sirve de
+        # nada y no debe ocupar un lugar en la rotacion.
+        with closing(sqlite3.connect(destino)) as revision:
+            if str(revision.execute("PRAGMA quick_check").fetchone()[0]) != "ok":
+                destino.unlink(missing_ok=True)
+                print("AVISO: el respaldo periodico salio danado y se descarto.")
+                return None
 
         respaldos = sorted(carpeta_backup.glob("periodico_*.db"))
         for viejo in respaldos[:-self.MAX_BACKUPS_PERIODICOS]:
