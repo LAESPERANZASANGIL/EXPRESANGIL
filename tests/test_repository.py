@@ -522,3 +522,20 @@ def test_conexion_usa_synchronous_full(tmp_path: Path) -> None:
 
     with repository._connect() as connection:
         assert connection.execute("PRAGMA synchronous").fetchone()[0] == 2
+
+
+def test_respaldo_periodico_no_se_hace_si_la_base_esta_danada(tmp_path: Path) -> None:
+    # Una base corrupta no debe generar copias nuevas ni desplazar por
+    # rotacion a los respaldos sanos que ya existen.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Persona A"))
+    sano = repository.respaldo_periodico()
+    assert sano is not None
+
+    datos = bytearray((tmp_path / "guias.db").read_bytes())
+    for posicion in range(4096, min(len(datos), 16384)):
+        datos[posicion] = 0xFF
+    (tmp_path / "guias.db").write_bytes(bytes(datos))
+
+    assert repository.respaldo_periodico() is None
+    assert sano.exists()
