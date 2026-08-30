@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prestamos y Adelantos - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="zona-trabajo.css" />
+  <link rel="stylesheet" href="nomina.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+      <h1>PRESTAMOS Y ADELANTOS</h1>
+      <p class="subtitulo">Prestamos con 2% mensual sobre el saldo y adelantos de nomina</p>
+    </header>
+
+    <section class="opcion">
+      <h3>Registrar prestamo o adelanto</h3>
+      <div class="campos-grid">
+        <div class="campo">
+          <label>EMPLEADO</label>
+          <input type="text" id="nuevo-empleado" list="lista-empleados" placeholder="Nombre del empleado" />
+          <datalist id="lista-empleados"></datalist>
+        </div>
+        <div class="campo">
+          <label>TIPO</label>
+          <select id="nuevo-tipo">
+            <option value="PRESTAMO">Prestamo (cobra 2% mensual)</option>
+            <option value="ADELANTO">Adelanto de nomina (sin interes)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>MONTO</label>
+          <input type="text" id="nuevo-monto" placeholder="0" />
+        </div>
+        <div class="campo">
+          <label>FECHA</label>
+          <input type="date" id="nuevo-fecha" />
+        </div>
+        <div class="campo">
+          <label>FORMA DE PAGO</label>
+          <select id="nuevo-forma-pago">
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="NEQUI">Nequi</option>
+            <option value="DESCUENTO NOMINA">Descuento de nomina</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>CUOTAS</label>
+          <input type="number" id="nuevo-cuotas" value="1" min="1" />
+        </div>
+        <div class="campo campo-ancho">
+          <label>OBSERVACIONES</label>
+          <input type="text" id="nuevo-observaciones" />
+        </div>
+      </div>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-crear">Registrar</button>
+      </div>
+      <p class="ayuda">En los prestamos, el 2% se calcula cada mes sobre el saldo de capital pendiente. Los abonos se aplican primero a los intereses y el resto a capital.</p>
+    </section>
+
+    <section class="opcion">
+      <div class="fila-archivo">
+        <input type="month" id="mes" />
+        <input type="text" id="filtro-empleado" placeholder="Filtrar por empleado (opcional)" />
+        <button class="boton boton-buscar" id="btn-consultar">Consultar</button>
+        <button class="boton boton-accion" id="btn-informe">Informe del mes (Excel)</button>
+      </div>
+      <p id="contador" class="contador">Selecciona un mes y consulta.</p>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <h3>Prestamos y adelantos</h3>
+      <table class="tabla-guias">
+        <thead>
+          <tr>
+            <th>EMPLEADO</th>
+            <th>TIPO</th>
+            <th>FECHA</th>
+            <th>MONTO</th>
+            <th>CUOTAS</th>
+            <th>ABONADO</th>
+            <th>SALDO CAPITAL</th>
+            <th>INTERES MES</th>
+            <th>SALDO TOTAL</th>
+            <th>CUOTA DEL MES</th>
+            <th>ESTADO</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-prestamos"></tbody>
+      </table>
+    </section>
+
+    <section class="opcion" id="panel-abono">
+      <h3>Registrar abono</h3>
+      <p class="ayuda" id="abono-detalle">Selecciona "Abonar" en la tabla para registrar un pago.</p>
+      <div class="campos-grid">
+        <div class="campo">
+          <label>MONTO DEL ABONO</label>
+          <input type="text" id="abono-monto" placeholder="0" />
+        </div>
+        <div class="campo">
+          <label>FECHA</label>
+          <input type="date" id="abono-fecha" />
+        </div>
+        <div class="campo">
+          <label>CONCEPTO</label>
+          <input type="text" id="abono-concepto" placeholder="Ej. descuento de nomina" />
+        </div>
+      </div>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-abonar">Guardar abono</button>
+        <button class="boton boton-buscar" id="btn-cancelar-abono">Cancelar</button>
+      </div>
+    </section>
+
+    <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="prestamos.js"></script>
+</body>
+</html>

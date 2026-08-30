@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nomina - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="zona-trabajo.css" />
+  <link rel="stylesheet" href="nomina.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+      <h1>NOMINA</h1>
+      <p class="subtitulo">Liquidacion mensual del personal</p>
+    </header>
+
+    <section class="opcion">
+      <div class="fila-archivo">
+        <input type="month" id="mes" />
+        <button class="boton boton-buscar" id="btn-consultar">Consultar mes</button>
+        <button class="boton boton-accion" id="btn-informe-excel">Informe Excel</button>
+        <button class="boton boton-accion" id="btn-informe-pdf">Informe PDF</button>
+      </div>
+      <p class="ayuda">El descuento de prestamos se propone automaticamente con la cuota del mes de cada empleado (capital mas el 2% de interes). Puedes ajustarlo antes de liquidar.</p>
+      <p id="contador" class="contador">Selecciona un mes y consulta.</p>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <h3>Liquidacion del mes</h3>
+      <table class="tabla-guias tabla-nomina">
+        <thead>
+          <tr>
+            <th>EMPLEADO</th>
+            <th>SALARIO BASE</th>
+            <th>DIAS</th>
+            <th>AUX. TRANSPORTE</th>
+            <th>BONIFICACIONES</th>
+            <th>OTROS DESC.</th>
+            <th>PRESTAMOS</th>
+            <th>SALUD 4%</th>
+            <th>PENSION 4%</th>
+            <th>NETO A PAGAR</th>
+            <th>ACCION</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-nomina"></tbody>
+      </table>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-liquidar-todos">Liquidar todos los empleados</button>
+      </div>
+    </section>
+
+    <section class="opcion">
+      <h3>Datos de nomina del empleado</h3>
+      <p class="ayuda">Guarda el salario y el auxilio fijos de cada empleado para que se carguen solos cada mes.</p>
+      <div class="campos-grid">
+        <div class="campo">
+          <label>EMPLEADO</label>
+          <select id="config-usuario"></select>
+        </div>
+        <div class="campo">
+          <label>CEDULA</label>
+          <input type="text" id="config-cedula" />
+        </div>
+        <div class="campo">
+          <label>CARGO</label>
+          <input type="text" id="config-cargo" />
+        </div>
+        <div class="campo">
+          <label>SALARIO BASE</label>
+          <input type="text" id="config-salario" />
+        </div>
+        <div class="campo">
+          <label>AUXILIO DE TRANSPORTE</label>
+          <input type="text" id="config-auxilio" />
+        </div>
+      </div>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-guardar-empleado">Guardar datos del empleado</button>
+      </div>
+    </section>
+
+    <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="nomina.js"></script>
+</body>
+</html>

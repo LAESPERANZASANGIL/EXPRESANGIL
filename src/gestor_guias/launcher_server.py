@@ -30,6 +30,15 @@ from .operadores import (
     verify_password,
 )
 from .excel_processor import hoy_colombia, normalize_guide
+from .nomina import (
+    TIPOS_VALIDOS,
+    calcular_nomina_empleado,
+    descuento_nomina_empleado,
+    estados_prestamos,
+    generate_informe_prestamos_excel,
+    generate_nomina_excel,
+    generate_nomina_pdf,
+)
 from .exporter import export_marked_dataframe
 from .reports import (
     build_entregadas_mes_resumen,
@@ -111,6 +120,13 @@ STATIC_FILES = {
     "/entregas-mes.html": ("entregas-mes.html", "text/html; charset=utf-8"),
     "/entregas-mes.js": ("entregas-mes.js", "application/javascript; charset=utf-8"),
     "/entregas-mes.css": ("entregas-mes.css", "text/css; charset=utf-8"),
+    "/prestamos": ("prestamos.html", "text/html; charset=utf-8"),
+    "/prestamos.html": ("prestamos.html", "text/html; charset=utf-8"),
+    "/prestamos.js": ("prestamos.js", "application/javascript; charset=utf-8"),
+    "/nomina": ("nomina.html", "text/html; charset=utf-8"),
+    "/nomina.html": ("nomina.html", "text/html; charset=utf-8"),
+    "/nomina.js": ("nomina.js", "application/javascript; charset=utf-8"),
+    "/nomina.css": ("nomina.css", "text/css; charset=utf-8"),
     "/dashboard": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
@@ -1268,6 +1284,245 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     f"({resultado['archivo']} del archivo y {resultado['zona']} de la zona de trabajo)."
                 ),
             })
+            return
+
+        # ---------------- Prestamos y adelantos de nomina ----------------
+
+        if self.path == "/api/prestamos":
+            if not self._require_admin():
+                return
+            mes = str(data.get("mes", "")).strip()
+            anio, numero_mes = _parse_mes(mes) if mes else (None, None)
+            hasta = f"{anio:04d}-{numero_mes:02d}" if anio else ""
+            estados = estados_prestamos(
+                REPOSITORY,
+                empleado=str(data.get("empleado", "")).strip(),
+                hasta=hasta,
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"{len(estados)} registro(s).",
+                "prestamos": estados,
+                "empleados": [
+                    {"nombre": e["nombre"], "usuario": e["usuario"]}
+                    for e in REPOSITORY.listar_empleados_nomina()
+                ],
+            })
+            return
+
+        if self.path == "/api/prestamos/crear":
+            if not self._require_admin():
+                return
+            empleado = str(data.get("empleado", "")).strip()
+            tipo = str(data.get("tipo", "")).strip().upper()
+            monto = value_to_number(data.get("monto", 0))
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            if not empleado:
+                self._send_json({"ok": False, "output": "Indica el empleado."})
+                return
+            if tipo not in TIPOS_VALIDOS:
+                self._send_json({"ok": False, "output": "El tipo debe ser PRESTAMO o ADELANTO."})
+                return
+            if monto <= 0:
+                self._send_json({"ok": False, "output": "El monto debe ser mayor a cero."})
+                return
+            try:
+                _validar_fecha_opcional(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            prestamo_id = REPOSITORY.crear_prestamo(
+                empleado=empleado,
+                tipo=tipo,
+                monto=monto,
+                fecha=fecha_texto,
+                forma_pago=str(data.get("forma_pago", "")).strip(),
+                cuotas=int(value_to_number(data.get("cuotas", 1)) or 1),
+                observaciones=str(data.get("observaciones", "")).strip(),
+            )
+            registrar_auditoria(
+                self._get_session()["usuario"],
+                "crear-prestamo",
+                f"#{prestamo_id} {tipo} {empleado} por {monto}",
+            )
+            etiqueta = "Prestamo" if tipo == "PRESTAMO" else "Adelanto"
+            self._send_json({
+                "ok": True,
+                "output": f"{etiqueta} registrado para {empleado}.",
+                "id": prestamo_id,
+            })
+            return
+
+        if self.path == "/api/prestamos/abonar":
+            if not self._require_admin():
+                return
+            prestamo_id = int(value_to_number(data.get("prestamo_id", 0)))
+            monto = value_to_number(data.get("monto", 0))
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            if not REPOSITORY.obtener_prestamo(prestamo_id):
+                self._send_json({"ok": False, "output": "No se encontro el prestamo."})
+                return
+            if monto <= 0:
+                self._send_json({"ok": False, "output": "El abono debe ser mayor a cero."})
+                return
+            REPOSITORY.registrar_abono(
+                prestamo_id, fecha_texto, monto, str(data.get("concepto", "")).strip()
+            )
+            registrar_auditoria(
+                self._get_session()["usuario"], "abonar-prestamo", f"#{prestamo_id} por {monto}"
+            )
+            self._send_json({"ok": True, "output": f"Abono registrado por $ {monto:,}".replace(",", ".")})
+            return
+
+        if self.path == "/api/prestamos/detalle":
+            if not self._require_admin():
+                return
+            prestamo_id = int(value_to_number(data.get("prestamo_id", 0)))
+            prestamo = REPOSITORY.obtener_prestamo(prestamo_id)
+            if not prestamo:
+                self._send_json({"ok": False, "output": "No se encontro el prestamo."})
+                return
+            self._send_json({
+                "ok": True,
+                "output": "Detalle cargado.",
+                "abonos": REPOSITORY.listar_abonos(prestamo_id),
+            })
+            return
+
+        if self.path == "/api/prestamos/anular":
+            if not self._require_admin():
+                return
+            prestamo_id = int(value_to_number(data.get("prestamo_id", 0)))
+            if not REPOSITORY.anular_prestamo(prestamo_id):
+                self._send_json({"ok": False, "output": "No se encontro el prestamo."})
+                return
+            registrar_auditoria(self._get_session()["usuario"], "anular-prestamo", f"#{prestamo_id}")
+            self._send_json({"ok": True, "output": "Registro anulado."})
+            return
+
+        if self.path == "/api/prestamos/informe":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            ruta = generate_informe_prestamos_excel(REPOSITORY, SETTINGS.paths.output_dir, anio, mes)
+            self._send_json({
+                "ok": True,
+                "output": f"Informe generado: {ruta.name}",
+                "descargas": [ruta.name],
+            })
+            return
+
+        # ---------------------------- Nomina ----------------------------
+
+        if self.path == "/api/nomina":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            periodo = f"{anio:04d}-{mes:02d}"
+            liquidados = {r["empleado"]: r for r in REPOSITORY.listar_nomina(periodo)}
+            empleados = []
+            for empleado in REPOSITORY.listar_empleados_nomina():
+                nombre = empleado["nombre"]
+                registro = liquidados.get(nombre)
+                empleados.append({
+                    "usuario": empleado["usuario"],
+                    "nombre": nombre,
+                    "cargo": empleado["cargo"],
+                    "cedula": empleado["cedula"],
+                    "salario_base": registro["salario_base"] if registro else empleado["salario_base"],
+                    "auxilio_transporte": (
+                        registro["auxilio_transporte"] if registro else empleado["auxilio_transporte"]
+                    ),
+                    "dias_trabajados": registro["dias_trabajados"] if registro else 30,
+                    "bonificaciones": registro["bonificaciones"] if registro else 0,
+                    "otros_descuentos": registro["otros_descuentos"] if registro else 0,
+                    "observaciones": registro["observaciones"] if registro else "",
+                    "descuento_prestamos": (
+                        registro["descuento_prestamos"] if registro
+                        else descuento_nomina_empleado(REPOSITORY, nombre, periodo)
+                    ),
+                    "total_pagar": registro["total_pagar"] if registro else 0,
+                    "liquidado": registro is not None,
+                })
+            self._send_json({"ok": True, "output": f"{len(empleados)} empleado(s).", "empleados": empleados})
+            return
+
+        if self.path == "/api/nomina/liquidar":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            periodo = f"{anio:04d}-{mes:02d}"
+            empleado = str(data.get("empleado", "")).strip()
+            if not empleado:
+                self._send_json({"ok": False, "output": "Indica el empleado."})
+                return
+
+            descuento = data.get("descuento_prestamos")
+            if descuento is None or str(descuento).strip() == "":
+                descuento = descuento_nomina_empleado(REPOSITORY, empleado, periodo)
+            liquidacion = calcular_nomina_empleado(
+                salario_base=value_to_number(data.get("salario_base", 0)),
+                dias_trabajados=int(value_to_number(data.get("dias_trabajados", 30))),
+                auxilio_transporte=value_to_number(data.get("auxilio_transporte", 0)),
+                bonificaciones=value_to_number(data.get("bonificaciones", 0)),
+                descuento_prestamos=value_to_number(descuento),
+                otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
+            )
+            liquidacion["observaciones"] = str(data.get("observaciones", "")).strip()
+            REPOSITORY.guardar_nomina(periodo, empleado, liquidacion)
+            registrar_auditoria(
+                self._get_session()["usuario"],
+                "liquidar-nomina",
+                f"{periodo} {empleado}: neto {liquidacion['total_pagar']}",
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Nomina de {empleado} liquidada para {periodo}.",
+                "liquidacion": liquidacion,
+            })
+            return
+
+        if self.path == "/api/nomina/informe":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            if str(data.get("formato", "excel")).strip().lower() == "pdf":
+                ruta = generate_nomina_pdf(REPOSITORY, SETTINGS.paths.output_dir, anio, mes)
+            else:
+                ruta = generate_nomina_excel(REPOSITORY, SETTINGS.paths.output_dir, anio, mes)
+            self._send_json({
+                "ok": True,
+                "output": f"Informe generado: {ruta.name}",
+                "descargas": [ruta.name],
+            })
+            return
+
+        if self.path == "/api/nomina/empleado":
+            if not self._require_admin():
+                return
+            usuario = str(data.get("usuario", "")).strip()
+            if not REPOSITORY.actualizar_datos_nomina_operador(
+                usuario=usuario,
+                salario_base=value_to_number(data.get("salario_base", 0)),
+                auxilio_transporte=value_to_number(data.get("auxilio_transporte", 0)),
+                cedula=str(data.get("cedula", "")).strip(),
+                cargo=str(data.get("cargo", "")).strip(),
+            ):
+                self._send_json({"ok": False, "output": "No se encontro el empleado."})
+                return
+            self._send_json({"ok": True, "output": f"Datos de nomina de {usuario} actualizados."})
             return
 
         if self.path == "/api/admin/rendimiento-mensual":
