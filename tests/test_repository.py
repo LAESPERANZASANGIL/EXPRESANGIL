@@ -228,11 +228,16 @@ def test_operadores_crud(tmp_path: Path) -> None:
         "licencia_vencimiento": "",
         "soat_vencimiento": "",
         "tecnomecanica_vencimiento": "",
-        # Datos de nomina, vacios hasta que el admin los configure.
+        # Datos laborales, vacios hasta que el admin los configure.
         "cedula": "",
         "cargo": "",
         "salario_base": 0,
         "auxilio_transporte": 0,
+        "apellidos": "",
+        "fecha_ingreso": "",
+        "fecha_retiro": "",
+        "tipo_contrato": "NOMINA",
+        "valor_encomienda": 0,
     }
 
     repository.crear_operador("kevin", "hash2", "KEVIN ACTUALIZADO")

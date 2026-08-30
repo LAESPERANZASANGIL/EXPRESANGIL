@@ -30,6 +30,17 @@ from .operadores import (
     verify_password,
 )
 from .excel_processor import hoy_colombia, normalize_guide
+from .liquidaciones import (
+    CONTRATO_NOMINA,
+    CONTRATO_SERVICIOS,
+    CONTRATOS_VALIDOS,
+    calcular_liquidacion_laboral,
+    calcular_liquidacion_semanal,
+    generate_liquidacion_semanal_excel,
+    generate_liquidaciones_laborales_excel,
+    inicio_de_semana,
+    preparar_semana,
+)
 from .nomina import (
     TIPOS_VALIDOS,
     calcular_nomina_empleado,
@@ -127,6 +138,9 @@ STATIC_FILES = {
     "/nomina.html": ("nomina.html", "text/html; charset=utf-8"),
     "/nomina.js": ("nomina.js", "application/javascript; charset=utf-8"),
     "/nomina.css": ("nomina.css", "text/css; charset=utf-8"),
+    "/liquidaciones": ("liquidaciones.html", "text/html; charset=utf-8"),
+    "/liquidaciones.html": ("liquidaciones.html", "text/html; charset=utf-8"),
+    "/liquidaciones.js": ("liquidaciones.js", "application/javascript; charset=utf-8"),
     "/dashboard": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
     "/dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
@@ -1427,7 +1441,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
             periodo = f"{anio:04d}-{mes:02d}"
             liquidados = {r["empleado"]: r for r in REPOSITORY.listar_nomina(periodo)}
             empleados = []
-            for empleado in REPOSITORY.listar_empleados_nomina():
+            for empleado in REPOSITORY.listar_empleados_nomina(CONTRATO_NOMINA):
                 nombre = empleado["nombre"]
                 registro = liquidados.get(nombre)
                 empleados.append({
@@ -1507,6 +1521,220 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
+            return
+
+        # ------------------- Liquidaciones (semanal) --------------------
+
+        if self.path == "/api/liquidaciones/semana":
+            if not self._require_admin():
+                return
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            try:
+                _validar_fecha_opcional(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            semana = preparar_semana(REPOSITORY, fecha_texto)
+            self._send_json({
+                "ok": True,
+                "output": (
+                    f"Semana del {semana['semana_inicio']} al {semana['semana_fin']}: "
+                    f"{len(semana['empleados'])} contratista(s) de servicios."
+                ),
+                **semana,
+            })
+            return
+
+        if self.path == "/api/liquidaciones/semana/guardar":
+            if not self._require_admin():
+                return
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            empleado = str(data.get("empleado", "")).strip()
+            if not empleado:
+                self._send_json({"ok": False, "output": "Indica el empleado."})
+                return
+            try:
+                semana_inicio = inicio_de_semana(fecha_texto).isoformat()
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            calculo = calcular_liquidacion_semanal(
+                entregas=int(value_to_number(data.get("entregas", 0))),
+                valor_encomienda=value_to_number(data.get("valor_encomienda", 0)),
+                descuento_prestamos=value_to_number(data.get("descuento_prestamos", 0)),
+                otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
+            )
+            calculo["forma_pago"] = str(data.get("forma_pago", "")).strip()
+            calculo["observaciones"] = str(data.get("observaciones", "")).strip()
+            REPOSITORY.guardar_liquidacion_semanal(semana_inicio, empleado, calculo)
+            registrar_auditoria(
+                self._get_session()["usuario"],
+                "liquidar-semana",
+                f"{semana_inicio} {empleado}: {calculo['entregas']} entregas, neto {calculo['total_pagar']}",
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Liquidacion de {empleado} guardada para la semana del {semana_inicio}.",
+                "liquidacion": calculo,
+            })
+            return
+
+        if self.path == "/api/liquidaciones/semana/informe":
+            if not self._require_admin():
+                return
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            try:
+                _validar_fecha_opcional(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            ruta = generate_liquidacion_semanal_excel(
+                REPOSITORY, SETTINGS.paths.output_dir, fecha_texto
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Informe generado: {ruta.name}",
+                "descargas": [ruta.name],
+            })
+            return
+
+        # ---------------- Liquidacion laboral definitiva ----------------
+
+        if self.path == "/api/liquidaciones/laboral/calcular":
+            if not self._require_admin():
+                return
+            fecha_ingreso = str(data.get("fecha_ingreso", "")).strip()
+            fecha_retiro = str(data.get("fecha_retiro", "")).strip()
+            try:
+                _validar_fecha_opcional(fecha_ingreso)
+                _validar_fecha_opcional(fecha_retiro)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fechas invalidas."})
+                return
+            if not fecha_ingreso or not fecha_retiro:
+                self._send_json({"ok": False, "output": "Indica la fecha de ingreso y la de retiro."})
+                return
+            dias_prima = data.get("dias_prima")
+            dias_vacaciones = data.get("dias_vacaciones")
+            calculo = calcular_liquidacion_laboral(
+                salario_base=value_to_number(data.get("salario_base", 0)),
+                auxilio_transporte=value_to_number(data.get("auxilio_transporte", 0)),
+                fecha_ingreso=fecha_ingreso,
+                fecha_retiro=fecha_retiro,
+                dias_prima=int(value_to_number(dias_prima)) if str(dias_prima or "").strip() else None,
+                dias_vacaciones=(
+                    int(value_to_number(dias_vacaciones)) if str(dias_vacaciones or "").strip() else None
+                ),
+                indemnizacion=value_to_number(data.get("indemnizacion", 0)),
+                otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
+            )
+            self._send_json({"ok": True, "output": "Liquidacion calculada.", "liquidacion": calculo})
+            return
+
+        if self.path == "/api/liquidaciones/laboral/guardar":
+            if not self._require_admin():
+                return
+            empleado = str(data.get("empleado", "")).strip()
+            fecha_ingreso = str(data.get("fecha_ingreso", "")).strip()
+            fecha_retiro = str(data.get("fecha_retiro", "")).strip()
+            if not empleado or not fecha_ingreso or not fecha_retiro:
+                self._send_json({"ok": False, "output": "Indica empleado, fecha de ingreso y de retiro."})
+                return
+            try:
+                _validar_fecha_opcional(fecha_ingreso)
+                _validar_fecha_opcional(fecha_retiro)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fechas invalidas."})
+                return
+            dias_prima = data.get("dias_prima")
+            dias_vacaciones = data.get("dias_vacaciones")
+            calculo = calcular_liquidacion_laboral(
+                salario_base=value_to_number(data.get("salario_base", 0)),
+                auxilio_transporte=value_to_number(data.get("auxilio_transporte", 0)),
+                fecha_ingreso=fecha_ingreso,
+                fecha_retiro=fecha_retiro,
+                dias_prima=int(value_to_number(dias_prima)) if str(dias_prima or "").strip() else None,
+                dias_vacaciones=(
+                    int(value_to_number(dias_vacaciones)) if str(dias_vacaciones or "").strip() else None
+                ),
+                indemnizacion=value_to_number(data.get("indemnizacion", 0)),
+                otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
+            )
+            calculo["empleado"] = empleado
+            calculo["observaciones"] = str(data.get("observaciones", "")).strip()
+            liquidacion_id = REPOSITORY.guardar_liquidacion_laboral(calculo)
+            registrar_auditoria(
+                self._get_session()["usuario"],
+                "liquidacion-laboral",
+                f"#{liquidacion_id} {empleado} retiro {fecha_retiro}: total {calculo['total_pagar']}",
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Liquidacion definitiva de {empleado} guardada.",
+                "id": liquidacion_id,
+                "liquidacion": calculo,
+            })
+            return
+
+        if self.path == "/api/liquidaciones/laboral":
+            if not self._require_admin():
+                return
+            self._send_json({
+                "ok": True,
+                "output": "Historico cargado.",
+                "liquidaciones": REPOSITORY.listar_liquidaciones_laborales(
+                    str(data.get("empleado", "")).strip()
+                ),
+                "empleados": REPOSITORY.listar_empleados_nomina(),
+            })
+            return
+
+        if self.path == "/api/liquidaciones/laboral/informe":
+            if not self._require_admin():
+                return
+            ruta = generate_liquidaciones_laborales_excel(
+                REPOSITORY, SETTINGS.paths.output_dir, str(data.get("empleado", "")).strip()
+            )
+            self._send_json({
+                "ok": True,
+                "output": f"Informe generado: {ruta.name}",
+                "descargas": [ruta.name],
+            })
+            return
+
+        # ------------------- Datos laborales del empleado ----------------
+
+        if self.path == "/api/empleados":
+            if not self._require_admin():
+                return
+            self._send_json({
+                "ok": True,
+                "output": "Empleados cargados.",
+                "empleados": REPOSITORY.listar_empleados_nomina(),
+            })
+            return
+
+        if self.path == "/api/empleados/guardar":
+            if not self._require_admin():
+                return
+            usuario = str(data.get("usuario", "")).strip()
+            tipo_contrato = str(data.get("tipo_contrato", "")).strip().upper() or CONTRATO_NOMINA
+            if tipo_contrato not in CONTRATOS_VALIDOS:
+                self._send_json({"ok": False, "output": "El contrato debe ser NOMINA o SERVICIOS."})
+                return
+            for campo in ("fecha_ingreso", "fecha_retiro"):
+                try:
+                    _validar_fecha_opcional(data.get(campo, ""))
+                except ValueError:
+                    self._send_json({"ok": False, "output": f"La {campo.replace('_', ' ')} es invalida."})
+                    return
+            if not REPOSITORY.actualizar_datos_empleado(usuario, {**data, "tipo_contrato": tipo_contrato}):
+                self._send_json({"ok": False, "output": "No se encontro el empleado."})
+                return
+            registrar_auditoria(
+                self._get_session()["usuario"], "editar-empleado", f"{usuario} ({tipo_contrato})"
+            )
+            self._send_json({"ok": True, "output": f"Datos de {usuario} actualizados."})
             return
 
         if self.path == "/api/nomina/empleado":

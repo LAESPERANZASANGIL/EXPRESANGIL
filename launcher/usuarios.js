@@ -133,6 +133,7 @@ async function cargarUsuarios() {
           const resultado = await llamar("/api/usuarios/eliminar", { usuario: usuario.usuario });
           if (resultado.ok) {
             await cargarUsuarios();
+            await cargarEmpleadosLaborales();
           }
         });
         celdaAcciones.appendChild(botonEliminar);
@@ -156,6 +157,7 @@ async function mostrarPantallaAdmin(nombre) {
   nombreAdmin.textContent = nombre;
   mostrarPantalla(pantallaAdmin);
   await cargarUsuarios();
+  await cargarEmpleadosLaborales();
 }
 
 async function iniciar() {
@@ -260,3 +262,69 @@ btnCancelarEdicion.addEventListener("click", () => {
 });
 
 iniciar();
+
+// ---------------------- Datos laborales del empleado ----------------------
+// Complementan al usuario: contrato, fechas y valores de pago. Los de
+// NOMINA se liquidan en el modulo de Nomina; los de SERVICIOS, semanalmente
+// por encomienda entregada en el modulo de Liquidaciones.
+
+const empUsuario = document.getElementById("emp-usuario");
+const empContrato = document.getElementById("emp-contrato");
+let empleadosLaborales = [];
+
+function alternarCamposContrato() {
+  const esServicios = empContrato.value === "SERVICIOS";
+  document.getElementById("campo-salario").style.display = esServicios ? "none" : "";
+  document.getElementById("campo-auxilio").style.display = esServicios ? "none" : "";
+  document.getElementById("campo-encomienda").style.display = esServicios ? "" : "none";
+}
+
+function cargarEmpleadoSeleccionado() {
+  const empleado = empleadosLaborales.find((e) => e.usuario === empUsuario.value);
+  if (!empleado) return;
+  document.getElementById("emp-apellidos").value = empleado.apellidos || "";
+  document.getElementById("emp-cedula").value = empleado.cedula || "";
+  document.getElementById("emp-cargo").value = empleado.cargo || "";
+  document.getElementById("emp-ingreso").value = empleado.fecha_ingreso || "";
+  document.getElementById("emp-retiro").value = empleado.fecha_retiro || "";
+  empContrato.value = empleado.tipo_contrato || "NOMINA";
+  document.getElementById("emp-salario").value = empleado.salario_base || 0;
+  document.getElementById("emp-auxilio").value = empleado.auxilio_transporte || 0;
+  document.getElementById("emp-encomienda").value = empleado.valor_encomienda || 0;
+  alternarCamposContrato();
+}
+
+async function cargarEmpleadosLaborales() {
+  const resultado = await llamar("/api/empleados", {});
+  if (!resultado.ok) return;
+  empleadosLaborales = resultado.empleados || [];
+  const seleccionado = empUsuario.value;
+  empUsuario.innerHTML = "";
+  for (const empleado of empleadosLaborales) {
+    const opcion = document.createElement("option");
+    opcion.value = empleado.usuario;
+    opcion.textContent = `${empleado.nombre} ${empleado.apellidos || ""} (${empleado.usuario})`.trim();
+    empUsuario.appendChild(opcion);
+  }
+  if (seleccionado) empUsuario.value = seleccionado;
+  cargarEmpleadoSeleccionado();
+}
+
+empUsuario.addEventListener("change", cargarEmpleadoSeleccionado);
+empContrato.addEventListener("change", alternarCamposContrato);
+
+document.getElementById("btn-guardar-empleado").addEventListener("click", async () => {
+  const resultado = await llamar("/api/empleados/guardar", {
+    usuario: empUsuario.value,
+    apellidos: document.getElementById("emp-apellidos").value,
+    cedula: document.getElementById("emp-cedula").value,
+    cargo: document.getElementById("emp-cargo").value,
+    fecha_ingreso: document.getElementById("emp-ingreso").value,
+    fecha_retiro: document.getElementById("emp-retiro").value,
+    tipo_contrato: empContrato.value,
+    salario_base: document.getElementById("emp-salario").value,
+    auxilio_transporte: document.getElementById("emp-auxilio").value,
+    valor_encomienda: document.getElementById("emp-encomienda").value,
+  });
+  if (resultado.ok) await cargarEmpleadosLaborales();
+});
