@@ -106,6 +106,59 @@
       </div>
 
       <div class="opcion">
+        <h3>Datos laborales del empleado</h3>
+        <p class="ayuda">Define el tipo de contrato de cada persona. Los de <strong>NOMINA</strong> aparecen en el modulo de Nomina; los de <strong>SERVICIOS</strong> se pagan semanalmente por encomienda entregada, en el modulo de Liquidaciones.</p>
+        <div class="campos-grid">
+          <div class="campo">
+            <label>EMPLEADO</label>
+            <select id="emp-usuario"></select>
+          </div>
+          <div class="campo">
+            <label>APELLIDOS</label>
+            <input type="text" id="emp-apellidos" />
+          </div>
+          <div class="campo">
+            <label>CEDULA</label>
+            <input type="text" id="emp-cedula" />
+          </div>
+          <div class="campo">
+            <label>CARGO</label>
+            <input type="text" id="emp-cargo" />
+          </div>
+          <div class="campo">
+            <label>FECHA DE INGRESO</label>
+            <input type="date" id="emp-ingreso" />
+          </div>
+          <div class="campo">
+            <label>FECHA DE RETIRO (si ya no trabaja)</label>
+            <input type="date" id="emp-retiro" />
+          </div>
+          <div class="campo">
+            <label>TIPO DE CONTRATO</label>
+            <select id="emp-contrato">
+              <option value="NOMINA">Nomina (salario mensual)</option>
+              <option value="SERVICIOS">Servicios (pago por encomienda)</option>
+            </select>
+          </div>
+          <div class="campo" id="campo-salario">
+            <label>SALARIO BASE</label>
+            <input type="text" id="emp-salario" />
+          </div>
+          <div class="campo" id="campo-auxilio">
+            <label>AUXILIO DE TRANSPORTE</label>
+            <input type="text" id="emp-auxilio" />
+          </div>
+          <div class="campo" id="campo-encomienda">
+            <label>VALOR POR ENCOMIENDA</label>
+            <input type="text" id="emp-encomienda" />
+          </div>
+        </div>
+        <div class="acciones-formulario">
+          <button class="boton boton-accion" id="btn-guardar-empleado">Guardar datos laborales</button>
+        </div>
+      </div>
+
+      <div class="opcion">
         <h3>Usuarios registrados</h3>
         <table class="tabla-usuarios">
           <thead>

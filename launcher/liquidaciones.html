@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liquidaciones - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="zona-trabajo.css" />
+  <link rel="stylesheet" href="nomina.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+      <h1>LIQUIDACIONES</h1>
+      <p class="subtitulo">Pago semanal de servicios y liquidacion laboral definitiva</p>
+    </header>
+
+    <!-- ============ Liquidacion semanal de contratistas ============ -->
+    <section class="opcion">
+      <h3>1. Pago semanal por encomiendas (contrato de servicios)</h3>
+      <div class="fila-archivo">
+        <input type="date" id="semana-fecha" />
+        <button class="boton boton-buscar" id="btn-cargar-semana">Cargar semana</button>
+        <button class="boton boton-accion" id="btn-informe-semana">Soporte de pago (Excel)</button>
+      </div>
+      <p class="ayuda">Elige cualquier dia de la semana: se toma de lunes a domingo. Las entregas se cuentan por fecha de gestion (guias en estado E) e incluyen las ya archivadas. El descuento de prestamos se propone solo.</p>
+      <p id="rango-semana" class="contador">Selecciona una fecha y carga la semana.</p>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <table class="tabla-guias tabla-nomina">
+        <thead>
+          <tr>
+            <th>EMPLEADO</th>
+            <th>ENTREGAS</th>
+            <th>VALOR X ENCOMIENDA</th>
+            <th>SUBTOTAL</th>
+            <th>PRESTAMOS</th>
+            <th>OTROS DESC.</th>
+            <th>NETO A PAGAR</th>
+            <th>FORMA DE PAGO</th>
+            <th>ACCION</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-semana"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ Liquidacion laboral definitiva ============ -->
+    <section class="opcion">
+      <h3>2. Liquidacion laboral definitiva (retiro de un empleado)</h3>
+      <p class="ayuda">Calcula cesantias, intereses de cesantias, prima y vacaciones sobre el tiempo trabajado. Cesantias, intereses y prima toman salario mas auxilio; las vacaciones solo el salario. Los dias de prima y vacaciones se pueden ajustar.</p>
+      <div class="campos-grid">
+        <div class="campo">
+          <label>EMPLEADO</label>
+          <select id="liq-empleado"></select>
+        </div>
+        <div class="campo">
+          <label>FECHA DE INGRESO</label>
+          <input type="date" id="liq-ingreso" />
+        </div>
+        <div class="campo">
+          <label>FECHA DE RETIRO</label>
+          <input type="date" id="liq-retiro" />
+        </div>
+        <div class="campo">
+          <label>SALARIO BASE</label>
+          <input type="text" id="liq-salario" />
+        </div>
+        <div class="campo">
+          <label>AUXILIO DE TRANSPORTE</label>
+          <input type="text" id="liq-auxilio" />
+        </div>
+        <div class="campo">
+          <label>DIAS DE PRIMA (vacio = todo el tiempo)</label>
+          <input type="text" id="liq-dias-prima" placeholder="automatico" />
+        </div>
+        <div class="campo">
+          <label>DIAS DE VACACIONES (vacio = todo el tiempo)</label>
+          <input type="text" id="liq-dias-vacaciones" placeholder="automatico" />
+        </div>
+        <div class="campo">
+          <label>INDEMNIZACION</label>
+          <input type="text" id="liq-indemnizacion" value="0" />
+        </div>
+        <div class="campo">
+          <label>OTROS DESCUENTOS</label>
+          <input type="text" id="liq-otros" value="0" />
+        </div>
+        <div class="campo campo-ancho">
+          <label>OBSERVACIONES</label>
+          <input type="text" id="liq-observaciones" />
+        </div>
+      </div>
+      <div class="fila-botones">
+        <button class="boton boton-buscar" id="btn-calcular-liq">Calcular</button>
+        <button class="boton boton-accion" id="btn-guardar-liq">Guardar liquidacion</button>
+      </div>
+      <table class="tabla-resumen" id="tabla-calculo" style="display:none;">
+        <tbody id="cuerpo-calculo"></tbody>
+      </table>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <h3>Liquidaciones laborales registradas</h3>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-informe-laboral">Descargar historico (Excel)</button>
+      </div>
+      <table class="tabla-guias tabla-nomina">
+        <thead>
+          <tr>
+            <th>EMPLEADO</th>
+            <th>INGRESO</th>
+            <th>RETIRO</th>
+            <th>DIAS</th>
+            <th>CESANTIAS</th>
+            <th>INTERESES</th>
+            <th>PRIMA</th>
+            <th>VACACIONES</th>
+            <th>INDEMNIZACION</th>
+            <th>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-laboral"></tbody>
+      </table>
+    </section>
+
+    <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="liquidaciones.js"></script>
+</body>
+</html>

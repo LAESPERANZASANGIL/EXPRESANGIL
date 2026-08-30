@@ -174,12 +174,60 @@ class GuiaRepository:
                 )
                 """
             )
-            # Datos de nomina del empleado, sobre la tabla de operadores.
+            # Liquidacion semanal de los contratistas por servicios: se les
+            # paga por encomienda entregada (estado E) en la semana.
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS liquidaciones_semanales (
+                    semana_inicio TEXT NOT NULL,
+                    empleado TEXT NOT NULL,
+                    entregas INTEGER NOT NULL DEFAULT 0,
+                    valor_encomienda INTEGER NOT NULL DEFAULT 0,
+                    subtotal INTEGER NOT NULL DEFAULT 0,
+                    descuento_prestamos INTEGER NOT NULL DEFAULT 0,
+                    otros_descuentos INTEGER NOT NULL DEFAULT 0,
+                    total_pagar INTEGER NOT NULL DEFAULT 0,
+                    forma_pago TEXT NOT NULL DEFAULT '',
+                    observaciones TEXT NOT NULL DEFAULT '',
+                    registrada_en TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (semana_inicio, empleado)
+                )
+                """
+            )
+            # Liquidacion laboral definitiva al retirar a un empleado.
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS liquidaciones_laborales (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    empleado TEXT NOT NULL,
+                    fecha_ingreso TEXT NOT NULL,
+                    fecha_retiro TEXT NOT NULL,
+                    dias_trabajados INTEGER NOT NULL DEFAULT 0,
+                    salario_base INTEGER NOT NULL DEFAULT 0,
+                    auxilio_transporte INTEGER NOT NULL DEFAULT 0,
+                    cesantias INTEGER NOT NULL DEFAULT 0,
+                    intereses_cesantias INTEGER NOT NULL DEFAULT 0,
+                    prima INTEGER NOT NULL DEFAULT 0,
+                    vacaciones INTEGER NOT NULL DEFAULT 0,
+                    indemnizacion INTEGER NOT NULL DEFAULT 0,
+                    otros_descuentos INTEGER NOT NULL DEFAULT 0,
+                    total_pagar INTEGER NOT NULL DEFAULT 0,
+                    observaciones TEXT NOT NULL DEFAULT '',
+                    registrada_en TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            # Datos de empleado y de nomina, sobre la tabla de operadores.
             for columna, tipo in (
                 ("salario_base", "INTEGER NOT NULL DEFAULT 0"),
                 ("auxilio_transporte", "INTEGER NOT NULL DEFAULT 0"),
                 ("cedula", "TEXT NOT NULL DEFAULT ''"),
                 ("cargo", "TEXT NOT NULL DEFAULT ''"),
+                ("apellidos", "TEXT NOT NULL DEFAULT ''"),
+                ("fecha_ingreso", "TEXT NOT NULL DEFAULT ''"),
+                ("fecha_retiro", "TEXT NOT NULL DEFAULT ''"),
+                ("tipo_contrato", "TEXT NOT NULL DEFAULT 'NOMINA'"),
+                ("valor_encomienda", "INTEGER NOT NULL DEFAULT 0"),
             ):
                 if columna not in columnas:
                     connection.execute(f"ALTER TABLE operadores ADD COLUMN {columna} {tipo}")
@@ -520,16 +568,154 @@ class GuiaRepository:
                 "efectivo_contado": row[1],
             }
 
-    def listar_empleados_nomina(self) -> list[dict]:
-        """Operadores con sus datos de nomina (salario, auxilio, cargo)."""
+    def listar_empleados_nomina(self, tipo_contrato: str = "") -> list[dict]:
+        """Empleados con sus datos laborales y de nomina.
+
+        Con `tipo_contrato` filtra por NOMINA o SERVICIOS.
+        """
         self.initialize()
+        condicion = "WHERE UPPER(TRIM(tipo_contrato)) = UPPER(?)" if tipo_contrato else ""
+        parametros = (tipo_contrato.strip(),) if tipo_contrato else ()
         with closing(self._connect()) as connection, connection:
             connection.row_factory = sqlite3.Row
             rows = connection.execute(
-                """
-                SELECT usuario, nombre, rol, cedula, cargo, salario_base, auxilio_transporte
-                FROM operadores ORDER BY nombre
-                """
+                f"""
+                SELECT usuario, nombre, apellidos, rol, cedula, cargo,
+                       fecha_ingreso, fecha_retiro, tipo_contrato,
+                       salario_base, auxilio_transporte, valor_encomienda
+                FROM operadores {condicion} ORDER BY nombre
+                """,
+                parametros,
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def actualizar_datos_empleado(self, usuario: str, datos: dict) -> bool:
+        """Actualiza los datos laborales del empleado (no toca la contrasena)."""
+        self.initialize()
+        campos = (
+            "apellidos", "cedula", "cargo", "fecha_ingreso", "fecha_retiro",
+            "tipo_contrato", "salario_base", "auxilio_transporte", "valor_encomienda",
+        )
+        numericos = {"salario_base", "auxilio_transporte", "valor_encomienda"}
+        valores = [
+            int(datos.get(campo, 0) or 0) if campo in numericos else str(datos.get(campo, "") or "")
+            for campo in campos
+        ]
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                f"UPDATE operadores SET {', '.join(f'{c} = ?' for c in campos)} WHERE usuario = ?",
+                (*valores, usuario),
+            )
+            return cursor.rowcount > 0
+
+    def contar_entregas_periodo(self, desde: str, hasta: str) -> dict[str, int]:
+        """Encomiendas entregadas (E) por operador entre dos fechas (F_ENTREGA).
+
+        Cuenta tanto las guias vivas como las ya archivadas, para que una
+        liquidacion vieja siga dando el mismo resultado.
+        """
+        self.initialize()
+        conteo: dict[str, int] = {}
+        with closing(self._connect()) as connection, connection:
+            for tabla in ("guias", "guias_archivo"):
+                filas = connection.execute(
+                    f"""
+                    SELECT operador, COUNT(*) FROM {tabla}
+                    WHERE UPPER(TRIM(estado)) = 'E'
+                      AND substr(ingreso, 1, 10) >= ? AND substr(ingreso, 1, 10) <= ?
+                    GROUP BY operador
+                    """,
+                    (desde, hasta),
+                ).fetchall()
+                for operador, cantidad in filas:
+                    conteo[operador] = conteo.get(operador, 0) + int(cantidad)
+        return conteo
+
+    # ------------------------------------------------------------------
+    # Liquidaciones (semanal de servicios y laboral definitiva)
+    # ------------------------------------------------------------------
+
+    def guardar_liquidacion_semanal(self, semana_inicio: str, empleado: str, datos: dict) -> None:
+        self.initialize()
+        campos = (
+            "entregas", "valor_encomienda", "subtotal",
+            "descuento_prestamos", "otros_descuentos", "total_pagar",
+        )
+        with closing(self._connect()) as connection, connection:
+            connection.execute(
+                f"""
+                INSERT INTO liquidaciones_semanales
+                    (semana_inicio, empleado, {', '.join(campos)}, forma_pago, observaciones, registrada_en)
+                VALUES (?, ?, {', '.join('?' * len(campos))}, ?, ?, ?)
+                ON CONFLICT(semana_inicio, empleado) DO UPDATE SET
+                    {', '.join(f'{c} = excluded.{c}' for c in campos)},
+                    forma_pago = excluded.forma_pago,
+                    observaciones = excluded.observaciones,
+                    registrada_en = excluded.registrada_en
+                """,
+                (
+                    semana_inicio,
+                    empleado,
+                    *(int(datos.get(campo, 0) or 0) for campo in campos),
+                    str(datos.get("forma_pago", "")),
+                    str(datos.get("observaciones", "")),
+                    datetime.now().isoformat(timespec="seconds"),
+                ),
+            )
+
+    def listar_liquidaciones_semanales(self, semana_inicio: str = "", empleado: str = "") -> list[dict]:
+        self.initialize()
+        condiciones, parametros = [], []
+        if semana_inicio:
+            condiciones.append("semana_inicio = ?")
+            parametros.append(semana_inicio)
+        if empleado:
+            condiciones.append("UPPER(TRIM(empleado)) = UPPER(?)")
+            parametros.append(empleado.strip())
+        where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                f"SELECT * FROM liquidaciones_semanales {where} ORDER BY semana_inicio DESC, empleado",
+                parametros,
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def guardar_liquidacion_laboral(self, datos: dict) -> int:
+        self.initialize()
+        campos = (
+            "empleado", "fecha_ingreso", "fecha_retiro", "dias_trabajados",
+            "salario_base", "auxilio_transporte", "cesantias", "intereses_cesantias",
+            "prima", "vacaciones", "indemnizacion", "otros_descuentos",
+            "total_pagar", "observaciones",
+        )
+        textos = {"empleado", "fecha_ingreso", "fecha_retiro", "observaciones"}
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                f"""
+                INSERT INTO liquidaciones_laborales ({', '.join(campos)}, registrada_en)
+                VALUES ({', '.join('?' * len(campos))}, ?)
+                """,
+                (
+                    *(
+                        str(datos.get(campo, "") or "") if campo in textos
+                        else int(datos.get(campo, 0) or 0)
+                        for campo in campos
+                    ),
+                    datetime.now().isoformat(timespec="seconds"),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def listar_liquidaciones_laborales(self, empleado: str = "") -> list[dict]:
+        self.initialize()
+        condicion = "WHERE UPPER(TRIM(empleado)) = UPPER(?)" if empleado else ""
+        parametros = (empleado.strip(),) if empleado else ()
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                f"SELECT * FROM liquidaciones_laborales {condicion} ORDER BY fecha_retiro DESC, id DESC",
+                parametros,
             ).fetchall()
             return [dict(row) for row in rows]
 
