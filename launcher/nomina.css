@@ -1,0 +1,92 @@
+/* Estilos compartidos por los modulos de Prestamos y Nomina. */
+
+.campos-grid .campo-ancho {
+  grid-column: 1 / -1;
+}
+
+.tabla-guias th,
+.tabla-guias td {
+  padding: 8px 12px;
+}
+
+/* Celdas editables de la tabla de nomina. */
+.entrada-nomina {
+  width: 110px;
+  padding: 5px 7px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  text-align: right;
+  font-size: 0.92rem;
+}
+
+.entrada-nomina:focus {
+  outline: none;
+  border-color: #1f4e78;
+  background: #f2f7fd;
+}
+
+.tabla-nomina td {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tabla-nomina td:first-child {
+  text-align: left;
+}
+
+.celda-neto {
+  font-weight: bold;
+  color: #1f4e78;
+}
+
+/* Botones pequenos dentro de las tablas. */
+.boton-mini {
+  padding: 5px 10px;
+  margin: 0 2px;
+  border: none;
+  border-radius: 4px;
+  background: #1f4e78;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.boton-mini:hover {
+  background: #163a5a;
+}
+
+.boton-mini-peligro {
+  background: #9b1c1c;
+}
+
+.boton-mini-peligro:hover {
+  background: #7a1515;
+}
+
+/* Estados de fila. */
+.fila-pagada td {
+  color: #6c757d;
+  background: #f4f4f4;
+}
+
+.fila-liquidada td {
+  background: #eaf5ea;
+}
+
+#tabla-prestamos td:nth-child(2),
+#tabla-prestamos td:nth-child(3),
+#tabla-prestamos td:nth-child(5),
+#tabla-prestamos td:nth-child(11) {
+  text-align: center;
+  white-space: nowrap;
+}
+
+#tabla-prestamos td:nth-child(4),
+#tabla-prestamos td:nth-child(6),
+#tabla-prestamos td:nth-child(7),
+#tabla-prestamos td:nth-child(8),
+#tabla-prestamos td:nth-child(9),
+#tabla-prestamos td:nth-child(10) {
+  text-align: right;
+  white-space: nowrap;
+}

@@ -126,6 +126,63 @@ class GuiaRepository:
                 )
                 """
             )
+            # Prestamos y adelantos de nomina. tipo: PRESTAMO (cobra 2%
+            # mensual sobre el saldo) o ADELANTO (sin interes, se descuenta
+            # de la nomina del mes).
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS prestamos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    empleado TEXT NOT NULL,
+                    tipo TEXT NOT NULL,
+                    monto INTEGER NOT NULL,
+                    fecha TEXT NOT NULL,
+                    forma_pago TEXT NOT NULL DEFAULT '',
+                    cuotas INTEGER NOT NULL DEFAULT 1,
+                    observaciones TEXT NOT NULL DEFAULT '',
+                    estado TEXT NOT NULL DEFAULT 'ACTIVO'
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS prestamo_abonos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    prestamo_id INTEGER NOT NULL,
+                    fecha TEXT NOT NULL,
+                    monto INTEGER NOT NULL,
+                    concepto TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS nomina (
+                    periodo TEXT NOT NULL,
+                    empleado TEXT NOT NULL,
+                    salario_base INTEGER NOT NULL DEFAULT 0,
+                    dias_trabajados INTEGER NOT NULL DEFAULT 30,
+                    auxilio_transporte INTEGER NOT NULL DEFAULT 0,
+                    bonificaciones INTEGER NOT NULL DEFAULT 0,
+                    salud INTEGER NOT NULL DEFAULT 0,
+                    pension INTEGER NOT NULL DEFAULT 0,
+                    descuento_prestamos INTEGER NOT NULL DEFAULT 0,
+                    otros_descuentos INTEGER NOT NULL DEFAULT 0,
+                    total_pagar INTEGER NOT NULL DEFAULT 0,
+                    observaciones TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (periodo, empleado)
+                )
+                """
+            )
+            # Datos de nomina del empleado, sobre la tabla de operadores.
+            for columna, tipo in (
+                ("salario_base", "INTEGER NOT NULL DEFAULT 0"),
+                ("auxilio_transporte", "INTEGER NOT NULL DEFAULT 0"),
+                ("cedula", "TEXT NOT NULL DEFAULT ''"),
+                ("cargo", "TEXT NOT NULL DEFAULT ''"),
+            ):
+                if columna not in columnas:
+                    connection.execute(f"ALTER TABLE operadores ADD COLUMN {columna} {tipo}")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS guias_archivo (
@@ -462,6 +519,164 @@ class GuiaRepository:
                 "denominaciones": {int(d): int(c) for d, c in json.loads(row[0] or "{}").items()},
                 "efectivo_contado": row[1],
             }
+
+    def listar_empleados_nomina(self) -> list[dict]:
+        """Operadores con sus datos de nomina (salario, auxilio, cargo)."""
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                """
+                SELECT usuario, nombre, rol, cedula, cargo, salario_base, auxilio_transporte
+                FROM operadores ORDER BY nombre
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    # ------------------------------------------------------------------
+    # Prestamos y adelantos de nomina
+    # ------------------------------------------------------------------
+
+    def crear_prestamo(
+        self,
+        empleado: str,
+        tipo: str,
+        monto: int,
+        fecha: str,
+        forma_pago: str = "",
+        cuotas: int = 1,
+        observaciones: str = "",
+    ) -> int:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO prestamos (empleado, tipo, monto, fecha, forma_pago, cuotas, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (empleado, tipo, int(monto), fecha, forma_pago, max(1, int(cuotas)), observaciones),
+            )
+            return int(cursor.lastrowid)
+
+    def listar_prestamos(self, empleado: str = "", solo_activos: bool = False) -> list[dict]:
+        self.initialize()
+        condiciones, parametros = ["estado != 'ANULADO'"], []
+        if empleado:
+            condiciones.append("UPPER(TRIM(empleado)) = UPPER(?)")
+            parametros.append(empleado.strip())
+        if solo_activos:
+            condiciones.append("estado = 'ACTIVO'")
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                f"SELECT * FROM prestamos WHERE {' AND '.join(condiciones)} ORDER BY fecha DESC, id DESC",
+                parametros,
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def obtener_prestamo(self, prestamo_id: int) -> dict | None:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute("SELECT * FROM prestamos WHERE id = ?", (prestamo_id,)).fetchone()
+            return dict(row) if row else None
+
+    def anular_prestamo(self, prestamo_id: int) -> bool:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                "UPDATE prestamos SET estado = 'ANULADO' WHERE id = ?", (prestamo_id,)
+            )
+            return cursor.rowcount > 0
+
+    def marcar_estado_prestamo(self, prestamo_id: int, estado: str) -> None:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            connection.execute("UPDATE prestamos SET estado = ? WHERE id = ?", (estado, prestamo_id))
+
+    def registrar_abono(self, prestamo_id: int, fecha: str, monto: int, concepto: str = "") -> int:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                "INSERT INTO prestamo_abonos (prestamo_id, fecha, monto, concepto) VALUES (?, ?, ?, ?)",
+                (prestamo_id, fecha, int(monto), concepto),
+            )
+            return int(cursor.lastrowid)
+
+    def listar_abonos(self, prestamo_id: int) -> list[dict]:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT * FROM prestamo_abonos WHERE prestamo_id = ? ORDER BY fecha, id",
+                (prestamo_id,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def eliminar_abono(self, abono_id: int) -> bool:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute("DELETE FROM prestamo_abonos WHERE id = ?", (abono_id,))
+            return cursor.rowcount > 0
+
+    # ------------------------------------------------------------------
+    # Nomina
+    # ------------------------------------------------------------------
+
+    def guardar_nomina(self, periodo: str, empleado: str, datos: dict) -> None:
+        self.initialize()
+        campos = (
+            "salario_base", "dias_trabajados", "auxilio_transporte", "bonificaciones",
+            "salud", "pension", "descuento_prestamos", "otros_descuentos", "total_pagar",
+        )
+        with closing(self._connect()) as connection, connection:
+            connection.execute(
+                f"""
+                INSERT INTO nomina (periodo, empleado, {', '.join(campos)}, observaciones)
+                VALUES (?, ?, {', '.join('?' * len(campos))}, ?)
+                ON CONFLICT(periodo, empleado) DO UPDATE SET
+                    {', '.join(f'{campo} = excluded.{campo}' for campo in campos)},
+                    observaciones = excluded.observaciones
+                """,
+                (
+                    periodo,
+                    empleado,
+                    *(int(datos.get(campo, 0) or 0) for campo in campos),
+                    str(datos.get("observaciones", "")),
+                ),
+            )
+
+    def listar_nomina(self, periodo: str) -> list[dict]:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT * FROM nomina WHERE periodo = ? ORDER BY empleado", (periodo,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def eliminar_nomina(self, periodo: str, empleado: str) -> bool:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                "DELETE FROM nomina WHERE periodo = ? AND empleado = ?", (periodo, empleado)
+            )
+            return cursor.rowcount > 0
+
+    def actualizar_datos_nomina_operador(
+        self, usuario: str, salario_base: int, auxilio_transporte: int, cedula: str, cargo: str
+    ) -> bool:
+        self.initialize()
+        with closing(self._connect()) as connection, connection:
+            cursor = connection.execute(
+                """
+                UPDATE operadores
+                SET salario_base = ?, auxilio_transporte = ?, cedula = ?, cargo = ?
+                WHERE usuario = ?
+                """,
+                (int(salario_base), int(auxilio_transporte), cedula, cargo, usuario),
+            )
+            return cursor.rowcount > 0
 
     def entregadas_mes(self, anio: int, mes: int) -> list[dict]:
         """Guias entregadas (E) del mes, por fecha de entrega (F_ENTREGA).

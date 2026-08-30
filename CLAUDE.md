@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 93 tests.
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 103 tests.
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -48,6 +48,9 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 | `operadores` | `usuario` | Usuarios con `rol` (`admin`/`operador`) y vencimientos de documentos |
 | `cierres_operador` | `fecha, operador` | Cierre diario por repartidor (incluye `denominaciones` en JSON) |
 | `cierres_generales` | `fecha` | Conteo de billetes del cierre general de la oficina |
+| `prestamos` | `id` | Prestamos (2% mensual) y adelantos de nomina |
+| `prestamo_abonos` | `id` | Abonos aplicados a cada prestamo o adelanto |
+| `nomina` | `periodo, empleado` | Liquidacion mensual por empleado |
 
 ## Estados de guia (no inventar nuevos sin confirmar)
 
@@ -73,6 +76,8 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Zona de Trabajo** (`/zona-trabajo`, solo admin): tabla editable con busqueda, filtros estilo Excel, orden por VALOR, edicion individual y masiva, eliminacion, deshacer la ultima modificacion, reversar/regenerar cierres de operador, simular y ejecutar el cierre del dia.
 - **Entregas del Mes** (`/entregas-mes`, solo admin): consulta de entregadas del mes (archivo + zona), buscador de guia, informes finales en Excel y PDF, informes de rendimiento mensual (por operador y de todos), y borrado de las guias del mes.
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
+- **Prestamos y Adelantos** (`/prestamos`, solo admin): registro de prestamos y adelantos, abonos, saldos con interes e informe mensual.
+- **Nomina** (`/nomina`, solo admin): liquidacion mensual por empleado con descuento automatico de prestamos, e informes Excel/PDF.
 - **Modulo Usuarios** (`/usuarios`, solo admin) y **Dashboard** (`/dashboard`, solo admin).
 - **Consulta publica** (`/`): el cliente final consulta el estado de su guia.
 
@@ -82,6 +87,15 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **`entregas {operador} dd mes.xlsx`**: hojas `ENTREGAS`, `NOVEDADES` (RO/N/D con causal) y `CIERRE` (resumen y conteo de billetes).
 - **`informe mensual entregadas {mes} {anio}`** (Excel y PDF) e **informes de rendimiento mensual** (PDF por operador tipo ficha, y PDF horizontal de todos).
 - **`relacion guias ce y rr dd mes.xlsx`**: solo servicios CE/RR entregados con valor > 1; resta el link de Envia. **Es el unico informe que no lleva unidades** (decision del usuario).
+
+## Prestamos, adelantos y nomina (`nomina.py`)
+
+- **Prestamo**: causa **2% mensual sobre el saldo de capital** (`TASA_INTERES_MENSUAL`). El mes del desembolso no causa interes; cada mes posterior si, sobre el capital vigente. Los abonos se aplican **primero a intereses** y el remanente a capital.
+- **Adelanto de nomina**: sin interes; se descuenta de la nomina del mes.
+- `estado_prestamo()` recorre mes a mes hasta la fecha de corte y devuelve saldo de capital, intereses causados/pendientes y la cuota sugerida del mes (capital/cuotas + interes).
+- **Nomina mensual**: salario prorrateado sobre `DIAS_MES_NOMINA = 30`, mas auxilio de transporte (tambien prorrateado) y bonificaciones; menos salud 4%, pension 4%, cuotas de prestamos y otros descuentos. **Salud y pension se calculan solo sobre el salario**, no sobre el auxilio.
+- Los empleados salen de la tabla `operadores` (columnas `salario_base`, `auxilio_transporte`, `cedula`, `cargo`).
+- Informes: `prestamos y adelantos {mes} {anio}.xlsx` y `nomina {mes} {anio}` (Excel y PDF).
 
 ## Respaldos e integridad de la base
 
@@ -131,9 +145,11 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Cierre general de la oficina, con conteo persistido y reflejado en el informe diario.
 - Zona de Trabajo: busqueda multi-campo, filtros estilo Excel, orden por valor, edicion individual y masiva, marcar/desmarcar, deshacer la ultima modificacion, reversar/regenerar cierres.
 - Archivo historico mensual y modulo Entregas del Mes con informes Excel/PDF y estadistica por operador.
+- Prestamos con interes del 2% mensual sobre saldo, adelantos de nomina, abonos e informe mensual.
+- Nomina mensual con descuento automatico de las cuotas del mes e informes en Excel y PDF.
 - Gestion de usuarios con roles y auditoria de acciones destructivas.
 - Consulta publica de guias para el cliente final.
-- Suite de 93 tests en verde.
+- Suite de 103 tests en verde.
 
 ## Que se puede mejorar
 
@@ -153,3 +169,5 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - El "deshacer" es de un solo nivel y en memoria: se pierde al reiniciar y no cubre acciones de operadores.
 - Las fechas de trabajo se refrescan por reloj del navegador; un desfase de zona horaria en el equipo del operador aun podria guardar un cierre con fecha equivocada. Validarlo contra la hora del servidor seria mas seguro.
 - No hay paginacion en la Zona de Trabajo: con miles de guias el navegador renderiza toda la tabla.
+- La nomina no genera colilla de pago individual por empleado ni liquidacion de prestaciones (prima, cesantias, vacaciones).
+- Los abonos a prestamos se registran a mano: liquidar la nomina no descuenta automaticamente la cuota del saldo.
