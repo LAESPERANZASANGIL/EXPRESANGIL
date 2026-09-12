@@ -35,8 +35,8 @@ editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
 nombre = "SAN GIL"
 admin_name = "JOHAN A. ORTIZ"
 # Se le muestran al cliente final cuando consulta una guia que esta en la oficina.
-direccion = "Calle 10 # 9-50, San Gil, Santander"
-telefono = "300 000 0000"
+direccion = "Carrera 9 # 17-22, San Gil, Santander"
+telefono = "3042624407"
 
 [servidor]
 cert_file = ""
