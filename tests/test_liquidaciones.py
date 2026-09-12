@@ -4,6 +4,11 @@ from pathlib import Path
 import pandas as pd
 
 from gestor_guias.liquidaciones import (
+    LIQ_ANUAL,
+    LIQ_PENSION,
+    LIQ_RETIRO_FORZOSO,
+    LIQ_RETIRO_VOLUNTARIO,
+    calcular_indemnizacion,
     calcular_liquidacion_laboral,
     calcular_liquidacion_semanal,
     dias_laborales_360,
@@ -103,9 +108,12 @@ def test_liquidacion_laboral_de_un_anio_completo() -> None:
         auxilio_transporte=200_000,
         fecha_ingreso="2026-01-01",
         fecha_retiro="2027-01-01",
+        tipo_liquidacion=LIQ_RETIRO_VOLUNTARIO,
     )
 
     assert liquidacion["dias_trabajados"] == 360
+    # El retiro voluntario no genera indemnizacion.
+    assert liquidacion["indemnizacion"] == 0
     # Un anio completo: cesantias equivalen a un mes de salario mas auxilio.
     assert liquidacion["cesantias"] == 1_500_000
     assert liquidacion["intereses_cesantias"] == 180_000
@@ -121,6 +129,7 @@ def test_liquidacion_laboral_ajusta_dias_de_prima_y_descuenta() -> None:
         auxilio_transporte=0,
         fecha_ingreso="2026-01-01",
         fecha_retiro="2026-07-01",
+        tipo_liquidacion=LIQ_RETIRO_FORZOSO,
         dias_prima=180,
         indemnizacion=500_000,
         otros_descuentos=100_000,
@@ -166,3 +175,81 @@ def test_liquidaciones_quedan_almacenadas_como_soporte(tmp_path: Path) -> None:
     ruta_laboral = generate_liquidaciones_laborales_excel(repository, tmp_path)
     hoja_laboral = load_workbook(ruta_laboral)["LIQUIDACIONES"]
     assert hoja_laboral.cell(row=4, column=1).value == "KEVIN"
+
+
+def test_liquidacion_anual_solo_paga_cesantias_e_intereses() -> None:
+    # El contrato sigue vigente: la prima y las vacaciones se pagan aparte.
+    liquidacion = calcular_liquidacion_laboral(
+        salario_base=1_300_000,
+        auxilio_transporte=200_000,
+        fecha_ingreso="2026-01-01",
+        fecha_retiro="2027-01-01",
+        tipo_liquidacion=LIQ_ANUAL,
+    )
+
+    assert liquidacion["cesantias"] == 1_500_000
+    assert liquidacion["intereses_cesantias"] == 180_000
+    assert liquidacion["prima"] == 0
+    assert liquidacion["vacaciones"] == 0
+    assert liquidacion["indemnizacion"] == 0
+    assert liquidacion["total_pagar"] == 1_680_000
+
+
+def test_pension_liquida_todo_pero_sin_indemnizacion() -> None:
+    pension = calcular_liquidacion_laboral(
+        1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=LIQ_PENSION
+    )
+    voluntario = calcular_liquidacion_laboral(
+        1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=LIQ_RETIRO_VOLUNTARIO
+    )
+
+    assert pension["prima"] > 0 and pension["vacaciones"] > 0
+    assert pension["indemnizacion"] == 0
+    # Pension y retiro voluntario pagan exactamente lo mismo.
+    assert pension["total_pagar"] == voluntario["total_pagar"]
+
+
+def test_indemnizacion_de_ley_por_despido_sin_justa_causa() -> None:
+    # Hasta un anio: 30 dias de salario.
+    assert calcular_indemnizacion(1_200_000, 360) == 1_200_000
+    assert calcular_indemnizacion(1_200_000, 180) == 1_200_000
+    # Dos anios: 30 dias del primero mas 20 del segundo.
+    assert calcular_indemnizacion(1_200_000, 720) == 2_000_000
+    # Sin salario o sin tiempo trabajado no hay indemnizacion.
+    assert calcular_indemnizacion(0, 360) == 0
+    assert calcular_indemnizacion(1_200_000, 0) == 0
+
+
+def test_retiro_forzoso_sugiere_la_indemnizacion_si_no_se_indica() -> None:
+    automatica = calcular_liquidacion_laboral(
+        1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=LIQ_RETIRO_FORZOSO
+    )
+
+    assert automatica["indemnizacion_sugerida"] == 1_200_000
+    assert automatica["indemnizacion"] == 1_200_000
+
+    # Un valor indicado a mano manda sobre el sugerido.
+    manual = calcular_liquidacion_laboral(
+        1_200_000, 0, "2026-01-01", "2027-01-01",
+        tipo_liquidacion=LIQ_RETIRO_FORZOSO, indemnizacion=900_000,
+    )
+    assert manual["indemnizacion"] == 900_000
+    assert manual["total_pagar"] == automatica["total_pagar"] - 300_000
+
+
+def test_la_clase_de_liquidacion_queda_guardada(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+
+    for tipo in (LIQ_ANUAL, LIQ_RETIRO_FORZOSO):
+        calculo = calcular_liquidacion_laboral(
+            1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=tipo
+        )
+        repository.guardar_liquidacion_laboral({**calculo, "empleado": "KEVIN"})
+
+    registros = repository.listar_liquidaciones_laborales("KEVIN")
+    assert {r["tipo_liquidacion"] for r in registros} == {LIQ_ANUAL, LIQ_RETIRO_FORZOSO}
+
+    ruta = generate_liquidaciones_laborales_excel(repository, tmp_path, "KEVIN")
+    hoja = load_workbook(ruta)["LIQUIDACIONES"]
+    clases = {hoja.cell(row=f, column=2).value for f in (4, 5)}
+    assert "Retiro forzoso (despido sin justa causa)" in clases

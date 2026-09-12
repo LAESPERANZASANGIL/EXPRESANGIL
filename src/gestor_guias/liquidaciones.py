@@ -27,10 +27,63 @@ CONTRATO_NOMINA = "NOMINA"
 CONTRATO_SERVICIOS = "SERVICIOS"
 CONTRATOS_VALIDOS = (CONTRATO_NOMINA, CONTRATO_SERVICIOS)
 
+# Clases de liquidacion laboral. Cambian que conceptos se pagan:
+#
+# - ANUAL: el contrato sigue vigente y solo se liquidan las cesantias y
+#   sus intereses del periodo (el corte anual de cesantias).
+# - RETIRO_VOLUNTARIO (renuncia) y PENSION: liquidacion completa
+#   (cesantias, intereses, prima y vacaciones) SIN indemnizacion.
+# - RETIRO_FORZOSO (despido sin justa causa): liquidacion completa MAS
+#   la indemnizacion del articulo 64 del CST.
+LIQ_ANUAL = "ANUAL"
+LIQ_RETIRO_VOLUNTARIO = "RETIRO_VOLUNTARIO"
+LIQ_RETIRO_FORZOSO = "RETIRO_FORZOSO"
+LIQ_PENSION = "PENSION"
+TIPOS_LIQUIDACION = (LIQ_ANUAL, LIQ_RETIRO_VOLUNTARIO, LIQ_RETIRO_FORZOSO, LIQ_PENSION)
+
+# Etiquetas para informes y pantallas.
+ETIQUETAS_LIQUIDACION = {
+    LIQ_ANUAL: "Liquidacion anual de cesantias",
+    LIQ_RETIRO_VOLUNTARIO: "Retiro voluntario (renuncia)",
+    LIQ_RETIRO_FORZOSO: "Retiro forzoso (despido sin justa causa)",
+    LIQ_PENSION: "Se pensiona",
+}
+
+# Solo el despido sin justa causa genera indemnizacion.
+TIPOS_CON_INDEMNIZACION = (LIQ_RETIRO_FORZOSO,)
+
 # Convenciones laborales colombianas para la liquidacion definitiva.
 DIAS_ANIO_LABORAL = 360
 TASA_INTERESES_CESANTIAS = 0.12
 DIAS_VACACIONES_BASE = 720  # 15 dias habiles por anio trabajado
+
+# Indemnizacion por despido sin justa causa (art. 64 CST, contrato a
+# termino indefinido con salario inferior a 10 SMMLV): 30 dias de salario
+# por el primer anio y 20 dias por cada anio siguiente, proporcional por
+# fraccion. Si el salario supera 10 SMMLV la ley usa 20 y 15 dias; ese
+# caso no aplica en la oficina, pero el valor siempre se puede editar.
+DIAS_INDEMNIZACION_PRIMER_ANIO = 30
+DIAS_INDEMNIZACION_ANIO_ADICIONAL = 20
+DIAS_MES_INDEMNIZACION = 30
+
+
+def calcular_indemnizacion(salario_base: int, dias_trabajados: int) -> int:
+    """Indemnizacion sugerida por despido sin justa causa."""
+    salario_base = int(salario_base or 0)
+    dias_trabajados = max(0, int(dias_trabajados or 0))
+    if salario_base <= 0 or dias_trabajados <= 0:
+        return 0
+
+    salario_diario = salario_base / DIAS_MES_INDEMNIZACION
+    if dias_trabajados <= DIAS_ANIO_LABORAL:
+        dias_a_pagar = DIAS_INDEMNIZACION_PRIMER_ANIO
+    else:
+        adicionales = dias_trabajados - DIAS_ANIO_LABORAL
+        dias_a_pagar = (
+            DIAS_INDEMNIZACION_PRIMER_ANIO
+            + DIAS_INDEMNIZACION_ANIO_ADICIONAL * adicionales / DIAS_ANIO_LABORAL
+        )
+    return round(salario_diario * dias_a_pagar)
 
 
 def inicio_de_semana(fecha: str | date) -> date:
@@ -129,45 +182,83 @@ def calcular_liquidacion_laboral(
     auxilio_transporte: int,
     fecha_ingreso: str,
     fecha_retiro: str,
+    tipo_liquidacion: str = LIQ_RETIRO_VOLUNTARIO,
     dias_prima: int | None = None,
     dias_vacaciones: int | None = None,
-    indemnizacion: int = 0,
+    indemnizacion: int | None = None,
     otros_descuentos: int = 0,
 ) -> dict:
-    """Liquidacion laboral definitiva de un empleado de nomina.
+    """Liquidacion laboral de un empleado de nomina, segun su clase.
 
     Cesantias, intereses y prima se calculan sobre salario + auxilio de
     transporte; las vacaciones solo sobre el salario. Los dias de prima y
     de vacaciones se pueden ajustar (por defecto, todo el tiempo trabajado).
+
+    Que se paga en cada clase:
+
+    - ANUAL: solo cesantias e intereses (el contrato sigue vigente).
+    - RETIRO_VOLUNTARIO y PENSION: todo menos indemnizacion.
+    - RETIRO_FORZOSO: todo, con la indemnizacion sugerida por el
+      articulo 64 del CST si no se indica una a mano.
     """
     salario_base = int(salario_base or 0)
     auxilio_transporte = int(auxilio_transporte or 0)
+    tipo = str(tipo_liquidacion or LIQ_RETIRO_VOLUNTARIO).strip().upper()
+    if tipo not in TIPOS_LIQUIDACION:
+        tipo = LIQ_RETIRO_VOLUNTARIO
     dias_trabajados = dias_laborales_360(fecha_ingreso, fecha_retiro)
 
     base_prestacional = salario_base + auxilio_transporte
-    dias_prima = dias_trabajados if dias_prima is None else max(0, int(dias_prima))
-    dias_vacaciones = dias_trabajados if dias_vacaciones is None else max(0, int(dias_vacaciones))
-
     cesantias = round(base_prestacional * dias_trabajados / DIAS_ANIO_LABORAL)
     intereses = round(cesantias * dias_trabajados * TASA_INTERESES_CESANTIAS / DIAS_ANIO_LABORAL)
-    prima = round(base_prestacional * dias_prima / DIAS_ANIO_LABORAL)
-    vacaciones = round(salario_base * dias_vacaciones / DIAS_VACACIONES_BASE)
+
+    if tipo == LIQ_ANUAL:
+        # Corte anual de cesantias: el empleado sigue trabajando, la prima
+        # y las vacaciones se pagan por aparte en sus propias fechas.
+        dias_prima_efectivos = 0 if dias_prima is None else max(0, int(dias_prima))
+        dias_vacaciones_efectivos = 0 if dias_vacaciones is None else max(0, int(dias_vacaciones))
+    else:
+        dias_prima_efectivos = dias_trabajados if dias_prima is None else max(0, int(dias_prima))
+        dias_vacaciones_efectivos = (
+            dias_trabajados if dias_vacaciones is None else max(0, int(dias_vacaciones))
+        )
+
+    prima = round(base_prestacional * dias_prima_efectivos / DIAS_ANIO_LABORAL)
+    vacaciones = round(salario_base * dias_vacaciones_efectivos / DIAS_VACACIONES_BASE)
+
+    # La indemnizacion solo existe en el despido sin justa causa; si no se
+    # indica un valor, se sugiere el de ley.
+    indemnizacion_sugerida = (
+        calcular_indemnizacion(salario_base, dias_trabajados)
+        if tipo in TIPOS_CON_INDEMNIZACION else 0
+    )
+    if tipo not in TIPOS_CON_INDEMNIZACION:
+        indemnizacion_final = 0
+    elif indemnizacion is None or str(indemnizacion).strip() == "":
+        indemnizacion_final = indemnizacion_sugerida
+    else:
+        indemnizacion_final = int(indemnizacion or 0)
 
     total = (
         cesantias + intereses + prima + vacaciones
-        + int(indemnizacion or 0) - int(otros_descuentos or 0)
+        + indemnizacion_final - int(otros_descuentos or 0)
     )
     return {
+        "tipo_liquidacion": tipo,
+        "etiqueta_tipo": ETIQUETAS_LIQUIDACION[tipo],
         "fecha_ingreso": str(fecha_ingreso)[:10],
         "fecha_retiro": str(fecha_retiro)[:10],
         "dias_trabajados": dias_trabajados,
+        "dias_prima": dias_prima_efectivos,
+        "dias_vacaciones": dias_vacaciones_efectivos,
         "salario_base": salario_base,
         "auxilio_transporte": auxilio_transporte,
         "cesantias": cesantias,
         "intereses_cesantias": intereses,
         "prima": prima,
         "vacaciones": vacaciones,
-        "indemnizacion": int(indemnizacion or 0),
+        "indemnizacion": indemnizacion_final,
+        "indemnizacion_sugerida": indemnizacion_sugerida,
         "otros_descuentos": int(otros_descuentos or 0),
         "total_pagar": total,
     }
@@ -263,12 +354,14 @@ def generate_liquidaciones_laborales_excel(
     _escribir_hoja(
         sheet,
         "LIQUIDACIONES LABORALES DEFINITIVAS",
-        ["EMPLEADO", "INGRESO", "RETIRO", "DIAS", "SALARIO", "AUXILIO", "CESANTIAS",
+        ["EMPLEADO", "CLASE", "INGRESO", "RETIRO", "DIAS", "SALARIO", "AUXILIO", "CESANTIAS",
          "INT. CESANTIAS", "PRIMA", "VACACIONES", "INDEMNIZACION", "DESCUENTOS",
          "TOTAL A PAGAR", "OBSERVACIONES"],
         [
             [
-                r["empleado"], r["fecha_ingreso"], r["fecha_retiro"], r["dias_trabajados"],
+                r["empleado"],
+                ETIQUETAS_LIQUIDACION.get(r.get("tipo_liquidacion", ""), r.get("tipo_liquidacion", "")),
+                r["fecha_ingreso"], r["fecha_retiro"], r["dias_trabajados"],
                 r["salario_base"], r["auxilio_transporte"], r["cesantias"],
                 r["intereses_cesantias"], r["prima"], r["vacaciones"],
                 r["indemnizacion"], r["otros_descuentos"], r["total_pagar"],
@@ -276,7 +369,7 @@ def generate_liquidaciones_laborales_excel(
             ]
             for r in registros
         ],
-        monedas={5, 6, 7, 8, 9, 10, 11, 12, 13},
+        monedas={6, 7, 8, 9, 10, 11, 12, 13, 14},
     )
     workbook.save(output_path)
     return output_path

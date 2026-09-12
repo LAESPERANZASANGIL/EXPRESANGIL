@@ -4,6 +4,7 @@ const rangoSemana = document.getElementById("rango-semana");
 const tablaSemana = document.getElementById("tabla-semana");
 const tablaLaboral = document.getElementById("tabla-laboral");
 const liqEmpleado = document.getElementById("liq-empleado");
+const liqClase = document.getElementById("liq-clase");
 
 let empleadosNomina = [];
 
@@ -194,6 +195,7 @@ document.getElementById("btn-informe-semana").addEventListener("click", async ()
 function datosLiquidacion() {
   return {
     empleado: liqEmpleado.value,
+    tipo_liquidacion: liqClase.value,
     fecha_ingreso: document.getElementById("liq-ingreso").value,
     fecha_retiro: document.getElementById("liq-retiro").value,
     salario_base: document.getElementById("liq-salario").value,
@@ -210,6 +212,7 @@ function mostrarCalculo(liquidacion) {
   const cuerpo = document.getElementById("cuerpo-calculo");
   cuerpo.innerHTML = "";
   const filas = [
+    ["Clase de liquidacion", liquidacion.etiqueta_tipo],
     ["Dias trabajados", liquidacion.dias_trabajados],
     ["Cesantias", pesos(liquidacion.cesantias)],
     ["Intereses de cesantias (12%)", pesos(liquidacion.intereses_cesantias)],
@@ -256,9 +259,25 @@ document.getElementById("btn-informe-laboral").addEventListener("click", async (
   await llamar("/api/liquidaciones/laboral/informe", {});
 });
 
+function etiquetaClase(valor) {
+  const clase = Array.from(liqClase.options).find((o) => o.value === valor);
+  return clase ? clase.textContent : valor || "";
+}
+
 async function cargarLaborales() {
   const resultado = await llamar("/api/liquidaciones/laboral", {}, true);
   if (!resultado.ok) return;
+
+  if (!liqClase.options.length) {
+    for (const clase of resultado.clases || []) {
+      const opcion = document.createElement("option");
+      opcion.value = clase.valor;
+      opcion.textContent = clase.etiqueta;
+      liqClase.appendChild(opcion);
+    }
+    liqClase.value = "RETIRO_VOLUNTARIO";
+    alternarIndemnizacion();
+  }
 
   empleadosNomina = resultado.empleados || [];
   const seleccionado = liqEmpleado.value;
@@ -276,7 +295,8 @@ async function cargarLaborales() {
   for (const registro of resultado.liquidaciones || []) {
     const tr = document.createElement("tr");
     const valores = [
-      registro.empleado, registro.fecha_ingreso, registro.fecha_retiro,
+      registro.empleado, etiquetaClase(registro.tipo_liquidacion),
+      registro.fecha_ingreso, registro.fecha_retiro,
       registro.dias_trabajados, pesos(registro.cesantias), pesos(registro.intereses_cesantias),
       pesos(registro.prima), pesos(registro.vacaciones), pesos(registro.indemnizacion),
       pesos(registro.total_pagar),
@@ -299,6 +319,14 @@ function cargarDatosEmpleado() {
   document.getElementById("liq-auxilio").value = empleado.auxilio_transporte || 0;
 }
 
+function alternarIndemnizacion() {
+  const aplica = liqClase.value === "RETIRO_FORZOSO";
+  const campo = document.getElementById("campo-indemnizacion");
+  if (campo) campo.style.display = aplica ? "" : "none";
+  if (!aplica) document.getElementById("liq-indemnizacion").value = "";
+}
+
+liqClase.addEventListener("change", alternarIndemnizacion);
 liqEmpleado.addEventListener("change", cargarDatosEmpleado);
 
 (function () {
