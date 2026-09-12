@@ -118,6 +118,9 @@ async function cargarUsuarios() {
         tituloFormulario.textContent = `Editar usuario '${usuario.usuario}'`;
         notaPassword.textContent = "(dejar en blanco para mantener la actual)";
         btnCancelarEdicion.classList.remove("oculto");
+        // La seccion de datos laborales tiene su propio selector: se lleva a la
+        // misma persona para no quedar editando a otro empleado sin darse cuenta.
+        seleccionarEmpleado(usuario.usuario);
         tituloFormulario.scrollIntoView({ behavior: "smooth", block: "start" });
       });
       celdaAcciones.appendChild(botonEditar);
@@ -254,14 +257,13 @@ document.getElementById("btn-crear").addEventListener("click", async () => {
   if (resultado.ok) {
     limpiarFormulario();
     await cargarUsuarios();
+    await cargarEmpleadosLaborales();
   }
 });
 
 btnCancelarEdicion.addEventListener("click", () => {
   limpiarFormulario();
 });
-
-iniciar();
 
 // ---------------------- Datos laborales del empleado ----------------------
 // Complementan al usuario: contrato, fechas y valores de pago. Los de
@@ -270,7 +272,28 @@ iniciar();
 
 const empUsuario = document.getElementById("emp-usuario");
 const empContrato = document.getElementById("emp-contrato");
+const empTitulo = document.getElementById("titulo-datos-laborales");
 let empleadosLaborales = [];
+
+function limpiarDatosLaborales() {
+  empTitulo.textContent = "Datos laborales del empleado";
+  for (const id of ["emp-apellidos", "emp-cedula", "emp-cargo", "emp-celular",
+                    "emp-ingreso", "emp-retiro"]) {
+    document.getElementById(id).value = "";
+  }
+  empContrato.value = "NOMINA";
+  for (const id of ["emp-salario", "emp-auxilio", "emp-encomienda"]) {
+    document.getElementById(id).value = 0;
+  }
+  alternarCamposContrato();
+}
+
+/** Apunta la seccion de datos laborales al empleado indicado. */
+function seleccionarEmpleado(usuario) {
+  if (!empleadosLaborales.some((e) => e.usuario === usuario)) return;
+  empUsuario.value = usuario;
+  cargarEmpleadoSeleccionado();
+}
 
 function alternarCamposContrato() {
   const esServicios = empContrato.value === "SERVICIOS";
@@ -281,7 +304,11 @@ function alternarCamposContrato() {
 
 function cargarEmpleadoSeleccionado() {
   const empleado = empleadosLaborales.find((e) => e.usuario === empUsuario.value);
-  if (!empleado) return;
+  if (!empleado) {
+    limpiarDatosLaborales();
+    return;
+  }
+  empTitulo.textContent = `Datos laborales de ${empleado.nombre}`;
   document.getElementById("emp-apellidos").value = empleado.apellidos || "";
   document.getElementById("emp-cedula").value = empleado.cedula || "";
   document.getElementById("emp-cargo").value = empleado.cargo || "";
@@ -330,3 +357,5 @@ document.getElementById("btn-guardar-empleado").addEventListener("click", async 
   });
   if (resultado.ok) await cargarEmpleadosLaborales();
 });
+
+iniciar();
