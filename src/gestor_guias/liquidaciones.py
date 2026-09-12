@@ -27,14 +27,17 @@ CONTRATO_NOMINA = "NOMINA"
 CONTRATO_SERVICIOS = "SERVICIOS"
 CONTRATOS_VALIDOS = (CONTRATO_NOMINA, CONTRATO_SERVICIOS)
 
-# Clases de liquidacion laboral. Cambian que conceptos se pagan:
+# Clases de liquidacion laboral. Todas liquidan cesantias, intereses,
+# prima y vacaciones de ley sobre el periodo indicado; lo que cambia es el
+# motivo y si hay indemnizacion:
 #
-# - ANUAL: el contrato sigue vigente y solo se liquidan las cesantias y
-#   sus intereses del periodo (el corte anual de cesantias).
-# - RETIRO_VOLUNTARIO (renuncia) y PENSION: liquidacion completa
-#   (cesantias, intereses, prima y vacaciones) SIN indemnizacion.
-# - RETIRO_FORZOSO (despido sin justa causa): liquidacion completa MAS
-#   la indemnizacion del articulo 64 del CST.
+# - ANUAL: corte de fin de anio con el contrato vigente. Se liquida el
+#   periodo del anio (las fechas son el inicio y el fin del periodo, no
+#   el ingreso y el retiro del empleado).
+# - RETIRO_VOLUNTARIO (renuncia) y PENSION: liquidacion final SIN
+#   indemnizacion.
+# - RETIRO_FORZOSO (despido sin justa causa): liquidacion final MAS la
+#   indemnizacion del articulo 64 del CST.
 LIQ_ANUAL = "ANUAL"
 LIQ_RETIRO_VOLUNTARIO = "RETIRO_VOLUNTARIO"
 LIQ_RETIRO_FORZOSO = "RETIRO_FORZOSO"
@@ -190,16 +193,19 @@ def calcular_liquidacion_laboral(
 ) -> dict:
     """Liquidacion laboral de un empleado de nomina, segun su clase.
 
-    Cesantias, intereses y prima se calculan sobre salario + auxilio de
-    transporte; las vacaciones solo sobre el salario. Los dias de prima y
-    de vacaciones se pueden ajustar (por defecto, todo el tiempo trabajado).
+    Todas las clases liquidan cesantias, intereses, prima y vacaciones de
+    ley sobre el periodo entre las dos fechas. Cesantias, intereses y prima
+    se calculan sobre salario + auxilio de transporte; las vacaciones solo
+    sobre el salario. Los dias de prima y de vacaciones se pueden ajustar
+    (por defecto, todos los dias del periodo).
 
-    Que se paga en cada clase:
+    Lo que cambia entre clases:
 
-    - ANUAL: solo cesantias e intereses (el contrato sigue vigente).
-    - RETIRO_VOLUNTARIO y PENSION: todo menos indemnizacion.
-    - RETIRO_FORZOSO: todo, con la indemnizacion sugerida por el
-      articulo 64 del CST si no se indica una a mano.
+    - ANUAL: corte de fin de anio con el contrato vigente; las fechas
+      delimitan el periodo del anio, no el ingreso y retiro del empleado.
+    - RETIRO_VOLUNTARIO y PENSION: liquidacion final sin indemnizacion.
+    - RETIRO_FORZOSO: agrega la indemnizacion sugerida por el articulo 64
+      del CST si no se indica una a mano.
     """
     salario_base = int(salario_base or 0)
     auxilio_transporte = int(auxilio_transporte or 0)
@@ -212,16 +218,12 @@ def calcular_liquidacion_laboral(
     cesantias = round(base_prestacional * dias_trabajados / DIAS_ANIO_LABORAL)
     intereses = round(cesantias * dias_trabajados * TASA_INTERESES_CESANTIAS / DIAS_ANIO_LABORAL)
 
-    if tipo == LIQ_ANUAL:
-        # Corte anual de cesantias: el empleado sigue trabajando, la prima
-        # y las vacaciones se pagan por aparte en sus propias fechas.
-        dias_prima_efectivos = 0 if dias_prima is None else max(0, int(dias_prima))
-        dias_vacaciones_efectivos = 0 if dias_vacaciones is None else max(0, int(dias_vacaciones))
-    else:
-        dias_prima_efectivos = dias_trabajados if dias_prima is None else max(0, int(dias_prima))
-        dias_vacaciones_efectivos = (
-            dias_trabajados if dias_vacaciones is None else max(0, int(dias_vacaciones))
-        )
+    # Todas las clases liquidan prima y vacaciones de ley sobre el periodo;
+    # por defecto, todos los dias del periodo indicado.
+    dias_prima_efectivos = dias_trabajados if dias_prima is None else max(0, int(dias_prima))
+    dias_vacaciones_efectivos = (
+        dias_trabajados if dias_vacaciones is None else max(0, int(dias_vacaciones))
+    )
 
     prima = round(base_prestacional * dias_prima_efectivos / DIAS_ANIO_LABORAL)
     vacaciones = round(salario_base * dias_vacaciones_efectivos / DIAS_VACACIONES_BASE)

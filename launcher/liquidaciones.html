@@ -50,7 +50,7 @@
     <!-- ============ Liquidacion laboral definitiva ============ -->
     <section class="opcion">
       <h3>2. Liquidacion laboral definitiva (retiro de un empleado)</h3>
-      <p class="ayuda">Cesantias, intereses y prima toman salario mas auxilio; las vacaciones solo el salario. La <strong>clase</strong> define que se paga: la <em>anual</em> solo liquida cesantias e intereses (el contrato sigue), el <em>retiro forzoso</em> agrega indemnizacion, y el retiro voluntario o la pension liquidan todo sin indemnizacion.</p>
+      <p class="ayuda">Todas las clases liquidan cesantias, intereses, prima y vacaciones de ley sobre el periodo indicado. Cesantias, intereses y prima toman salario mas auxilio; las vacaciones solo el salario. La <strong>clase</strong> cambia el motivo: la <em>anual</em> es el corte de fin de anio con el contrato vigente (las fechas delimitan el anio a liquidar, no el ingreso y retiro del empleado) y solo el <em>retiro forzoso</em> agrega indemnizacion.</p>
       <div class="campos-grid">
         <div class="campo">
           <label>EMPLEADO</label>
@@ -61,11 +61,11 @@
           <select id="liq-clase"></select>
         </div>
         <div class="campo">
-          <label>FECHA DE INGRESO</label>
+          <label id="label-ingreso">FECHA DE INGRESO</label>
           <input type="date" id="liq-ingreso" />
         </div>
         <div class="campo">
-          <label>FECHA DE RETIRO</label>
+          <label id="label-retiro">FECHA DE RETIRO</label>
           <input type="date" id="liq-retiro" />
         </div>
         <div class="campo">
@@ -77,11 +77,11 @@
           <input type="text" id="liq-auxilio" />
         </div>
         <div class="campo">
-          <label>DIAS DE PRIMA (vacio = todo el tiempo)</label>
+          <label>DIAS DE PRIMA (vacio = todo el periodo)</label>
           <input type="text" id="liq-dias-prima" placeholder="automatico" />
         </div>
         <div class="campo">
-          <label>DIAS DE VACACIONES (vacio = todo el tiempo)</label>
+          <label>DIAS DE VACACIONES (vacio = todo el periodo)</label>
           <input type="text" id="liq-dias-vacaciones" placeholder="automatico" />
         </div>
         <div class="campo" id="campo-indemnizacion">
