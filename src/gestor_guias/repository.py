@@ -200,6 +200,7 @@ class GuiaRepository:
                 CREATE TABLE IF NOT EXISTS liquidaciones_laborales (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     empleado TEXT NOT NULL,
+                    tipo_liquidacion TEXT NOT NULL DEFAULT 'RETIRO_VOLUNTARIO',
                     fecha_ingreso TEXT NOT NULL,
                     fecha_retiro TEXT NOT NULL,
                     dias_trabajados INTEGER NOT NULL DEFAULT 0,
@@ -217,6 +218,15 @@ class GuiaRepository:
                 )
                 """
             )
+            columnas_liq = {
+                row[1] for row in connection.execute("PRAGMA table_info(liquidaciones_laborales)")
+            }
+            if "tipo_liquidacion" not in columnas_liq:
+                connection.execute(
+                    "ALTER TABLE liquidaciones_laborales "
+                    "ADD COLUMN tipo_liquidacion TEXT NOT NULL DEFAULT 'RETIRO_VOLUNTARIO'"
+                )
+
             # Datos de empleado y de nomina, sobre la tabla de operadores.
             for columna, tipo in (
                 ("salario_base", "INTEGER NOT NULL DEFAULT 0"),
@@ -684,12 +694,12 @@ class GuiaRepository:
     def guardar_liquidacion_laboral(self, datos: dict) -> int:
         self.initialize()
         campos = (
-            "empleado", "fecha_ingreso", "fecha_retiro", "dias_trabajados",
+            "empleado", "tipo_liquidacion", "fecha_ingreso", "fecha_retiro", "dias_trabajados",
             "salario_base", "auxilio_transporte", "cesantias", "intereses_cesantias",
             "prima", "vacaciones", "indemnizacion", "otros_descuentos",
             "total_pagar", "observaciones",
         )
-        textos = {"empleado", "fecha_ingreso", "fecha_retiro", "observaciones"}
+        textos = {"empleado", "tipo_liquidacion", "fecha_ingreso", "fecha_retiro", "observaciones"}
         with closing(self._connect()) as connection, connection:
             cursor = connection.execute(
                 f"""

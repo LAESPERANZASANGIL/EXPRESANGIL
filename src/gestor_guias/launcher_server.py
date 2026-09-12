@@ -32,6 +32,8 @@ from .operadores import (
 from .excel_processor import hoy_colombia, normalize_guide
 from .liquidaciones import (
     CONTRATO_NOMINA,
+    ETIQUETAS_LIQUIDACION,
+    TIPOS_LIQUIDACION,
     CONTRATO_SERVICIOS,
     CONTRATOS_VALIDOS,
     calcular_liquidacion_laboral,
@@ -1614,18 +1616,26 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if not fecha_ingreso or not fecha_retiro:
                 self._send_json({"ok": False, "output": "Indica la fecha de ingreso y la de retiro."})
                 return
+            tipo_liquidacion = str(data.get("tipo_liquidacion", "")).strip().upper()
+            if tipo_liquidacion and tipo_liquidacion not in TIPOS_LIQUIDACION:
+                self._send_json({"ok": False, "output": "Clase de liquidacion invalida."})
+                return
             dias_prima = data.get("dias_prima")
             dias_vacaciones = data.get("dias_vacaciones")
+            indemnizacion = data.get("indemnizacion")
             calculo = calcular_liquidacion_laboral(
                 salario_base=value_to_number(data.get("salario_base", 0)),
                 auxilio_transporte=value_to_number(data.get("auxilio_transporte", 0)),
                 fecha_ingreso=fecha_ingreso,
                 fecha_retiro=fecha_retiro,
+                tipo_liquidacion=str(data.get("tipo_liquidacion", "")).strip().upper(),
                 dias_prima=int(value_to_number(dias_prima)) if str(dias_prima or "").strip() else None,
                 dias_vacaciones=(
                     int(value_to_number(dias_vacaciones)) if str(dias_vacaciones or "").strip() else None
                 ),
-                indemnizacion=value_to_number(data.get("indemnizacion", 0)),
+                indemnizacion=(
+                    value_to_number(indemnizacion) if str(indemnizacion or "").strip() else None
+                ),
                 otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
             )
             self._send_json({"ok": True, "output": "Liquidacion calculada.", "liquidacion": calculo})
@@ -1648,16 +1658,20 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
             dias_prima = data.get("dias_prima")
             dias_vacaciones = data.get("dias_vacaciones")
+            indemnizacion = data.get("indemnizacion")
             calculo = calcular_liquidacion_laboral(
                 salario_base=value_to_number(data.get("salario_base", 0)),
                 auxilio_transporte=value_to_number(data.get("auxilio_transporte", 0)),
                 fecha_ingreso=fecha_ingreso,
                 fecha_retiro=fecha_retiro,
+                tipo_liquidacion=str(data.get("tipo_liquidacion", "")).strip().upper(),
                 dias_prima=int(value_to_number(dias_prima)) if str(dias_prima or "").strip() else None,
                 dias_vacaciones=(
                     int(value_to_number(dias_vacaciones)) if str(dias_vacaciones or "").strip() else None
                 ),
-                indemnizacion=value_to_number(data.get("indemnizacion", 0)),
+                indemnizacion=(
+                    value_to_number(indemnizacion) if str(indemnizacion or "").strip() else None
+                ),
                 otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
             )
             calculo["empleado"] = empleado
@@ -1666,7 +1680,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
             registrar_auditoria(
                 self._get_session()["usuario"],
                 "liquidacion-laboral",
-                f"#{liquidacion_id} {empleado} retiro {fecha_retiro}: total {calculo['total_pagar']}",
+                f"#{liquidacion_id} {empleado} {calculo['tipo_liquidacion']} "
+                f"{fecha_retiro}: total {calculo['total_pagar']}",
             )
             self._send_json({
                 "ok": True,
@@ -1686,6 +1701,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     str(data.get("empleado", "")).strip()
                 ),
                 "empleados": REPOSITORY.listar_empleados_nomina(),
+                "clases": [
+                    {"valor": valor, "etiqueta": etiqueta}
+                    for valor, etiqueta in ETIQUETAS_LIQUIDACION.items()
+                ],
             })
             return
 

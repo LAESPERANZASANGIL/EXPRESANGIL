@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 111 tests.
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 116 tests.
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -80,7 +80,7 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
 - **Prestamos y Adelantos** (`/prestamos`, solo admin): registro de prestamos y adelantos, abonos, saldos con interes e informe mensual.
 - **Nomina** (`/nomina`, solo admin): liquidacion mensual de los empleados con contrato **NOMINA**, con descuento automatico de prestamos e informes Excel/PDF.
-- **Liquidaciones** (`/liquidaciones`, solo admin): pago semanal de los de contrato **SERVICIOS** (por encomienda entregada) y liquidacion laboral definitiva al retirar a un empleado.
+- **Liquidaciones** (`/liquidaciones`, solo admin): pago semanal de los de contrato **SERVICIOS** (por encomienda entregada) y liquidacion laboral en sus cuatro clases (anual, retiro voluntario, retiro forzoso, pension).
 - **Modulo Usuarios** (`/usuarios`, solo admin): usuarios del sistema y **datos laborales del empleado** (contrato, fechas, salario o valor por encomienda). **Dashboard** (`/dashboard`, solo admin).
 - **Consulta publica** (`/`): el cliente final consulta el estado de su guia.
 
@@ -109,7 +109,7 @@ Cada empleado tiene un `tipo_contrato` que define como se le paga:
 
 **Liquidacion semanal de servicios**: la semana va de **lunes a domingo** (`inicio_de_semana`). Cuenta las guias en estado `E` por **F_ENTREGA** en `guias` **y** `guias_archivo` (`contar_entregas_periodo`), para que una liquidacion vieja siga dando el mismo resultado despues de archivar. Se descuentan las cuotas de prestamos/adelantos pendientes.
 
-**Liquidacion laboral definitiva**: al retirar a un empleado. Usa la convencion de **360 dias** (`dias_laborales_360`, meses de 30):
+**Liquidacion laboral**: usa la convencion de **360 dias** (`dias_laborales_360`, meses de 30):
 - Cesantias = (salario + auxilio) x dias / 360
 - Intereses de cesantias = cesantias x dias x 12% / 360
 - Prima = (salario + auxilio) x dias de prima / 360
@@ -117,6 +117,17 @@ Cada empleado tiene un `tipo_contrato` que define como se le paga:
 - Mas indemnizacion, menos otros descuentos.
 
 Los dias de prima y de vacaciones se pueden ajustar; por defecto toman todo el tiempo trabajado.
+
+**Clases de liquidacion** (`TIPOS_LIQUIDACION`), cambian que conceptos se pagan:
+
+| Clase | Cesantias e intereses | Prima y vacaciones | Indemnizacion |
+|---|---|---|---|
+| `ANUAL` (corte anual, el contrato sigue) | si | no | no |
+| `RETIRO_VOLUNTARIO` (renuncia) | si | si | no |
+| `RETIRO_FORZOSO` (despido sin justa causa) | si | si | **si** |
+| `PENSION` (se pensiona) | si | si | no |
+
+La indemnizacion solo existe en `RETIRO_FORZOSO`. `calcular_indemnizacion()` sugiere la del **art. 64 del CST** para contrato indefinido con salario inferior a 10 SMMLV: **30 dias de salario por el primer anio y 20 por cada anio siguiente**, proporcional por fraccion. El admin puede escribir otro valor; si deja el campo vacio se usa el sugerido.
 
 **Ambas quedan almacenadas** (`liquidaciones_semanales`, `liquidaciones_laborales`) con su fecha de registro, como soporte de los pagos realizados.
 
@@ -171,10 +182,10 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Prestamos con interes del 2% mensual sobre saldo, adelantos de nomina, abonos e informe mensual.
 - Nomina mensual con descuento automatico de las cuotas del mes e informes en Excel y PDF.
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
-- Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral definitiva, ambas almacenadas como soporte de pago.
+- Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), ambas almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas.
 - Consulta publica de guias para el cliente final.
-- Suite de 111 tests en verde.
+- Suite de 116 tests en verde.
 
 ## Que se puede mejorar
 
