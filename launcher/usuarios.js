@@ -277,8 +277,8 @@ let empleadosLaborales = [];
 
 function limpiarDatosLaborales() {
   empTitulo.textContent = "Datos laborales del empleado";
-  for (const id of ["emp-apellidos", "emp-cedula", "emp-cargo", "emp-celular",
-                    "emp-ingreso", "emp-retiro"]) {
+  for (const id of ["emp-nombre", "emp-apellidos", "emp-cedula", "emp-cargo",
+                    "emp-celular", "emp-ingreso", "emp-retiro"]) {
     document.getElementById(id).value = "";
   }
   empContrato.value = "NOMINA";
@@ -309,6 +309,7 @@ function cargarEmpleadoSeleccionado() {
     return;
   }
   empTitulo.textContent = `Datos laborales de ${empleado.nombre}`;
+  document.getElementById("emp-nombre").value = empleado.nombre || "";
   document.getElementById("emp-apellidos").value = empleado.apellidos || "";
   document.getElementById("emp-cedula").value = empleado.cedula || "";
   document.getElementById("emp-cargo").value = empleado.cargo || "";
@@ -344,6 +345,7 @@ empContrato.addEventListener("change", alternarCamposContrato);
 document.getElementById("btn-guardar-empleado").addEventListener("click", async () => {
   const resultado = await llamar("/api/empleados/guardar", {
     usuario: empUsuario.value,
+    nombre: document.getElementById("emp-nombre").value,
     apellidos: document.getElementById("emp-apellidos").value,
     cedula: document.getElementById("emp-cedula").value,
     cargo: document.getElementById("emp-cargo").value,
@@ -355,7 +357,10 @@ document.getElementById("btn-guardar-empleado").addEventListener("click", async 
     auxilio_transporte: document.getElementById("emp-auxilio").value,
     valor_encomienda: document.getElementById("emp-encomienda").value,
   });
-  if (resultado.ok) await cargarEmpleadosLaborales();
+  if (resultado.ok) {
+    await cargarEmpleadosLaborales();
+    await cargarUsuarios();
+  }
 });
 
 iniciar();

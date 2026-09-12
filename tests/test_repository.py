@@ -2,6 +2,7 @@ from datetime import date
 from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
+import pytest
 import pandas as pd
 
 from gestor_guias.repository import GuiaRepository
@@ -566,3 +567,35 @@ def test_obtener_operador_por_nombre_para_la_consulta_publica(tmp_path: Path) ->
 
     assert repository.obtener_operador_por_nombre("NO EXISTE") is None
     assert repository.obtener_operador_por_nombre("") is None
+
+
+def test_renombrar_operador_arrastra_el_historial(tmp_path: Path) -> None:
+    """Al cambiar el nombre, guias, cierres y prestamos deben seguirlo."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    repository.save_consolidated(build_dataframe("100", "Cliente"))
+    repository.update_tracking_fields("100", "PIPE", "E", "")
+    repository.crear_prestamo(
+        empleado="PIPE", tipo="PRESTAMO", monto=100000, fecha="2026-01-10",
+        forma_pago="EFECTIVO", cuotas=2,
+    )
+
+    resultado = repository.renombrar_operador("pipe", "felipe")
+
+    assert resultado["nombre_anterior"] == "PIPE"
+    assert repository.obtener_operador("pipe")["nombre"] == "FELIPE"
+    assert repository.to_dataframe()["OPERADOR"].tolist() == ["FELIPE"]
+    assert [p["empleado"] for p in repository.listar_prestamos()] == ["FELIPE"]
+    assert resultado["cambios"]["guias"] == 1
+    assert resultado["cambios"]["prestamos"] == 1
+
+
+def test_renombrar_operador_rechaza_nombre_ya_usado(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    repository.crear_operador("ana", "hash", "ANA")
+
+    with pytest.raises(ValueError):
+        repository.renombrar_operador("pipe", "ANA")
+
+    assert repository.obtener_operador("pipe")["nombre"] == "PIPE"

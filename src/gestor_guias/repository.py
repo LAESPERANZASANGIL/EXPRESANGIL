@@ -905,6 +905,69 @@ class GuiaRepository:
             )
             return cursor.rowcount > 0
 
+    def renombrar_operador(self, usuario: str, nombre_nuevo: str) -> dict:
+        """Cambia el nombre del empleado y arrastra todo su historial.
+
+        Las guias, los cierres, los prestamos, la nomina y las liquidaciones
+        guardan el **nombre** del empleado, no su usuario de login: si el
+        nombre cambia sin tocarlos, el historial se le desprende y deja de
+        aparecer en sus informes. Devuelve cuantas filas se reasignaron en
+        cada tabla, para poder avisarlo en pantalla.
+        """
+        self.initialize()
+        nombre_nuevo = str(nombre_nuevo or "").strip().upper()
+        if not nombre_nuevo:
+            raise ValueError("El nombre no puede quedar vacio.")
+
+        # (tabla, columna que guarda el nombre del empleado)
+        referencias = (
+            ("guias", "operador"),
+            ("guias_archivo", "operador"),
+            ("cierres_operador", "operador"),
+            ("prestamos", "empleado"),
+            ("nomina", "empleado"),
+            ("liquidaciones_semanales", "empleado"),
+            ("liquidaciones_laborales", "empleado"),
+        )
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            fila = connection.execute(
+                "SELECT nombre FROM operadores WHERE usuario = ?", (usuario,)
+            ).fetchone()
+            if fila is None:
+                raise ValueError("No se encontro el empleado.")
+            nombre_anterior = str(fila["nombre"] or "").strip()
+            if nombre_anterior.upper() == nombre_nuevo:
+                return {"nombre_anterior": nombre_anterior, "cambios": {}}
+
+            ocupado = connection.execute(
+                """
+                SELECT usuario FROM operadores
+                WHERE UPPER(TRIM(nombre)) = ? AND usuario <> ?
+                """,
+                (nombre_nuevo, usuario),
+            ).fetchone()
+            if ocupado is not None:
+                raise ValueError(
+                    f"El nombre '{nombre_nuevo}' ya lo usa '{ocupado['usuario']}'."
+                )
+
+            connection.execute(
+                "UPDATE operadores SET nombre = ? WHERE usuario = ?",
+                (nombre_nuevo, usuario),
+            )
+            cambios: dict[str, int] = {}
+            if nombre_anterior:
+                for tabla, columna in referencias:
+                    cursor = connection.execute(
+                        f"UPDATE {tabla} SET {columna} = ? "
+                        f"WHERE UPPER(TRIM({columna})) = UPPER(?)",
+                        (nombre_nuevo, nombre_anterior),
+                    )
+                    if cursor.rowcount:
+                        cambios[tabla] = cursor.rowcount
+            return {"nombre_anterior": nombre_anterior, "cambios": cambios}
+
     def entregadas_mes(self, anio: int, mes: int) -> list[dict]:
         """Guias entregadas (E) del mes, por fecha de entrega (F_ENTREGA).
 
