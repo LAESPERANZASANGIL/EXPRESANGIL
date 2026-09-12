@@ -313,10 +313,16 @@ async function cargarLaborales() {
 function cargarDatosEmpleado() {
   const empleado = empleadosNomina.find((e) => e.nombre === liqEmpleado.value);
   if (!empleado) return;
-  document.getElementById("liq-ingreso").value = empleado.fecha_ingreso || "";
-  document.getElementById("liq-retiro").value = empleado.fecha_retiro || hoy();
   document.getElementById("liq-salario").value = empleado.salario_base || 0;
   document.getElementById("liq-auxilio").value = empleado.auxilio_transporte || 0;
+  if (liqClase.value === "ANUAL") {
+    // En el corte anual las fechas son el periodo del anio, no el
+    // ingreso y retiro del empleado.
+    sugerirPeriodoAnual();
+    return;
+  }
+  document.getElementById("liq-ingreso").value = empleado.fecha_ingreso || "";
+  document.getElementById("liq-retiro").value = empleado.fecha_retiro || hoy();
 }
 
 function alternarIndemnizacion() {
@@ -324,6 +330,29 @@ function alternarIndemnizacion() {
   const campo = document.getElementById("campo-indemnizacion");
   if (campo) campo.style.display = aplica ? "" : "none";
   if (!aplica) document.getElementById("liq-indemnizacion").value = "";
+
+  // En la liquidacion anual las fechas delimitan el anio a liquidar, no
+  // el ingreso y el retiro del empleado.
+  const anual = liqClase.value === "ANUAL";
+  document.getElementById("label-ingreso").textContent = anual
+    ? "DESDE (inicio del periodo)"
+    : "FECHA DE INGRESO";
+  document.getElementById("label-retiro").textContent = anual
+    ? "HASTA (fin del periodo)"
+    : "FECHA DE RETIRO";
+  if (anual) sugerirPeriodoAnual();
+}
+
+// Propone el anio en curso (o el ultimo anio trabajado) para el corte anual.
+function sugerirPeriodoAnual() {
+  const empleado = empleadosNomina.find((e) => e.nombre === liqEmpleado.value);
+  const anio = new Date().getFullYear();
+  const inicioAnio = `${anio}-01-01`;
+  const ingreso = empleado && empleado.fecha_ingreso ? empleado.fecha_ingreso : "";
+  // Si entro despues del 1 de enero, el periodo arranca en su fecha de ingreso.
+  document.getElementById("liq-ingreso").value =
+    ingreso && ingreso > inicioAnio ? ingreso : inicioAnio;
+  document.getElementById("liq-retiro").value = `${anio}-12-31`;
 }
 
 liqClase.addEventListener("change", alternarIndemnizacion);

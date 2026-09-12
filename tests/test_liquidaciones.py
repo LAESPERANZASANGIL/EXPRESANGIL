@@ -177,8 +177,10 @@ def test_liquidaciones_quedan_almacenadas_como_soporte(tmp_path: Path) -> None:
     assert hoja_laboral.cell(row=4, column=1).value == "KEVIN"
 
 
-def test_liquidacion_anual_solo_paga_cesantias_e_intereses() -> None:
-    # El contrato sigue vigente: la prima y las vacaciones se pagan aparte.
+def test_liquidacion_anual_paga_prima_y_vacaciones_de_ley() -> None:
+    # El corte anual liquida el periodo completo: cesantias, intereses,
+    # prima y vacaciones segun la ley y el salario. No hay indemnizacion
+    # porque el contrato sigue vigente.
     liquidacion = calcular_liquidacion_laboral(
         salario_base=1_300_000,
         auxilio_transporte=200_000,
@@ -189,10 +191,28 @@ def test_liquidacion_anual_solo_paga_cesantias_e_intereses() -> None:
 
     assert liquidacion["cesantias"] == 1_500_000
     assert liquidacion["intereses_cesantias"] == 180_000
-    assert liquidacion["prima"] == 0
-    assert liquidacion["vacaciones"] == 0
+    # Prima de ley: 30 dias de salario mas auxilio por anio trabajado.
+    assert liquidacion["prima"] == 1_500_000
+    # Vacaciones: 15 dias de salario por anio.
+    assert liquidacion["vacaciones"] == 650_000
     assert liquidacion["indemnizacion"] == 0
-    assert liquidacion["total_pagar"] == 1_680_000
+    assert liquidacion["total_pagar"] == 3_830_000
+
+
+def test_liquidacion_anual_de_medio_anio_es_proporcional() -> None:
+    # Un empleado que entro a mitad de anio liquida solo ese periodo.
+    liquidacion = calcular_liquidacion_laboral(
+        salario_base=1_200_000,
+        auxilio_transporte=0,
+        fecha_ingreso="2026-07-01",
+        fecha_retiro="2027-01-01",
+        tipo_liquidacion=LIQ_ANUAL,
+    )
+
+    assert liquidacion["dias_trabajados"] == 180
+    assert liquidacion["cesantias"] == 600_000
+    assert liquidacion["prima"] == 600_000
+    assert liquidacion["vacaciones"] == 300_000
 
 
 def test_pension_liquida_todo_pero_sin_indemnizacion() -> None:
@@ -203,10 +223,15 @@ def test_pension_liquida_todo_pero_sin_indemnizacion() -> None:
         1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=LIQ_RETIRO_VOLUNTARIO
     )
 
+    anual = calcular_liquidacion_laboral(
+        1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=LIQ_ANUAL
+    )
+
     assert pension["prima"] > 0 and pension["vacaciones"] > 0
     assert pension["indemnizacion"] == 0
-    # Pension y retiro voluntario pagan exactamente lo mismo.
-    assert pension["total_pagar"] == voluntario["total_pagar"]
+    # Las tres clases sin indemnizacion pagan exactamente lo mismo; lo que
+    # cambia es el motivo que queda registrado.
+    assert pension["total_pagar"] == voluntario["total_pagar"] == anual["total_pagar"]
 
 
 def test_indemnizacion_de_ley_por_despido_sin_justa_causa() -> None:
