@@ -246,6 +246,7 @@ class GuiaRepository:
                 ("fecha_retiro", "TEXT NOT NULL DEFAULT ''"),
                 ("tipo_contrato", "TEXT NOT NULL DEFAULT 'NOMINA'"),
                 ("valor_encomienda", "INTEGER NOT NULL DEFAULT 0"),
+                ("celular", "TEXT NOT NULL DEFAULT ''"),
             ):
                 if columna not in columnas:
                     connection.execute(f"ALTER TABLE operadores ADD COLUMN {columna} {tipo}")
@@ -598,7 +599,7 @@ class GuiaRepository:
             connection.row_factory = sqlite3.Row
             rows = connection.execute(
                 f"""
-                SELECT usuario, nombre, apellidos, rol, cedula, cargo,
+                SELECT usuario, nombre, apellidos, rol, cedula, cargo, celular,
                        fecha_ingreso, fecha_retiro, tipo_contrato,
                        salario_base, auxilio_transporte, valor_encomienda
                 FROM operadores {condicion} ORDER BY nombre
@@ -607,11 +608,32 @@ class GuiaRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def obtener_operador_por_nombre(self, nombre: str) -> dict | None:
+        """Busca un empleado por el nombre con el que aparece en las guias.
+
+        La columna OPERADOR de `guias` guarda el nombre para mostrar, no el
+        usuario de login, por eso la consulta publica busca asi.
+        """
+        self.initialize()
+        nombre = str(nombre or "").strip()
+        if not nombre:
+            return None
+        with closing(self._connect()) as connection, connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                """
+                SELECT usuario, nombre, apellidos, celular, cargo
+                FROM operadores WHERE UPPER(TRIM(nombre)) = UPPER(?)
+                """,
+                (nombre,),
+            ).fetchone()
+            return dict(row) if row else None
+
     def actualizar_datos_empleado(self, usuario: str, datos: dict) -> bool:
         """Actualiza los datos laborales del empleado (no toca la contrasena)."""
         self.initialize()
         campos = (
-            "apellidos", "cedula", "cargo", "fecha_ingreso", "fecha_retiro",
+            "apellidos", "cedula", "cargo", "celular", "fecha_ingreso", "fecha_retiro",
             "tipo_contrato", "salario_base", "auxilio_transporte", "valor_encomienda",
         )
         numericos = {"salario_base", "auxilio_transporte", "valor_encomienda"}

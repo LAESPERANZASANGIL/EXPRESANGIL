@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 118 tests.
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 127 tests.
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -37,7 +37,7 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 - **`excel_processor.py`** lee/normaliza/une planillas. `normalize_guide` quita guiones y cero inicial — es la forma canonica de la guia en toda la app.
 - **`reports.py`** centraliza constantes y utilidades compartidas: `ESTADO_RECAUDO = "E"`, `DENOMINACIONES`, `value_to_number`, `normalize_dataframe`, `filter_by_date`, `apply_report_format`. `recaudo.py`, `relacion_ce_rr.py`, `devoluciones.py` y `operadores.py` importan de aqui — no dupliques esas utilidades.
 - **`operadores.py`**: hashing PBKDF2-SHA256, parseo de guias pegadas (`parse_guides`) y la maquina de estados de la operacion. Importa de `reports.py`, nunca al reves (evitar import circular; por eso `DENOMINACIONES` esta duplicada con comentario).
-- **`consulta_publica.py`**: la raiz `/` del dominio es publica para que el cliente final consulte su guia. El panel interno vive en `/panel`.
+- **`consulta_publica.py`**: la raiz `/` del dominio es publica para que el cliente final consulte su guia. El panel interno vive en `/panel`. `describir_estado(guia, operador, oficina)` arma el mensaje: si la guia esta en reparto (`R`) informa el nombre y el celular del repartidor; si sigue en la oficina da la direccion y el telefono de `[oficina]` en `settings.toml` (`direccion`, `telefono`). El celular sale de la columna `celular` de `operadores`, que se llena en Modulo Usuarios -> Datos laborales del empleado.
 
 ### Tablas SQLite
 
@@ -45,7 +45,7 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 |---|---|---|
 | `guias` | `guia` | Zona de trabajo: guias vivas del dia |
 | `guias_archivo` | `guia` | Historico de entregadas archivadas al cerrar el dia |
-| `operadores` | `usuario` | Usuarios/empleados: `rol`, documentos, y datos laborales (`apellidos`, `fecha_ingreso`, `fecha_retiro`, `tipo_contrato`, `salario_base`, `auxilio_transporte`, `valor_encomienda`) |
+| `operadores` | `usuario` | Usuarios/empleados: `rol`, documentos, `celular` (se le muestra al cliente) y datos laborales (`apellidos`, `fecha_ingreso`, `fecha_retiro`, `tipo_contrato`, `salario_base`, `auxilio_transporte`, `valor_encomienda`) |
 | `cierres_operador` | `fecha, operador` | Cierre diario por repartidor (incluye `denominaciones` en JSON) |
 | `cierres_generales` | `fecha` | Conteo de billetes del cierre general de la oficina |
 | `prestamos` | `id` | Prestamos (2% mensual) y adelantos de nomina |
@@ -188,8 +188,8 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas.
-- Consulta publica de guias para el cliente final.
-- Suite de 118 tests en verde.
+- Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli.
+- Suite de 127 tests en verde.
 
 ## Que se puede mejorar
 

@@ -285,6 +285,7 @@ function cargarEmpleadoSeleccionado() {
   document.getElementById("emp-apellidos").value = empleado.apellidos || "";
   document.getElementById("emp-cedula").value = empleado.cedula || "";
   document.getElementById("emp-cargo").value = empleado.cargo || "";
+  document.getElementById("emp-celular").value = empleado.celular || "";
   document.getElementById("emp-ingreso").value = empleado.fecha_ingreso || "";
   document.getElementById("emp-retiro").value = empleado.fecha_retiro || "";
   empContrato.value = empleado.tipo_contrato || "NOMINA";
@@ -319,6 +320,7 @@ document.getElementById("btn-guardar-empleado").addEventListener("click", async 
     apellidos: document.getElementById("emp-apellidos").value,
     cedula: document.getElementById("emp-cedula").value,
     cargo: document.getElementById("emp-cargo").value,
+    celular: document.getElementById("emp-celular").value,
     fecha_ingreso: document.getElementById("emp-ingreso").value,
     fecha_retiro: document.getElementById("emp-retiro").value,
     tipo_contrato: empContrato.value,

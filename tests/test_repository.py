@@ -238,6 +238,7 @@ def test_operadores_crud(tmp_path: Path) -> None:
         "fecha_retiro": "",
         "tipo_contrato": "NOMINA",
         "valor_encomienda": 0,
+        "celular": "",
     }
 
     repository.crear_operador("kevin", "hash2", "KEVIN ACTUALIZADO")
@@ -549,3 +550,19 @@ def test_respaldo_periodico_no_se_hace_si_la_base_esta_danada(tmp_path: Path) ->
 
     assert repository.respaldo_periodico() is None
     assert sano.exists()
+
+
+def test_obtener_operador_por_nombre_para_la_consulta_publica(tmp_path: Path) -> None:
+    # Las guias guardan el nombre para mostrar, no el usuario de login.
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    repository.actualizar_datos_empleado("pipe", {"apellidos": "GOMEZ", "celular": "300 444 5566"})
+
+    encontrado = repository.obtener_operador_por_nombre("pipe")
+    assert encontrado is not None
+    assert encontrado["nombre"] == "PIPE"
+    assert encontrado["apellidos"] == "GOMEZ"
+    assert encontrado["celular"] == "300 444 5566"
+
+    assert repository.obtener_operador_por_nombre("NO EXISTE") is None
+    assert repository.obtener_operador_por_nombre("") is None
