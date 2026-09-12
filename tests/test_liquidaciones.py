@@ -190,13 +190,19 @@ def test_liquidacion_anual_paga_prima_y_vacaciones_de_ley() -> None:
     )
 
     assert liquidacion["cesantias"] == 1_500_000
+    # La mitad de las cesantias se consigna al fondo y la otra mitad se le
+    # entrega al empleado.
+    assert liquidacion["cesantias_consignadas"] == 750_000
+    assert liquidacion["cesantias_pagadas"] == 750_000
     assert liquidacion["intereses_cesantias"] == 180_000
     # Prima de ley: 30 dias de salario mas auxilio por anio trabajado.
     assert liquidacion["prima"] == 1_500_000
     # Vacaciones: 15 dias de salario por anio.
     assert liquidacion["vacaciones"] == 650_000
     assert liquidacion["indemnizacion"] == 0
+    # El total liquidado no cambia; lo que cambia es cuanto recibe en mano.
     assert liquidacion["total_pagar"] == 3_830_000
+    assert liquidacion["total_al_empleado"] == 3_080_000
 
 
 def test_liquidacion_anual_de_medio_anio_es_proporcional() -> None:
@@ -229,6 +235,10 @@ def test_pension_liquida_todo_pero_sin_indemnizacion() -> None:
 
     assert pension["prima"] > 0 and pension["vacaciones"] > 0
     assert pension["indemnizacion"] == 0
+    # Al retirarse, las cesantias se le pagan completas: nada al fondo.
+    assert pension["cesantias_consignadas"] == 0
+    assert pension["cesantias_pagadas"] == pension["cesantias"]
+    assert pension["total_al_empleado"] == pension["total_pagar"]
     # Las tres clases sin indemnizacion pagan exactamente lo mismo; lo que
     # cambia es el motivo que queda registrado.
     assert pension["total_pagar"] == voluntario["total_pagar"] == anual["total_pagar"]
@@ -278,3 +288,16 @@ def test_la_clase_de_liquidacion_queda_guardada(tmp_path: Path) -> None:
     hoja = load_workbook(ruta)["LIQUIDACIONES"]
     clases = {hoja.cell(row=f, column=2).value for f in (4, 5)}
     assert "Retiro forzoso (despido sin justa causa)" in clases
+
+
+def test_la_division_de_cesantias_queda_guardada(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    calculo = calcular_liquidacion_laboral(
+        1_200_000, 0, "2026-01-01", "2027-01-01", tipo_liquidacion=LIQ_ANUAL
+    )
+    repository.guardar_liquidacion_laboral({**calculo, "empleado": "KEVIN"})
+
+    registro = repository.listar_liquidaciones_laborales("KEVIN")[0]
+    assert registro["cesantias_pagadas"] == 600_000
+    assert registro["cesantias_consignadas"] == 600_000
+    assert registro["cesantias_pagadas"] + registro["cesantias_consignadas"] == registro["cesantias"]

@@ -207,6 +207,8 @@ class GuiaRepository:
                     salario_base INTEGER NOT NULL DEFAULT 0,
                     auxilio_transporte INTEGER NOT NULL DEFAULT 0,
                     cesantias INTEGER NOT NULL DEFAULT 0,
+                    cesantias_pagadas INTEGER NOT NULL DEFAULT 0,
+                    cesantias_consignadas INTEGER NOT NULL DEFAULT 0,
                     intereses_cesantias INTEGER NOT NULL DEFAULT 0,
                     prima INTEGER NOT NULL DEFAULT 0,
                     vacaciones INTEGER NOT NULL DEFAULT 0,
@@ -226,6 +228,12 @@ class GuiaRepository:
                     "ALTER TABLE liquidaciones_laborales "
                     "ADD COLUMN tipo_liquidacion TEXT NOT NULL DEFAULT 'RETIRO_VOLUNTARIO'"
                 )
+            for columna in ("cesantias_pagadas", "cesantias_consignadas"):
+                if columna not in columnas_liq:
+                    connection.execute(
+                        f"ALTER TABLE liquidaciones_laborales "
+                        f"ADD COLUMN {columna} INTEGER NOT NULL DEFAULT 0"
+                    )
 
             # Datos de empleado y de nomina, sobre la tabla de operadores.
             for columna, tipo in (
@@ -695,7 +703,8 @@ class GuiaRepository:
         self.initialize()
         campos = (
             "empleado", "tipo_liquidacion", "fecha_ingreso", "fecha_retiro", "dias_trabajados",
-            "salario_base", "auxilio_transporte", "cesantias", "intereses_cesantias",
+            "salario_base", "auxilio_transporte", "cesantias",
+            "cesantias_pagadas", "cesantias_consignadas", "intereses_cesantias",
             "prima", "vacaciones", "indemnizacion", "otros_descuentos",
             "total_pagar", "observaciones",
         )

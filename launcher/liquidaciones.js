@@ -214,13 +214,16 @@ function mostrarCalculo(liquidacion) {
   const filas = [
     ["Clase de liquidacion", liquidacion.etiqueta_tipo],
     ["Dias trabajados", liquidacion.dias_trabajados],
-    ["Cesantias", pesos(liquidacion.cesantias)],
+    ["Cesantias causadas", pesos(liquidacion.cesantias)],
+    ["  - que se le entregan al empleado", pesos(liquidacion.cesantias_pagadas)],
+    ["  - que se consignan al fondo", pesos(liquidacion.cesantias_consignadas)],
     ["Intereses de cesantias (12%)", pesos(liquidacion.intereses_cesantias)],
     ["Prima de servicios", pesos(liquidacion.prima)],
     ["Vacaciones", pesos(liquidacion.vacaciones)],
     ["Indemnizacion", pesos(liquidacion.indemnizacion)],
     ["(-) Otros descuentos", pesos(liquidacion.otros_descuentos)],
-    ["TOTAL A PAGAR", pesos(liquidacion.total_pagar)],
+    ["TOTAL LIQUIDADO", pesos(liquidacion.total_pagar)],
+    ["TOTAL QUE RECIBE EL EMPLEADO", pesos(liquidacion.total_al_empleado)],
   ];
   for (const [etiqueta, valor] of filas) {
     const tr = document.createElement("tr");

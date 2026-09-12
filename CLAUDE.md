@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 117 tests.
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 118 tests.
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -127,6 +127,8 @@ Los dias de prima y de vacaciones se pueden ajustar; por defecto toman todo el t
 | `RETIRO_FORZOSO` (despido sin justa causa) | si | **si** |
 | `PENSION` (se pensiona) | si | no |
 
+En `ANUAL` **las cesantias se reparten 50/50**: la mitad se le entrega al empleado y la mitad se consigna al fondo de cesantias (`PORCENTAJE_CESANTIAS_CONSIGNADAS_ANUAL`). En las clases de retiro se le pagan completas. El calculo devuelve `cesantias_pagadas`, `cesantias_consignadas`, `total_pagar` (lo liquidado) y `total_al_empleado` (lo que recibe en mano).
+
 En `ANUAL` las dos fechas delimitan **el anio a liquidar**, no el ingreso y retiro del empleado (el frontend renombra los campos a "DESDE/HASTA" y propone el anio en curso, o desde la fecha de ingreso si entro a mitad de anio).
 
 La indemnizacion solo existe en `RETIRO_FORZOSO`. `calcular_indemnizacion()` sugiere la del **art. 64 del CST** para contrato indefinido con salario inferior a 10 SMMLV: **30 dias de salario por el primer anio y 20 por cada anio siguiente**, proporcional por fraccion. El admin puede escribir otro valor; si deja el campo vacio se usa el sugerido.
@@ -187,7 +189,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas.
 - Consulta publica de guias para el cliente final.
-- Suite de 117 tests en verde.
+- Suite de 118 tests en verde.
 
 ## Que se puede mejorar
 
