@@ -60,6 +60,11 @@ DIAS_ANIO_LABORAL = 360
 TASA_INTERESES_CESANTIAS = 0.12
 DIAS_VACACIONES_BASE = 720  # 15 dias habiles por anio trabajado
 
+# En el corte anual las cesantias se reparten: la mitad se le entrega al
+# empleado y la otra mitad se consigna al fondo de cesantias, como manda
+# la ley. En las liquidaciones de retiro se le pagan completas a el.
+PORCENTAJE_CESANTIAS_CONSIGNADAS_ANUAL = 0.50
+
 # Indemnizacion por despido sin justa causa (art. 64 CST, contrato a
 # termino indefinido con salario inferior a 10 SMMLV): 30 dias de salario
 # por el primer anio y 20 dias por cada anio siguiente, proporcional por
@@ -228,6 +233,14 @@ def calcular_liquidacion_laboral(
     prima = round(base_prestacional * dias_prima_efectivos / DIAS_ANIO_LABORAL)
     vacaciones = round(salario_base * dias_vacaciones_efectivos / DIAS_VACACIONES_BASE)
 
+    # Corte anual: la mitad de las cesantias se consigna al fondo y la otra
+    # mitad se le entrega al empleado. Al retirarse, se le pagan completas.
+    if tipo == LIQ_ANUAL:
+        cesantias_consignadas = round(cesantias * PORCENTAJE_CESANTIAS_CONSIGNADAS_ANUAL)
+    else:
+        cesantias_consignadas = 0
+    cesantias_pagadas = cesantias - cesantias_consignadas
+
     # La indemnizacion solo existe en el despido sin justa causa; si no se
     # indica un valor, se sugiere el de ley.
     indemnizacion_sugerida = (
@@ -257,12 +270,15 @@ def calcular_liquidacion_laboral(
         "auxilio_transporte": auxilio_transporte,
         "cesantias": cesantias,
         "intereses_cesantias": intereses,
+        "cesantias_pagadas": cesantias_pagadas,
+        "cesantias_consignadas": cesantias_consignadas,
         "prima": prima,
         "vacaciones": vacaciones,
         "indemnizacion": indemnizacion_final,
         "indemnizacion_sugerida": indemnizacion_sugerida,
         "otros_descuentos": int(otros_descuentos or 0),
         "total_pagar": total,
+        "total_al_empleado": total - cesantias_consignadas,
     }
 
 
@@ -357,21 +373,22 @@ def generate_liquidaciones_laborales_excel(
         sheet,
         "LIQUIDACIONES LABORALES DEFINITIVAS",
         ["EMPLEADO", "CLASE", "INGRESO", "RETIRO", "DIAS", "SALARIO", "AUXILIO", "CESANTIAS",
-         "INT. CESANTIAS", "PRIMA", "VACACIONES", "INDEMNIZACION", "DESCUENTOS",
-         "TOTAL A PAGAR", "OBSERVACIONES"],
+         "CES. AL EMPLEADO", "CES. CONSIGNADAS", "INT. CESANTIAS", "PRIMA", "VACACIONES",
+         "INDEMNIZACION", "DESCUENTOS", "TOTAL LIQUIDADO", "OBSERVACIONES"],
         [
             [
                 r["empleado"],
                 ETIQUETAS_LIQUIDACION.get(r.get("tipo_liquidacion", ""), r.get("tipo_liquidacion", "")),
                 r["fecha_ingreso"], r["fecha_retiro"], r["dias_trabajados"],
                 r["salario_base"], r["auxilio_transporte"], r["cesantias"],
+                r["cesantias_pagadas"], r["cesantias_consignadas"],
                 r["intereses_cesantias"], r["prima"], r["vacaciones"],
                 r["indemnizacion"], r["otros_descuentos"], r["total_pagar"],
                 r["observaciones"],
             ]
             for r in registros
         ],
-        monedas={6, 7, 8, 9, 10, 11, 12, 13, 14},
+        monedas={6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
     )
     workbook.save(output_path)
     return output_path
