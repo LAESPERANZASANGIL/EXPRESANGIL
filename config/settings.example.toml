@@ -34,6 +34,9 @@ editable_columns = ["OPERADOR", "ESTADO", "CAUSAL"]
 [oficina]
 nombre = "SAN GIL"
 admin_name = "JOHAN A. ORTIZ"
+# Se le muestran al cliente final cuando consulta una guia que esta en la oficina.
+direccion = "Calle 10 # 9-50, San Gil, Santander"
+telefono = "300 000 0000"
 
 [servidor]
 # HTTPS opcional: si dejas estos campos vacios, el panel sigue sirviendo

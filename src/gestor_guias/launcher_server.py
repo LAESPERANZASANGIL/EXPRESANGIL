@@ -421,12 +421,26 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 )
                 return
 
+            # Si la guia salio a reparto, se le dice al cliente quien la
+            # lleva y a que celular ubicarlo.
+            operador = None
+            if str(registro.get("estado") or "").strip().upper() == ESTADO_SALIDA:
+                operador = REPOSITORY.obtener_operador_por_nombre(registro.get("operador", ""))
+
             self._send_json(
                 {
                     "ok": True,
                     "encontrada": True,
                     "guia": registro["guia"],
-                    "mensaje": describir_estado(registro),
+                    "mensaje": describir_estado(
+                        registro,
+                        operador=operador,
+                        oficina={
+                            "nombre": SETTINGS.oficina.nombre,
+                            "direccion": SETTINGS.oficina.direccion,
+                            "telefono": SETTINGS.oficina.telefono,
+                        },
+                    ),
                 }
             )
             return

@@ -33,6 +33,9 @@ class ExcelSettings:
 class OficinaSettings:
     nombre: str
     admin_name: str
+    # Datos que se le muestran al cliente final en la consulta publica.
+    direccion: str = ""
+    telefono: str = ""
 
 
 @dataclass(frozen=True)
@@ -93,6 +96,8 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
         oficina=OficinaSettings(
             nombre=str(oficina.get("nombre", "SAN GIL")),
             admin_name=str(oficina.get("admin_name", "JOHAN A. ORTIZ")),
+            direccion=str(oficina.get("direccion", "")),
+            telefono=str(oficina.get("telefono", "")),
         ),
         servidor=ServidorSettings(
             cert_file=_project_path(cert_file) if cert_file else None,
