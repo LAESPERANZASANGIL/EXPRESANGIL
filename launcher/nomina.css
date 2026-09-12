@@ -27,8 +27,10 @@
 
 /* `.tabla-guias` viene con width:100%, que aprieta las columnas en vez de
    desbordar: sin desbordar no hay nada que desplazar y el nombre del empleado
-   queda cortado. Con min-width la tabla crece y el contenedor si hace scroll. */
-.tabla-nomina {
+   queda cortado. Con min-width la tabla crece y el contenedor si hace scroll.
+   Aplica a las dos tablas anchas del modulo (nomina y prestamos). */
+.tabla-nomina,
+.tabla-prestamos {
   width: auto;
   min-width: 100%;
 }
@@ -41,7 +43,9 @@
 /* La columna del empleado se queda fija al desplazarse a lo ancho, para saber
    siempre de quien es la fila que se esta editando. */
 .tabla-nomina th:first-child,
-.tabla-nomina td:first-child {
+.tabla-nomina td:first-child,
+.tabla-prestamos th:first-child,
+.tabla-prestamos td:first-child {
   text-align: left;
   position: sticky;
   left: 0;
@@ -51,19 +55,23 @@
   box-shadow: 1px 0 0 #d8d8d8;
 }
 
-.tabla-nomina td:first-child {
+.tabla-nomina td:first-child,
+.tabla-prestamos td:first-child {
   background: #fff;
 }
 
-.tabla-nomina th:first-child {
+.tabla-nomina th:first-child,
+.tabla-prestamos th:first-child {
   z-index: 3;
 }
 
-.tabla-nomina tr.fila-pagada td:first-child {
+.tabla-nomina tr.fila-pagada td:first-child,
+.tabla-prestamos tr.fila-pagada td:first-child {
   background: #f4f4f4;
 }
 
-.tabla-nomina tr.fila-liquidada td:first-child {
+.tabla-nomina tr.fila-liquidada td:first-child,
+.tabla-prestamos tr.fila-liquidada td:first-child {
   background: #eaf5ea;
 }
 
