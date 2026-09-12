@@ -1489,7 +1489,11 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 registro = liquidados.get(nombre)
                 empleados.append({
                     "usuario": empleado["usuario"],
+                    # `nombre` es la clave con la que se liquida y se guarda en
+                    # la tabla `nomina`; los apellidos van aparte, solo para
+                    # mostrarlos en pantalla.
                     "nombre": nombre,
+                    "apellidos": empleado["apellidos"],
                     "cargo": empleado["cargo"],
                     "cedula": empleado["cedula"],
                     "salario_base": registro["salario_base"] if registro else empleado["salario_base"],

@@ -97,7 +97,7 @@ async function consultar() {
   for (const empleado of empleados) {
     const opcion = document.createElement("option");
     opcion.value = empleado.usuario;
-    opcion.textContent = `${empleado.nombre} (${empleado.usuario})`;
+    opcion.textContent = `${empleado.nombre} ${empleado.apellidos || ""} (${empleado.usuario})`.replace(/\s+/g, " ");
     configUsuario.appendChild(opcion);
   }
   cargarDatosEmpleado();
@@ -110,7 +110,8 @@ async function consultar() {
     const tr = document.createElement("tr");
     tr.dataset.empleado = empleado.nombre;
     const celdaNombre = document.createElement("td");
-    celdaNombre.textContent = empleado.nombre;
+    celdaNombre.textContent =
+    `${empleado.nombre} ${empleado.apellidos || ""}`.trim();
     tr.appendChild(celdaNombre);
 
     const campos = {
