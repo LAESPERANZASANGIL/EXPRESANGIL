@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 127 tests.
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 129 tests.
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -54,6 +54,8 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 | `liquidaciones_semanales` | `semana_inicio, empleado` | Pago semanal de contratistas por encomienda |
 | `liquidaciones_laborales` | `id` | Liquidacion definitiva al retirar a un empleado |
 
+**Renombrar a un empleado**: `guias`, `guias_archivo`, `cierres_operador`, `prestamos`, `nomina`, `liquidaciones_semanales` y `liquidaciones_laborales` guardan el **nombre** del empleado como texto, no su `usuario`. Por eso el cambio de nombre pasa siempre por `repository.renombrar_operador()`, que arrastra esas siete tablas en la misma transaccion y rechaza un nombre ya usado por otro. Nunca actualizar `operadores.nombre` a secas.
+
 ## Estados de guia (no inventar nuevos sin confirmar)
 
 - `N`: movimiento normal — unico estado que entra al consolidado al importar.
@@ -81,7 +83,7 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Prestamos y Adelantos** (`/prestamos`, solo admin): registro de prestamos y adelantos, abonos, saldos con interes e informe mensual.
 - **Nomina** (`/nomina`, solo admin): liquidacion mensual de los empleados con contrato **NOMINA**, con descuento automatico de prestamos e informes Excel/PDF.
 - **Liquidaciones** (`/liquidaciones`, solo admin): pago semanal de los de contrato **SERVICIOS** (por encomienda entregada) y liquidacion laboral en sus cuatro clases (anual, retiro voluntario, retiro forzoso, pension).
-- **Modulo Usuarios** (`/usuarios`, solo admin): usuarios del sistema y **datos laborales del empleado** (contrato, fechas, salario o valor por encomienda). **Dashboard** (`/dashboard`, solo admin).
+- **Modulo Usuarios** (`/usuarios`, solo admin): usuarios del sistema y **datos laborales del empleado** (nombre, contrato, fechas, cedula, celular, salario o valor por encomienda). El boton **Editar** de la tabla apunta tambien la seccion de datos laborales a esa persona. **Dashboard** (`/dashboard`, solo admin).
 - **Consulta publica** (`/`): el cliente final consulta el estado de su guia.
 
 ## Informes
@@ -187,9 +189,9 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Nomina mensual con descuento automatico de las cuotas del mes e informes en Excel y PDF.
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
-- Gestion de usuarios con roles y auditoria de acciones destructivas.
+- Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli.
-- Suite de 127 tests en verde.
+- Suite de 129 tests en verde.
 
 ## Que se puede mejorar
 

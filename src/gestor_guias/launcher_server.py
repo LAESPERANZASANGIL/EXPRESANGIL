@@ -929,6 +929,30 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
 
             password_hash = hash_password(password) if password else existente["password_hash"]
+
+            # Renombrar es un caso aparte: las guias, los cierres, los prestamos
+            # y la nomina guardan el nombre del empleado, asi que hay que
+            # arrastrarlos o el historial se le desprende.
+            aviso_rename = ""
+            if existente and str(existente["nombre"] or "").strip().upper() != nombre:
+                try:
+                    resultado = REPOSITORY.renombrar_operador(usuario, nombre)
+                except ValueError as error:
+                    self._send_json({"ok": False, "output": str(error)})
+                    return
+                arrastradas = sum(resultado["cambios"].values())
+                registrar_auditoria(
+                    session["usuario"] if session else "bootstrap",
+                    "renombrar-usuario",
+                    f"{usuario}: '{resultado['nombre_anterior']}' -> '{nombre}' "
+                    f"({arrastradas} registro(s) reasignados)",
+                )
+                if arrastradas:
+                    aviso_rename = (
+                        f" Se reasignaron {arrastradas} registro(s) de "
+                        f"'{resultado['nombre_anterior']}' a '{nombre}'."
+                    )
+
             REPOSITORY.crear_operador(
                 usuario,
                 password_hash,
@@ -944,7 +968,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 f"usuario={usuario}, rol={rol}",
             )
             self._send_json(
-                {"ok": True, "output": f"Usuario '{usuario}' guardado con rol '{rol}'."}
+                {
+                    "ok": True,
+                    "output": f"Usuario '{usuario}' guardado con rol '{rol}'." + aviso_rename,
+                }
             )
             return
 
@@ -1761,13 +1788,39 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 except ValueError:
                     self._send_json({"ok": False, "output": f"La {campo.replace('_', ' ')} es invalida."})
                     return
+            # El nombre viaja aparte: al cambiarlo hay que arrastrar las guias,
+            # los cierres, los prestamos y la nomina, que lo guardan como texto.
+            aviso_rename = ""
+            nombre = str(data.get("nombre", "")).strip().upper()
+            if nombre:
+                try:
+                    resultado = REPOSITORY.renombrar_operador(usuario, nombre)
+                except ValueError as error:
+                    self._send_json({"ok": False, "output": str(error)})
+                    return
+                arrastradas = sum(resultado["cambios"].values())
+                if resultado["cambios"] or resultado["nombre_anterior"].upper() != nombre:
+                    registrar_auditoria(
+                        self._get_session()["usuario"],
+                        "renombrar-usuario",
+                        f"{usuario}: '{resultado['nombre_anterior']}' -> '{nombre}' "
+                        f"({arrastradas} registro(s) reasignados)",
+                    )
+                if arrastradas:
+                    aviso_rename = (
+                        f" Se reasignaron {arrastradas} registro(s) de "
+                        f"'{resultado['nombre_anterior']}' a '{nombre}'."
+                    )
+
             if not REPOSITORY.actualizar_datos_empleado(usuario, {**data, "tipo_contrato": tipo_contrato}):
                 self._send_json({"ok": False, "output": "No se encontro el empleado."})
                 return
             registrar_auditoria(
                 self._get_session()["usuario"], "editar-empleado", f"{usuario} ({tipo_contrato})"
             )
-            self._send_json({"ok": True, "output": f"Datos de {usuario} actualizados."})
+            self._send_json(
+                {"ok": True, "output": f"Datos de {usuario} actualizados." + aviso_rename}
+            )
             return
 
         if self.path == "/api/nomina/empleado":
