@@ -209,10 +209,14 @@ header .subtitulo {
   color: #444;
 }
 
+/* Todo campo editable de un `.opcion` comparte esta caja: si se agrega un
+   `type` nuevo hay que sumarlo aqui y al bloque `:focus`, o queda con el
+   estilo por defecto del navegador y desalineado del resto del formulario. */
 .opcion input[type="text"],
 .opcion input[type="password"],
 .opcion input[type="date"],
 .opcion input[type="month"],
+.opcion input[type="number"],
 .opcion select {
   width: 100%;
   min-height: 55px;
@@ -363,6 +367,7 @@ header .subtitulo {
 .opcion input[type="password"]:focus,
 .opcion input[type="date"]:focus,
 .opcion input[type="month"]:focus,
+.opcion input[type="number"]:focus,
 .opcion select:focus {
   outline: none;
   border-color: var(--azul-info);
