@@ -4,11 +4,13 @@ from contextlib import closing
 from datetime import date, datetime
 from pathlib import Path
 import json
+import os
 import shutil
 import sqlite3
 
 import pandas as pd
 
+from .db import POSTGRES, SQLITE, abrir_postgres, abrir_sqlite, transaccion
 from .excel_processor import hoy_colombia
 
 
@@ -37,12 +39,37 @@ def fecha_entrega(nuevo_estado: str, fecha: str | None = None) -> str:
 
 
 class GuiaRepository:
-    def __init__(self, database_file: Path) -> None:
-        self.database_file = database_file
-        self.database_file.parent.mkdir(parents=True, exist_ok=True)
+    """Unico acceso a datos. Habla SQLite o Postgres segun como se construya.
+
+    Con `dsn` (o con la variable de entorno `EXPRESANGIL_DB_DSN`) trabaja
+    contra Supabase; sin ella, contra el archivo SQLite de siempre. El SQL
+    se escribe en un subconjunto portable y `db.py` traduce lo que cada
+    motor entiende distinto.
+    """
+
+    def __init__(self, database_file: Path, dsn: str = "") -> None:
+        self.database_file = Path(database_file)
+        self.dsn = (dsn or os.environ.get("EXPRESANGIL_DB_DSN", "")).strip()
+        self.motor = POSTGRES if self.dsn else SQLITE
+        if self.motor == SQLITE:
+            self.database_file.parent.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def es_postgres(self) -> bool:
+        return self.motor == POSTGRES
 
     def initialize(self) -> None:
-        with closing(self._connect()) as connection, connection:
+        """Crea las tablas y agrega las columnas que falten (solo SQLite).
+
+        En Postgres el esquema lo gobierna `supabase/migrations/`: aplicar
+        migraciones desde la aplicacion, en cada llamada y desde varios
+        procesos a la vez, es justo lo que no se quiere en una base
+        compartida.
+        """
+        if self.es_postgres:
+            return
+
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS guias (
@@ -276,7 +303,7 @@ class GuiaRepository:
     def save_consolidated(self, dataframe: pd.DataFrame) -> None:
         self.initialize()
         guias = [row for row in dataframe["GUIA"].astype(str) if row]
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             placeholders = ",".join("?" * len(guias)) if guias else ""
             existentes = (
                 {
@@ -324,7 +351,7 @@ class GuiaRepository:
                 )
             )
 
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.executemany(
                 """
                 INSERT INTO guias (
@@ -362,24 +389,24 @@ class GuiaRepository:
 
     def list_all(self) -> list[dict]:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute("SELECT * FROM guias ORDER BY rowid").fetchall()
-            return [dict(row) for row in rows]
+        with transaccion(self._connect()) as connection:
+            # `rowid` es un implicito de SQLite que Postgres no tiene. Se
+            # ordena por guia: es determinista en los dos motores y el orden
+            # de insercion no significa nada para el negocio (la Zona de
+            # Trabajo y los informes reordenan por su cuenta).
+            return connection.consultar("SELECT * FROM guias ORDER BY guia")
 
     def obtener_guia(self, guia: str) -> dict | None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            row = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar_una(
                 "SELECT * FROM guias WHERE guia = ?", (guia,)
-            ).fetchone()
-            return dict(row) if row else None
+            )
 
     def update_tracking_fields(self, guia: str, operador: str, estado: str, causal: str) -> None:
         self.initialize()
         entrega = fecha_entrega(estado)
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 UPDATE guias
@@ -408,7 +435,7 @@ class GuiaRepository:
         # F_INGRESO (columna "fecha") y F_ENTREGA (columna "ingreso") solo se
         # tocan si el editor envia un valor explicito; en caso contrario se
         # conserva el que ya tenia la guia.
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 UPDATE guias
@@ -438,7 +465,7 @@ class GuiaRepository:
             return 0
 
         entrega = fecha_entrega(estado)
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.executemany(
                 """
                 UPDATE guias
@@ -460,7 +487,7 @@ class GuiaRepository:
     def clear_all(self) -> None:
         self.initialize()
         self._backup_antes_de_borrar()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(f"DELETE FROM guias WHERE {self._PROTEGER_ENTREGADAS}")
 
     def delete_many(self, guias: list[str]) -> int:
@@ -470,7 +497,7 @@ class GuiaRepository:
             return 0
 
         self._backup_antes_de_borrar()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.executemany(
                 f"DELETE FROM guias WHERE guia = ? AND {self._PROTEGER_ENTREGADAS}",
                 [(guia,) for guia in clean_guides],
@@ -484,7 +511,7 @@ class GuiaRepository:
             return 0
 
         self._backup_antes_de_borrar()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 f"DELETE FROM guias WHERE fecha LIKE ? AND {self._PROTEGER_ENTREGADAS}",
                 (f"{fecha}%",),
@@ -498,7 +525,7 @@ class GuiaRepository:
             return 0
 
         self._backup_antes_de_borrar()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 f"DELETE FROM guias WHERE UPPER(TRIM(operador)) = UPPER(?) AND {self._PROTEGER_ENTREGADAS}",
                 (operador,),
@@ -512,7 +539,7 @@ class GuiaRepository:
             return 0
 
         self._backup_antes_de_borrar()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 f"DELETE FROM guias WHERE estado = ? AND {self._PROTEGER_ENTREGADAS}",
                 (estado,),
@@ -529,13 +556,11 @@ class GuiaRepository:
     def snapshot_guias(self, where: str, params: tuple) -> list[dict]:
         """Copia completa de las guias que cumplen la condicion (para deshacer)."""
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 f"SELECT {', '.join(self._COLUMNAS_GUIA)} FROM guias WHERE {where}",
                 params,
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def snapshot_por_guias(self, guias: list[str]) -> list[dict]:
         clean = [guia.strip() for guia in guias if guia.strip()]
@@ -551,7 +576,7 @@ class GuiaRepository:
         self.initialize()
         columnas = ", ".join(self._COLUMNAS_GUIA)
         marcadores = ", ".join("?" * len(self._COLUMNAS_GUIA))
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.executemany(
                 f"INSERT OR REPLACE INTO guias ({columnas}) VALUES ({marcadores})",
                 [tuple(row[col] for col in self._COLUMNAS_GUIA) for row in rows],
@@ -561,7 +586,7 @@ class GuiaRepository:
     def guardar_cierre_general(self, fecha: str, denominaciones: dict[int, int], efectivo_contado: int) -> None:
         """Guarda el conteo de billetes del cierre general del dia (para el informe diario)."""
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT INTO cierres_generales (fecha, denominaciones, efectivo_contado)
@@ -575,7 +600,7 @@ class GuiaRepository:
 
     def obtener_cierre_general(self, fecha: str) -> dict | None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             row = connection.execute(
                 "SELECT denominaciones, efectivo_contado FROM cierres_generales WHERE fecha = ?",
                 (fecha,),
@@ -595,9 +620,8 @@ class GuiaRepository:
         self.initialize()
         condicion = "WHERE UPPER(TRIM(tipo_contrato)) = UPPER(?)" if tipo_contrato else ""
         parametros = (tipo_contrato.strip(),) if tipo_contrato else ()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 f"""
                 SELECT usuario, nombre, apellidos, rol, cedula, cargo, celular,
                        fecha_ingreso, fecha_retiro, tipo_contrato,
@@ -605,8 +629,7 @@ class GuiaRepository:
                 FROM operadores {condicion} ORDER BY nombre
                 """,
                 parametros,
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def obtener_operador_por_nombre(self, nombre: str) -> dict | None:
         """Busca un empleado por el nombre con el que aparece en las guias.
@@ -618,16 +641,14 @@ class GuiaRepository:
         nombre = str(nombre or "").strip()
         if not nombre:
             return None
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            row = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar_una(
                 """
                 SELECT usuario, nombre, apellidos, celular, cargo
                 FROM operadores WHERE UPPER(TRIM(nombre)) = UPPER(?)
                 """,
                 (nombre,),
-            ).fetchone()
-            return dict(row) if row else None
+            )
 
     def actualizar_datos_empleado(self, usuario: str, datos: dict) -> bool:
         """Actualiza los datos laborales del empleado (no toca la contrasena)."""
@@ -641,7 +662,7 @@ class GuiaRepository:
             int(datos.get(campo, 0) or 0) if campo in numericos else str(datos.get(campo, "") or "")
             for campo in campos
         ]
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 f"UPDATE operadores SET {', '.join(f'{c} = ?' for c in campos)} WHERE usuario = ?",
                 (*valores, usuario),
@@ -656,7 +677,7 @@ class GuiaRepository:
         """
         self.initialize()
         conteo: dict[str, int] = {}
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             for tabla in ("guias", "guias_archivo"):
                 filas = connection.execute(
                     f"""
@@ -681,7 +702,7 @@ class GuiaRepository:
             "entregas", "valor_encomienda", "subtotal",
             "descuento_prestamos", "otros_descuentos", "total_pagar",
         )
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 f"""
                 INSERT INTO liquidaciones_semanales
@@ -713,13 +734,11 @@ class GuiaRepository:
             condiciones.append("UPPER(TRIM(empleado)) = UPPER(?)")
             parametros.append(empleado.strip())
         where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 f"SELECT * FROM liquidaciones_semanales {where} ORDER BY semana_inicio DESC, empleado",
                 parametros,
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def guardar_liquidacion_laboral(self, datos: dict) -> int:
         self.initialize()
@@ -731,8 +750,8 @@ class GuiaRepository:
             "total_pagar", "observaciones",
         )
         textos = {"empleado", "tipo_liquidacion", "fecha_ingreso", "fecha_retiro", "observaciones"}
-        with closing(self._connect()) as connection, connection:
-            cursor = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.insertar_devolviendo_id(
                 f"""
                 INSERT INTO liquidaciones_laborales ({', '.join(campos)}, registrada_en)
                 VALUES ({', '.join('?' * len(campos))}, ?)
@@ -746,19 +765,16 @@ class GuiaRepository:
                     datetime.now().isoformat(timespec="seconds"),
                 ),
             )
-            return int(cursor.lastrowid)
 
     def listar_liquidaciones_laborales(self, empleado: str = "") -> list[dict]:
         self.initialize()
         condicion = "WHERE UPPER(TRIM(empleado)) = UPPER(?)" if empleado else ""
         parametros = (empleado.strip(),) if empleado else ()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 f"SELECT * FROM liquidaciones_laborales {condicion} ORDER BY fecha_retiro DESC, id DESC",
                 parametros,
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     # ------------------------------------------------------------------
     # Prestamos y adelantos de nomina
@@ -775,15 +791,14 @@ class GuiaRepository:
         observaciones: str = "",
     ) -> int:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            cursor = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.insertar_devolviendo_id(
                 """
                 INSERT INTO prestamos (empleado, tipo, monto, fecha, forma_pago, cuotas, observaciones)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (empleado, tipo, int(monto), fecha, forma_pago, max(1, int(cuotas)), observaciones),
             )
-            return int(cursor.lastrowid)
 
     def listar_prestamos(self, empleado: str = "", solo_activos: bool = False) -> list[dict]:
         self.initialize()
@@ -793,24 +808,20 @@ class GuiaRepository:
             parametros.append(empleado.strip())
         if solo_activos:
             condiciones.append("estado = 'ACTIVO'")
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 f"SELECT * FROM prestamos WHERE {' AND '.join(condiciones)} ORDER BY fecha DESC, id DESC",
                 parametros,
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def obtener_prestamo(self, prestamo_id: int) -> dict | None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            row = connection.execute("SELECT * FROM prestamos WHERE id = ?", (prestamo_id,)).fetchone()
-            return dict(row) if row else None
+        with transaccion(self._connect()) as connection:
+            return connection.consultar_una("SELECT * FROM prestamos WHERE id = ?", (prestamo_id,))
 
     def anular_prestamo(self, prestamo_id: int) -> bool:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 "UPDATE prestamos SET estado = 'ANULADO' WHERE id = ?", (prestamo_id,)
             )
@@ -818,31 +829,28 @@ class GuiaRepository:
 
     def marcar_estado_prestamo(self, prestamo_id: int, estado: str) -> None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute("UPDATE prestamos SET estado = ? WHERE id = ?", (estado, prestamo_id))
 
     def registrar_abono(self, prestamo_id: int, fecha: str, monto: int, concepto: str = "") -> int:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            cursor = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.insertar_devolviendo_id(
                 "INSERT INTO prestamo_abonos (prestamo_id, fecha, monto, concepto) VALUES (?, ?, ?, ?)",
                 (prestamo_id, fecha, int(monto), concepto),
             )
-            return int(cursor.lastrowid)
 
     def listar_abonos(self, prestamo_id: int) -> list[dict]:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 "SELECT * FROM prestamo_abonos WHERE prestamo_id = ? ORDER BY fecha, id",
                 (prestamo_id,),
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def eliminar_abono(self, abono_id: int) -> bool:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute("DELETE FROM prestamo_abonos WHERE id = ?", (abono_id,))
             return cursor.rowcount > 0
 
@@ -856,7 +864,7 @@ class GuiaRepository:
             "salario_base", "dias_trabajados", "auxilio_transporte", "bonificaciones",
             "salud", "pension", "descuento_prestamos", "otros_descuentos", "total_pagar",
         )
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 f"""
                 INSERT INTO nomina (periodo, empleado, {', '.join(campos)}, observaciones)
@@ -875,16 +883,14 @@ class GuiaRepository:
 
     def listar_nomina(self, periodo: str) -> list[dict]:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 "SELECT * FROM nomina WHERE periodo = ? ORDER BY empleado", (periodo,)
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def eliminar_nomina(self, periodo: str, empleado: str) -> bool:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 "DELETE FROM nomina WHERE periodo = ? AND empleado = ?", (periodo, empleado)
             )
@@ -894,7 +900,7 @@ class GuiaRepository:
         self, usuario: str, salario_base: int, auxilio_transporte: int, cedula: str, cargo: str
     ) -> bool:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 """
                 UPDATE operadores
@@ -929,24 +935,23 @@ class GuiaRepository:
             ("liquidaciones_semanales", "empleado"),
             ("liquidaciones_laborales", "empleado"),
         )
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            fila = connection.execute(
+        with transaccion(self._connect()) as connection:
+            fila = connection.consultar_una(
                 "SELECT nombre FROM operadores WHERE usuario = ?", (usuario,)
-            ).fetchone()
+            )
             if fila is None:
                 raise ValueError("No se encontro el empleado.")
             nombre_anterior = str(fila["nombre"] or "").strip()
             if nombre_anterior.upper() == nombre_nuevo:
                 return {"nombre_anterior": nombre_anterior, "cambios": {}}
 
-            ocupado = connection.execute(
+            ocupado = connection.consultar_una(
                 """
                 SELECT usuario FROM operadores
                 WHERE UPPER(TRIM(nombre)) = ? AND usuario <> ?
                 """,
                 (nombre_nuevo, usuario),
-            ).fetchone()
+            )
             if ocupado is not None:
                 raise ValueError(
                     f"El nombre '{nombre_nuevo}' ya lo usa '{ocupado['usuario']}'."
@@ -981,9 +986,8 @@ class GuiaRepository:
             "guia, planilla, servicio, unid, tipo_de_servicio, destinatario, "
             "direccion, municipio, valor, operador, estado, causal, fecha, ingreso"
         )
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 f"""
                 SELECT {columnas} FROM guias_archivo
                 WHERE UPPER(TRIM(estado)) = 'E' AND ingreso LIKE ?
@@ -997,8 +1001,7 @@ class GuiaRepository:
                 ORDER BY operador, ingreso, guia
                 """,
                 (prefijo, prefijo, prefijo),
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def eliminar_entregadas_mes(self, anio: int, mes: int) -> dict:
         """Borra definitivamente las entregadas del mes (archivo + zona de trabajo).
@@ -1009,7 +1012,7 @@ class GuiaRepository:
         self.initialize()
         self._backup_antes_de_borrar()
         prefijo = f"{anio:04d}-{mes:02d}%"
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor_archivo = connection.execute(
                 "DELETE FROM guias_archivo WHERE ingreso LIKE ?",
                 (prefijo,),
@@ -1033,7 +1036,7 @@ class GuiaRepository:
         self.initialize()
         self._backup_antes_de_borrar()
         marca = datetime.now().isoformat(timespec="seconds")
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 """
                 INSERT OR REPLACE INTO guias_archivo (
@@ -1063,7 +1066,7 @@ class GuiaRepository:
         tecnomecanica_vencimiento: str = "",
     ) -> None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT INTO operadores (
@@ -1092,25 +1095,21 @@ class GuiaRepository:
 
     def obtener_operador(self, usuario: str) -> dict | None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            row = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar_una(
                 "SELECT * FROM operadores WHERE usuario = ?", (usuario,)
-            ).fetchone()
-            return dict(row) if row else None
+            )
 
     def listar_operadores(self) -> list[dict]:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 """
                 SELECT usuario, nombre, rol,
                        licencia_vencimiento, soat_vencimiento, tecnomecanica_vencimiento
                 FROM operadores ORDER BY nombre
                 """
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def listar_operadores_en_guias(self) -> list[str]:
         # Los nombres de operador en la columna OPERADOR de guias no siempre
@@ -1118,7 +1117,7 @@ class GuiaRepository:
         # ejemplo PLANILLADA o un repartidor sin acceso al panel), por eso se
         # listan aparte para los selectores de informes.
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             rows = connection.execute(
                 "SELECT DISTINCT operador FROM guias WHERE TRIM(operador) != '' ORDER BY operador"
             ).fetchall()
@@ -1126,7 +1125,7 @@ class GuiaRepository:
 
     def contar_admins(self) -> int:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             row = connection.execute(
                 "SELECT COUNT(*) FROM operadores WHERE rol = 'admin'"
             ).fetchone()
@@ -1134,7 +1133,7 @@ class GuiaRepository:
 
     def eliminar_operador(self, usuario: str) -> int:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute("DELETE FROM operadores WHERE usuario = ?", (usuario,))
             return cursor.rowcount
 
@@ -1148,14 +1147,13 @@ class GuiaRepository:
         if not clean_guides:
             return 0, []
 
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
+        with transaccion(self._connect()) as connection:
             placeholders = ",".join("?" * len(clean_guides))
             encontradas = {
                 row["guia"]
-                for row in connection.execute(
+                for row in connection.consultar(
                     f"SELECT guia FROM guias WHERE guia IN ({placeholders})", clean_guides
-                ).fetchall()
+                )
             }
             no_encontradas = [guia for guia in clean_guides if guia not in encontradas]
             encontradas_en_orden = [guia for guia in clean_guides if guia in encontradas]
@@ -1213,7 +1211,7 @@ class GuiaRepository:
             return 0
 
         entrega = fecha_entrega(nuevo_estado, fecha)
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             # Sin filtro por F_INGRESO: la novedad aplica a las guias activas del
             # repartidor aunque se hayan importado dias antes. F_ENTREGA = hoy.
             cursor = connection.executemany(
@@ -1239,7 +1237,7 @@ class GuiaRepository:
             return 0
 
         entrega = fecha_entrega(nuevo_estado, fecha)
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.executemany(
                 """
                 UPDATE guias SET estado = ?, causal = ?, ingreso = ?
@@ -1252,7 +1250,7 @@ class GuiaRepository:
     def cerrar_dia_operador(self, operador: str, fecha: str, estado_actual: str, nuevo_estado: str) -> int:
         self.initialize()
         entrega = fecha_entrega(nuevo_estado, fecha)
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             # Cierra TODAS las guias del repartidor en reparto, sin importar la
             # fecha de importacion, y estampa F_ENTREGA con la fecha del cierre.
             cursor = connection.execute(
@@ -1263,7 +1261,7 @@ class GuiaRepository:
 
     def revertir_cierre_operador(self, operador: str, fecha: str) -> int:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             # Se filtra por F_ENTREGA (columna "ingreso"): son las guias que se
             # cerraron ESE dia, sin importar cuando se importaron.
             cursor = connection.execute(
@@ -1274,7 +1272,7 @@ class GuiaRepository:
 
     def eliminar_cierre(self, fecha: str, operador: str) -> bool:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor = connection.execute(
                 "DELETE FROM cierres_operador WHERE fecha = ? AND operador = ?",
                 (fecha, operador),
@@ -1283,7 +1281,7 @@ class GuiaRepository:
 
     def revertir_cierres_dia(self, fecha: str) -> dict:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             cursor_guias = connection.execute(
                 "UPDATE guias SET estado = 'R', ingreso = '' WHERE ingreso LIKE ? AND estado = 'E'",
                 (f"{fecha}%",),
@@ -1299,15 +1297,13 @@ class GuiaRepository:
 
     def guias_de_operador(self, operador: str, fecha: str) -> list[dict]:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
+        with transaccion(self._connect()) as connection:
             # Guias que el repartidor gestiono ESE dia: se filtran por F_ENTREGA
             # (fecha de gestion), no por la fecha de importacion.
-            rows = connection.execute(
+            return connection.consultar(
                 "SELECT * FROM guias WHERE operador = ? AND ingreso LIKE ?",
                 (operador, f"{fecha}%"),
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def guias_en_salida(self, operador: str, estado: str) -> list[dict]:
         # No filtra por fecha de planilla: una guia puede haber llegado en
@@ -1315,13 +1311,11 @@ class GuiaRepository:
         # por operador y estado actual. Se ordena por orden_salida para
         # respetar el orden en que el operador la registro en el campo "Salidas".
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
                 "SELECT * FROM guias WHERE operador = ? AND estado = ? ORDER BY orden_salida",
                 (operador, estado),
-            ).fetchall()
-            return [dict(row) for row in rows]
+            )
 
     def guardar_cierre(
         self,
@@ -1343,7 +1337,7 @@ class GuiaRepository:
     ) -> None:
         self.initialize()
         denominaciones_json = json.dumps(denominaciones or {})
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT INTO cierres_operador (
@@ -1376,15 +1370,13 @@ class GuiaRepository:
 
     def obtener_cierre(self, fecha: str, operador: str) -> dict | None:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            row = connection.execute(
+        with transaccion(self._connect()) as connection:
+            cierre = connection.consultar_una(
                 "SELECT * FROM cierres_operador WHERE fecha = ? AND operador = ?",
                 (fecha, operador),
-            ).fetchone()
-            if not row:
+            )
+            if not cierre:
                 return None
-            cierre = dict(row)
             try:
                 cierre["denominaciones"] = {
                     int(denominacion): int(cantidad)
@@ -1396,7 +1388,7 @@ class GuiaRepository:
 
     def operadores_con_cierre(self, fecha: str) -> list[str]:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             rows = connection.execute(
                 "SELECT DISTINCT operador FROM cierres_operador WHERE fecha = ?",
                 (fecha,),
@@ -1405,7 +1397,7 @@ class GuiaRepository:
 
     def sumar_totales_cierres_dia(self, fecha: str) -> dict:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT
@@ -1432,7 +1424,7 @@ class GuiaRepository:
 
     def sumar_envia_dia(self, fecha: str) -> int:
         self.initialize()
-        with closing(self._connect()) as connection, connection:
+        with transaccion(self._connect()) as connection:
             total = connection.execute(
                 "SELECT SUM(envia) FROM cierres_operador WHERE fecha = ?",
                 (fecha,),
@@ -1442,13 +1434,12 @@ class GuiaRepository:
     def sumar_gastos_adelantos_mes(self, anio: int, mes: int) -> dict[str, dict]:
         self.initialize()
         prefijo = f"{anio:04d}-{mes:02d}"
-        with closing(self._connect()) as connection, connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
+        with transaccion(self._connect()) as connection:
+            rows = connection.consultar(
                 "SELECT operador, SUM(gastos) AS gastos, SUM(adelanto_salario) AS adelanto_salario "
                 "FROM cierres_operador WHERE fecha LIKE ? GROUP BY operador",
                 (prefijo + "%",),
-            ).fetchall()
+            )
             return {
                 row["operador"]: {
                     "gastos": row["gastos"] or 0,
@@ -1496,25 +1487,54 @@ class GuiaRepository:
         ]
         return pd.DataFrame(data, columns=columns)
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_file, timeout=30)
-        connection.execute("PRAGMA journal_mode=WAL")
+    def _connect(self):
+        """Conexion al motor que corresponda, ya envuelta por `db.Conexion`."""
+        if self.es_postgres:
+            return abrir_postgres(self.dsn)
+        return abrir_sqlite(self.database_file)
+
+    def _connect_sqlite_crudo(self) -> sqlite3.Connection:
+        """Conexion sqlite3 sin envolver, para lo que solo existe en SQLite.
+
+        Los `PRAGMA` de integridad y la API de respaldo por archivo no tienen
+        equivalente en Postgres: alli de eso se encarga Supabase.
+        """
+        if self.es_postgres:
+            raise RuntimeError(
+                "Esta operacion es propia de SQLite; con Supabase la integridad "
+                "y los respaldos los administra el servicio."
+            )
+        conexion = sqlite3.connect(self.database_file, timeout=30)
+        conexion.execute("PRAGMA journal_mode=WAL")
         # synchronous=FULL: cada transaccion se confirma al disco antes de
         # darla por buena. Con el valor por defecto (NORMAL) un apagon o un
         # reinicio inesperado del servidor puede dejar la base corrupta
         # ("database disk image is malformed"), que es justo lo que pasaba.
-        connection.execute("PRAGMA synchronous=FULL")
-        connection.execute("PRAGMA foreign_keys=ON")
-        return connection
+        conexion.execute("PRAGMA synchronous=FULL")
+        conexion.execute("PRAGMA foreign_keys=ON")
+        return conexion
 
     def verificar_integridad(self) -> str:
-        """Devuelve 'ok' si la base esta sana, o el detalle del dano."""
+        """Devuelve 'ok' si la base esta sana, o el detalle del dano.
+
+        El dano por escritura interrumpida es justo lo que se deja atras al
+        pasar a Postgres administrado; con Supabase solo se comprueba que la
+        base responda.
+        """
+        if self.es_postgres:
+            try:
+                with transaccion(self._connect()) as connection:
+                    connection.execute("SELECT 1")
+                return "ok"
+            except Exception as error:  # noqa: BLE001 - fallo de red o credenciales
+                return str(error)
+
         self.database_file.parent.mkdir(parents=True, exist_ok=True)
         if not self.database_file.exists():
             return "ok"
         try:
-            with closing(self._connect()) as connection, connection:
-                return str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+            with closing(self._connect_sqlite_crudo()) as conexion, conexion:
+                return str(conexion.execute("PRAGMA integrity_check").fetchone()[0])
         except sqlite3.DatabaseError as error:
             return str(error)
 
@@ -1554,7 +1574,7 @@ class GuiaRepository:
 
         marca = datetime.now().strftime("%Y%m%d_%H%M%S")
         destino = carpeta_backup / f"periodico_{marca}.db"
-        with closing(self._connect()) as origen, origen:
+        with closing(self._connect_sqlite_crudo()) as origen, origen:
             copia = sqlite3.connect(destino)
             try:
                 origen.backup(copia)
@@ -1596,7 +1616,7 @@ class GuiaRepository:
             )
 
         destino.parent.mkdir(parents=True, exist_ok=True)
-        with closing(self._connect()) as origen, origen:
+        with closing(self._connect_sqlite_crudo()) as origen, origen:
             copia = sqlite3.connect(destino)
             try:
                 origen.backup(copia)
@@ -1618,8 +1638,8 @@ class GuiaRepository:
 
         # Vuelca el WAL al archivo principal para que la copia quede completa
         # y el .db-wal no crezca sin limite.
-        with closing(self._connect()) as connection, connection:
-            connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        with closing(self._connect_sqlite_crudo()) as conexion, conexion:
+            conexion.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
         marca = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         destino = carpeta_backup / f"{self.database_file.stem}_{marca}.db"

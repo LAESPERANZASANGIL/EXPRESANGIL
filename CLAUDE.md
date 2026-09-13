@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 148 tests (5 se saltan sin Postgres).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 178 tests (18 se saltan sin Postgres).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -64,7 +64,12 @@ La base se esta moviendo de SQLite a **Postgres en Supabase** (proyecto `EXPRESA
 - **RLS activo y sin politicas en las 10 tablas**: aqui hay salarios, cedulas y prestamos, y Supabase publica las tablas por PostgREST con la clave anonima, que es publica por diseño. El aplicativo entra por conexion directa de Postgres, que no pasa por RLS. **No desactivar RLS** para "que funcione algo": agregar politicas explicitas.
 - **La cadena de conexion va en la variable de entorno `EXPRESANGIL_DB_DSN`, nunca en `settings.toml`**, que si se versiona en GitHub y publicaria la contraseña.
 - **Migracion de datos**: `python -m gestor_guias.app migrar-a-supabase` copia las 10 tablas y muestra el cuadre origen/destino. No borra nada del origen, corre en una sola transaccion y se puede repetir (vacia el destino antes, salvo `--conservar`). Conserva los ids de `prestamos`, `prestamo_abonos` y `liquidaciones_laborales` con `OVERRIDING SYSTEM VALUE` y luego reajusta la secuencia con `setval`: sin eso los abonos colgarian de otro prestamo y el siguiente registro chocaria por id repetido.
-- **Falta**: que `repository.py` hable Postgres. Es lo grueso, ~60 metodos con SQL de SQLite (`PRAGMA`, `ON CONFLICT`, `?` como marcador).
+- **`repository.py` ya habla los dos motores.** Se construye con `GuiaRepository(archivo)` para SQLite o con `dsn=` (o la variable de entorno) para Postgres; `repository.motor` dice cual. El SQL se escribe **una sola vez** en un subconjunto portable y `db.py` traduce. Al tocarlo, tres reglas:
+  - Nada de `rowid` ni de `PRAGMA` fuera de `initialize()` y los respaldos: no existen en Postgres. `initialize()` **no hace nada** en Postgres, porque alli el esquema lo gobierna `supabase/migrations/`.
+  - Para leer filas, `connection.consultar()` / `consultar_una()`, que devuelven diccionarios en ambos. `execute().fetchall()` entrega tuplas en psycopg y `fila["columna"]` revienta.
+  - Para el id recien insertado, `connection.insertar_devolviendo_id()`: `lastrowid` no existe en Postgres.
+- **`Conexion` no soporta `with` a proposito**: en sqlite3 eso confirma pero **no cierra**, que es lo que corrompio la base en produccion. Se usa siempre `transaccion()`, que ademas cierra.
+- **Falta para conmutar**: definir `EXPRESANGIL_DB_DSN` en el servicio del VPS y decidir el momento. El respaldo por archivo y `verificar_integridad` dejan de aplicar en Postgres: de eso se encarga Supabase.
 
 ## Estados de guia (no inventar nuevos sin confirmar)
 
@@ -208,7 +213,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 148 tests en verde.
+- Suite de 178 tests en verde.
 
 ## Que se puede mejorar
 
