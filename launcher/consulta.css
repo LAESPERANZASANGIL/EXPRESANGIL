@@ -1,219 +1,531 @@
-body {
+/* Pagina publica: la ve el cliente final, no el personal de la oficina.
+   Por eso no reusa `.container`/`.opcion` del panel interno: manda el
+   buscador de guia y la informacion de la empresa, y todo debe leerse bien
+   en el celular, que es desde donde consulta la mayoria. */
+
+.pagina-publica {
+  --rojo: #a31515;
+  --rojo-oscuro: #7a1010;
+  --rojo-claro: #fdf3f3;
+  --verde: #1b7a3d;
+  --tinta: #1f2937;
+  --tinta-suave: #5b6472;
+  --borde: #e3e6ea;
+  background: #f6f7f9;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   min-height: 100vh;
 }
 
+/* ---------------------------- Barra de marca ---------------------------- */
+
+.barra-marca {
+  background: linear-gradient(120deg, var(--rojo-oscuro) 0%, var(--rojo) 100%);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+}
+
+.barra-marca-interior {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px 28px;
+}
+
+.marca-logo {
+  width: 58px;
+  height: auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.marca-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.marca-nombre {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1.2;
+}
+
+.marca-lema {
+  font-size: 0.88rem;
+  opacity: 0.9;
+}
+
+.marca-telefono {
+  margin-left: auto;
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.98rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease-in-out;
+}
+
+.marca-telefono:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ------------------------------- Columnas ------------------------------- */
+
 .pagina {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(330px, 0.85fr);
   align-items: start;
-  gap: 64px;
-  max-width: 1760px;
+  gap: 44px;
   width: 100%;
-  margin: 5vh auto;
-  padding: 0 32px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 46px 28px 56px;
+  flex: 1;
 }
 
-.container {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  order: 2;
-  padding: 48px 44px 56px;
+.titulo-principal {
+  margin: 0 0 14px;
+  font-size: 2.3rem;
+  line-height: 1.22;
+  color: var(--tinta);
+  letter-spacing: -0.5px;
 }
 
-.logo-marca {
-  width: 110px;
+.titulo-principal span {
+  color: var(--rojo);
 }
 
-header h1 {
-  font-size: 3.2rem;
+.entradilla {
+  margin: 0 0 28px;
+  font-size: 1.08rem;
+  line-height: 1.65;
+  color: var(--tinta-suave);
+  max-width: 56ch;
 }
 
-header .subtitulo {
-  font-size: 1.6rem;
+/* --------------------------- Datos de contacto -------------------------- */
+
+.tarjetas-contacto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 34px;
 }
 
-#guia {
-  font-size: 1.9rem;
-  padding: 20px;
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-.opcion label {
-  font-size: 1.2rem;
-}
-
-#btn-consultar {
-  margin-top: 22px;
-  padding: 22px;
-  font-size: 1.7rem;
-}
-
-#resultado {
-  border-width: 2px;
-  text-align: center;
-}
-
-#resultado.oculto {
-  display: none;
-}
-
-#resultado-titulo {
-  margin: 0 0 10px;
-  font-size: 1.8rem;
-}
-
-#resultado-mensaje {
-  margin: 0;
-  font-size: 1.5rem;
-  line-height: 1.4;
-}
-
-#resultado.encontrada {
-  border-color: #2e7d32;
-  background: #eef7ee;
-}
-
-#resultado.encontrada #resultado-titulo {
-  color: #2e7d32;
-}
-
-#resultado.no-encontrada {
-  border-color: #b71c1c;
-  background: #fbeaea;
-}
-
-#resultado.no-encontrada #resultado-titulo {
-  color: #b71c1c;
-}
-
-#btn-ingresar-panel {
-  display: block;
-  width: fit-content;
-  margin: 40px auto 0;
-  padding: 18px 40px;
-  font-size: 1.3rem;
-  background: var(--azul-medio);
-  color: #fff;
-}
-
-#panel-acceso {
-  margin-top: 16px;
-}
-
-#panel-acceso.oculto {
-  display: none;
-}
-
-.panel-error {
-  margin: 8px 0 0;
-  font-size: 1.1rem;
-  color: #b71c1c;
-}
-
-.panel-error.oculto {
-  display: none;
-}
-
-.info-empresa {
-  order: 1;
-  max-width: none;
+.tarjeta-contacto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px;
   background: #fff;
-  border: 1px solid var(--gris-borde);
-  border-left: 8px solid var(--azul-medio);
+  border: 1px solid var(--borde);
   border-radius: 12px;
-  padding: 48px 52px;
-  box-shadow: 0 6px 20px rgba(31, 56, 100, 0.12);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out,
+              border-color 0.15s ease-in-out;
 }
 
-.info-empresa h2 {
-  margin: 0 0 22px;
-  font-size: 2.25rem;
-  line-height: 1.3;
-  color: var(--azul-oscuro);
+.tarjeta-contacto:hover {
+  transform: translateY(-2px);
+  border-color: var(--rojo);
+  box-shadow: 0 8px 18px rgba(122, 16, 16, 0.13);
 }
 
-.info-empresa p {
-  margin: 0 0 24px;
-  font-size: 1.65rem;
+.tarjeta-icono {
+  font-size: 1.3rem;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.tarjeta-titulo {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.tarjeta-dato {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+/* ------------------- Como escribir el numero de guia -------------------- */
+
+.bloque-ayuda {
+  padding: 26px 28px 28px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+}
+
+.bloque-ayuda h2 {
+  margin: 0 0 10px;
+  font-size: 1.22rem;
+  color: var(--tinta);
+}
+
+.ayuda-intro {
+  margin: 0 0 18px;
+  font-size: 1rem;
   line-height: 1.6;
-  color: #333;
-}
-
-.info-ubicacion,
-.info-telefonos {
-  font-size: 1.65rem;
-  font-weight: bold;
-  color: var(--azul-oscuro);
-}
-
-.info-seccion {
-  margin: 34px 0 18px;
-  padding: 16px 22px;
-  font-size: 1.75rem;
-  letter-spacing: 0.5px;
-  color: #fff;
-  background: var(--azul-medio);
-  border-radius: 10px;
-}
-
-.info-importante {
-  margin: 24px 0 10px;
-  font-size: 1.65rem;
-  font-weight: bold;
-  color: var(--azul-oscuro);
+  color: var(--tinta-suave);
 }
 
 .lista-reglas {
   list-style: none;
-  margin: 0 0 24px;
-  padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 22px;
-  font-size: 1.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 18px;
+  margin: 0 0 22px;
+  padding: 0;
 }
 
-.regla-ok {
-  color: #2e7d32;
-  font-weight: bold;
+/* El simbolo se dibuja con CSS en vez de escribirlo en el texto: asi no se
+   copia al seleccionar y el lector de pantalla lee solo la regla. */
+.regla {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.98rem;
+  color: var(--tinta);
 }
 
-.regla-mal {
-  color: #b71c1c;
-  font-weight: bold;
+.regla::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 11px 11px;
 }
 
-.info-lema {
-  margin-top: 14px;
-  font-size: 1.65rem;
-  font-weight: bold;
-  color: var(--azul-medio);
+.regla-ok::before {
+  background-color: var(--verde);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' d='M2.5 8.6l3.4 3.4L13.5 4.4'/%3E%3C/svg%3E");
+}
+
+.regla-mal::before {
+  background-color: var(--rojo);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
+}
+
+.regla code {
+  padding: 1px 6px;
+  background: var(--gris-claro);
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+.ejemplos {
+  display: grid;
+  gap: 10px;
+}
+
+.ejemplo {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border-left: 4px solid;
+}
+
+.ejemplo-etiqueta {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.ejemplo-valor {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--tinta);
+}
+
+.ejemplo-ok {
+  background: #eef7f1;
+  border-left-color: var(--verde);
+}
+
+.ejemplo-ok .ejemplo-etiqueta {
+  color: var(--verde);
+}
+
+.ejemplo-mal {
+  background: var(--rojo-claro);
+  border-left-color: var(--rojo);
+}
+
+.ejemplo-mal .ejemplo-etiqueta {
+  color: var(--rojo);
+}
+
+.ejemplo-mal .ejemplo-valor {
+  text-decoration: line-through;
+  color: var(--tinta-suave);
+}
+
+/* ---------------------------- Tarjeta de consulta ----------------------- */
+
+.columna-consulta {
+  position: sticky;
+  top: 24px;
+}
+
+.tarjeta-consulta {
+  padding: 30px 28px 32px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-top: 5px solid var(--rojo);
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(31, 41, 55, 0.1);
+}
+
+.consulta-titulo {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  color: var(--tinta);
+}
+
+.consulta-sub {
+  margin: 0 0 22px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--tinta-suave);
+}
+
+.tarjeta-consulta label,
+#panel-acceso label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+#guia {
+  width: 100%;
+  padding: 16px 18px;
+  border: 2px solid var(--borde);
+  border-radius: 10px;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-align: center;
+  font-family: "Consolas", "Courier New", monospace;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#guia::placeholder {
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: #aeb4bd;
+}
+
+#guia:focus {
+  outline: none;
+  border-color: var(--rojo);
+  box-shadow: 0 0 0 4px rgba(163, 21, 21, 0.13);
+}
+
+#btn-consultar {
+  width: 100%;
+  margin-top: 16px;
+  padding: 16px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+}
+
+.nota-horario {
+  margin: 16px 4px 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--tinta-suave);
   text-align: center;
 }
 
-@media (max-width: 1100px) {
+/* --------------------------- Resultado de la guia ----------------------- */
+
+#resultado {
+  margin-top: 22px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  border-left: 5px solid;
+  text-align: left;
+}
+
+#resultado.oculto,
+#panel-acceso.oculto,
+.panel-error.oculto {
+  display: none;
+}
+
+#resultado-titulo {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+}
+
+#resultado-mensaje {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--tinta);
+}
+
+#resultado.encontrada {
+  background: #eef7f1;
+  border-left-color: var(--verde);
+}
+
+#resultado.encontrada #resultado-titulo {
+  color: var(--verde);
+}
+
+#resultado.no-encontrada {
+  background: var(--rojo-claro);
+  border-left-color: var(--rojo);
+}
+
+#resultado.no-encontrada #resultado-titulo {
+  color: var(--rojo);
+}
+
+/* --------------------------------- Pie ---------------------------------- */
+
+.pie {
+  padding: 26px 28px 34px;
+  background: #fff;
+  border-top: 1px solid var(--borde);
+  text-align: center;
+}
+
+.pie-lema {
+  margin: 0 0 14px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--rojo);
+}
+
+/* El acceso del personal no compite con el buscador: es un enlace discreto. */
+.enlace-panel {
+  border: none;
+  background: none;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--tinta-suave);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.enlace-panel:hover {
+  color: var(--rojo);
+}
+
+#panel-acceso {
+  max-width: 340px;
+  margin: 18px auto 0;
+  padding: 22px 24px 24px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  text-align: left;
+}
+
+#panel-acceso h3 {
+  margin: 0 0 16px;
+  font-size: 1.08rem;
+  color: var(--tinta);
+}
+
+#panel-acceso input {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+#panel-acceso input:focus {
+  outline: none;
+  border-color: var(--rojo);
+  box-shadow: 0 0 0 3px rgba(163, 21, 21, 0.12);
+}
+
+#btn-panel-ingresar {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.panel-error {
+  margin: 12px 0 0;
+  font-size: 0.92rem;
+  color: var(--rojo);
+}
+
+/* ------------------------------ Responsive ------------------------------ */
+
+@media (max-width: 900px) {
   .pagina {
     grid-template-columns: 1fr;
-    margin-top: 3vh;
-    max-width: 700px;
+    gap: 30px;
+    padding: 28px 20px 40px;
   }
 
-  .container {
-    order: 1;
+  /* En el celular manda el buscador: va primero y deja de ser pegajoso. */
+  .columna-consulta {
+    position: static;
+    order: -1;
   }
 
-  .info-empresa {
-    order: 2;
-    padding: 32px;
+  .titulo-principal {
+    font-size: 1.8rem;
+  }
+
+  .barra-marca-interior {
+    padding: 14px 20px;
+  }
+
+  .marca-lema {
+    display: none;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 560px) {
+  .marca-telefono {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+  }
+
+  .tarjeta-consulta,
+  .bloque-ayuda {
+    padding: 22px 20px 24px;
+  }
+
   .lista-reglas {
     grid-template-columns: 1fr;
   }
