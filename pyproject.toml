@@ -11,8 +11,6 @@ dependencies = [
     "google-api-python-client>=2.130.0",
     "google-auth>=2.30.0",
     "google-auth-oauthlib>=1.2.0",
-    # Driver de Postgres para la base en Supabase.
-    "psycopg[binary]>=3.1",
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",
     "xlrd>=2.0.1",
@@ -22,6 +20,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+]
+# Driver de Postgres. La aplicacion corre sobre SQLite; solo hace falta si
+# se decide conmutar a Supabase (ver "Soporte de Supabase" en CLAUDE.md).
+# Se importa de forma diferida, asi que sin el todo lo demas funciona igual.
+supabase = [
+    "psycopg[binary]>=3.1",
 ]
 
 [tool.setuptools.packages.find]
