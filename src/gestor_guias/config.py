@@ -39,6 +39,18 @@ class OficinaSettings:
 
 
 @dataclass(frozen=True)
+class RespaldoDriveSettings:
+    """Copia del respaldo en Google Drive, fuera del disco del servidor."""
+
+    activo: bool
+    carpeta: str
+    copias: int
+    horas: int
+    credentials_file: Path
+    token_file: Path
+
+
+@dataclass(frozen=True)
 class ServidorSettings:
     cert_file: Path | None
     key_file: Path | None
@@ -51,6 +63,7 @@ class Settings:
     excel: ExcelSettings
     oficina: OficinaSettings
     servidor: ServidorSettings
+    respaldo_drive: RespaldoDriveSettings
 
 
 def _project_path(value: str) -> Path:
@@ -73,6 +86,7 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
     excel = raw["excel"]
     oficina = raw.get("oficina", {})
     servidor = raw.get("servidor", {})
+    drive = raw.get("respaldo_drive", {})
 
     cert_file = str(servidor.get("cert_file", "")).strip()
     key_file = str(servidor.get("key_file", "")).strip()
@@ -102,5 +116,15 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
         servidor=ServidorSettings(
             cert_file=_project_path(cert_file) if cert_file else None,
             key_file=_project_path(key_file) if key_file else None,
+        ),
+        respaldo_drive=RespaldoDriveSettings(
+            activo=bool(drive.get("activo", False)),
+            carpeta=str(drive.get("carpeta", "Respaldos Expresangil")),
+            copias=int(drive.get("copias", 30)),
+            horas=max(1, int(drive.get("horas", 24))),
+            credentials_file=_project_path(
+                str(drive.get("credentials_file", "config/credentials.json"))
+            ),
+            token_file=_project_path(str(drive.get("token_file", "config/token_drive.json"))),
         ),
     )
