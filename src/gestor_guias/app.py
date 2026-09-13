@@ -210,6 +210,42 @@ def operador_listar() -> None:
         print(f"{operador['usuario']} -> {operador['nombre']} ({operador['rol']})")
 
 
+def respaldo_drive(autorizar: bool = False) -> None:
+    """Sube el respaldo a Google Drive, o autoriza la cuenta la primera vez.
+
+    La autorizacion abre el navegador, asi que se hace desde el PC; el
+    `token_drive.json` que queda se copia al servidor, que no tiene navegador.
+    """
+    # Import diferido: si faltan las librerias de Google, el resto de la CLI
+    # y el panel deben seguir funcionando.
+    from .drive_backup import RespaldoDrive
+
+    settings = load_settings()
+    config = settings.respaldo_drive
+    subida = RespaldoDrive(
+        credentials_file=config.credentials_file,
+        token_file=config.token_file,
+        carpeta=config.carpeta,
+        copias=config.copias,
+    )
+
+    if autorizar:
+        destino = subida.autorizar()
+        print(f"Autorizacion guardada en {destino}.")
+        print("Copia ese archivo al servidor, en la misma ruta, y pon activo = true.")
+        return
+
+    repository = GuiaRepository(settings.paths.database_file)
+    resultado = subida.subir(repository)
+    megas = resultado["tamano"] / (1024 * 1024)
+    print(
+        f"Subido '{resultado['nombre']}' ({megas:.2f} MB) a la carpeta "
+        f"'{config.carpeta}' de Google Drive."
+    )
+    if resultado["borradas"]:
+        print(f"Se borraron {resultado['borradas']} copia(s) vieja(s) por rotacion.")
+
+
 def operador_eliminar(usuario: str) -> None:
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
@@ -349,6 +385,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     operador_eliminar_parser.add_argument("--usuario", required=True, help="Usuario a eliminar")
 
+    respaldo_drive_parser = subparsers.add_parser(
+        "respaldo-drive",
+        help="Sube una copia de la base a Google Drive (fuera del servidor)",
+    )
+    respaldo_drive_parser.add_argument(
+        "--autorizar",
+        action="store_true",
+        help="Autoriza la cuenta de Google desde el PC y guarda el token",
+    )
+
     return parser
 
 
@@ -395,6 +441,8 @@ def main() -> None:
         operador_listar()
     elif args.command == "operador-eliminar":
         operador_eliminar(args.usuario)
+    elif args.command == "respaldo-drive":
+        respaldo_drive(args.autorizar)
 
 
 if __name__ == "__main__":

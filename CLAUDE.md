@@ -12,8 +12,8 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 132 tests.
-- **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`.
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 137 tests.
+- **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-drive`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
 ### Despliegue en el VPS (manual, por SSH)
@@ -148,7 +148,9 @@ Historial: la base se ha corrompido varias veces en produccion (`database disk i
 - Respaldo antes de cada borrado (`_backup_antes_de_borrar`, 10 copias rotadas) y respaldo periodico cada 2 horas (`respaldo_periodico`, 24 copias). Los periodicos **no se generan si la base esta danada**, para no desplazar por rotacion a las copias sanas.
 - `verificar_integridad()` corre al arrancar el panel y avisa en el log.
 - Todo vive en `data/database/backups/`.
-- **Copia fuera del servidor**: boton "Descargar respaldo" en Inicio (`/api/respaldo/descargar`, solo admin). Genera la copia en el momento con `copia_para_descarga()`, la verifica y la entrega como archivo; si la base esta danada falla y avisa en vez de entregar un respaldo inutil. Queda en auditoria.
+- **Copia fuera del servidor**, por dos vias, ambas sobre `copia_para_descarga()` (copia verificada; si la base esta danada falla en vez de entregar un respaldo inutil):
+  - **Manual**: boton "Descargar respaldo" en Inicio (`/api/respaldo/descargar`, solo admin). Queda en auditoria.
+  - **Automatica a Google Drive** (`drive_backup.py`): el hilo de respaldo periodico sube una copia cada `[respaldo_drive].horas` y rota las `copias` mas recientes. Scope `drive.file`, que solo ve los archivos que crea la propia app. **El VPS no tiene navegador**: se autoriza una vez desde el PC con `python -m gestor_guias.app respaldo-drive --autorizar` y se copia el `token_drive.json` al servidor. Un fallo de Google solo se avisa por log, nunca tumba el panel, y las librerias de Google se importan de forma diferida para que su ausencia no impida arrancar.
 
 Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA quick_check`) o rescatar lo legible copiando tabla por tabla a una base nueva.
 
@@ -196,7 +198,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 132 tests en verde.
+- Suite de 137 tests en verde.
 
 ## Que se puede mejorar
 
@@ -204,7 +206,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Las sesiones viven en memoria: cada despliegue expulsa a todos los usuarios y un operador con la pestana abierta pierde la sesion sin aviso claro. Persistirlas (tabla o archivo firmado) evitaria el problema.
 - Despliegue manual por SSH. Un timer de systemd que haga `fetch`/`reset`/`restart` automatizaria el paso mas repetitivo.
 - Los reinicios inesperados del VPS siguen siendo la causa de fondo de las corrupciones: es un tema de infraestructura con el proveedor, no del codigo.
-- La copia fuera del servidor es manual (boton en Inicio): depende de que el administrador se acuerde. Falta la subida automatica a Google Drive.
+- La subida a Drive esta implementada pero llega hasta donde llega el VPS: no hay aviso al administrador si lleva varios dias fallando (solo queda en el log del servicio).
 
 **Calidad de codigo**
 - `launcher_server.py` supera las 1.300 lineas con toda la logica HTTP en un solo `do_POST`/`do_GET`. Separarlo por modulos (rutas de admin, operador, informes) lo haria mantenible.
