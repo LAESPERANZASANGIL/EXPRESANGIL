@@ -210,6 +210,38 @@ def operador_listar() -> None:
         print(f"{operador['usuario']} -> {operador['nombre']} ({operador['rol']})")
 
 
+def migrar_a_supabase(vaciar: bool = True) -> None:
+    """Copia la base SQLite a Supabase y muestra el cuadre de filas."""
+    from .migracion_supabase import contar_en_destino, migrar
+    from .supabase_db import VARIABLE_DSN, dsn_configurado
+
+    if not dsn_configurado():
+        print(
+            f"Falta la variable de entorno {VARIABLE_DSN} con la cadena de "
+            "conexion a Supabase.\n"
+            "No se guarda en settings.toml porque ese archivo se versiona en "
+            "GitHub y la cadena lleva la contraseña."
+        )
+        return
+
+    settings = load_settings()
+    origen = settings.paths.database_file
+    print(f"Copiando {origen} a Supabase...")
+    copiadas = migrar(origen, vaciar=vaciar)
+    conteos = contar_en_destino()
+
+    print(f"{'TABLA':<26}{'ORIGEN':>10}{'DESTINO':>10}")
+    todo_cuadra = True
+    for tabla, cantidad in copiadas.items():
+        en_destino = conteos.get(tabla, 0)
+        marca = "" if cantidad == en_destino else "   <-- NO CUADRA"
+        todo_cuadra = todo_cuadra and cantidad == en_destino
+        print(f"{tabla:<26}{cantidad:>10}{en_destino:>10}{marca}")
+
+    print("\nMigracion completa: los conteos cuadran." if todo_cuadra
+          else "\nATENCION: hay tablas que no cuadran; revisa antes de conmutar.")
+
+
 def respaldo_externo() -> None:
     """Manda una copia de la base fuera del servidor con el comando configurado."""
     from .respaldo_externo import copiar_fuera
@@ -367,6 +399,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     operador_eliminar_parser.add_argument("--usuario", required=True, help="Usuario a eliminar")
 
+    migrar_parser = subparsers.add_parser(
+        "migrar-a-supabase",
+        help="Copia la base SQLite a Supabase (no borra nada del origen)",
+    )
+    migrar_parser.add_argument(
+        "--conservar",
+        action="store_true",
+        help="No vacia las tablas de destino antes de copiar",
+    )
+
     subparsers.add_parser(
         "respaldo-externo",
         help="Manda una copia de la base fuera del servidor (ver [respaldo_externo])",
@@ -420,6 +462,8 @@ def main() -> None:
         operador_eliminar(args.usuario)
     elif args.command == "respaldo-externo":
         respaldo_externo()
+    elif args.command == "migrar-a-supabase":
+        migrar_a_supabase(vaciar=not args.conservar)
 
 
 if __name__ == "__main__":
