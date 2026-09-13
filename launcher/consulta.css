@@ -103,7 +103,7 @@
 
 .titulo-principal {
   margin: 0 0 14px;
-  font-size: 2.3rem;
+  font-size: 2.42rem;
   line-height: 1.22;
   color: var(--tinta);
   letter-spacing: -0.5px;
@@ -115,7 +115,7 @@
 
 .entradilla {
   margin: 0 0 28px;
-  font-size: 1.08rem;
+  font-size: 1.2rem;
   line-height: 1.65;
   color: var(--tinta-suave);
   max-width: 56ch;
@@ -157,7 +157,7 @@
 }
 
 .tarjeta-titulo {
-  font-size: 0.76rem;
+  font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -165,7 +165,7 @@
 }
 
 .tarjeta-dato {
-  font-size: 1rem;
+  font-size: 1.12rem;
   font-weight: 600;
   color: var(--tinta);
 }
@@ -181,13 +181,13 @@
 
 .bloque-ayuda h2 {
   margin: 0 0 10px;
-  font-size: 1.22rem;
+  font-size: 1.34rem;
   color: var(--tinta);
 }
 
 .ayuda-intro {
   margin: 0 0 18px;
-  font-size: 1rem;
+  font-size: 1.12rem;
   line-height: 1.6;
   color: var(--tinta-suave);
 }
@@ -207,7 +207,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 0.98rem;
+  font-size: 1.1rem;
   color: var(--tinta);
 }
 
@@ -255,7 +255,7 @@
 }
 
 .ejemplo-etiqueta {
-  font-size: 0.76rem;
+  font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -263,7 +263,7 @@
 
 .ejemplo-valor {
   font-family: "Consolas", "Courier New", monospace;
-  font-size: 1.1rem;
+  font-size: 1.22rem;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--tinta);
@@ -310,13 +310,13 @@
 
 .consulta-titulo {
   margin: 0 0 6px;
-  font-size: 1.45rem;
+  font-size: 1.57rem;
   color: var(--tinta);
 }
 
 .consulta-sub {
   margin: 0 0 22px;
-  font-size: 0.98rem;
+  font-size: 1.1rem;
   line-height: 1.55;
   color: var(--tinta-suave);
 }
@@ -325,7 +325,7 @@
 #panel-acceso label {
   display: block;
   margin-bottom: 7px;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -337,7 +337,7 @@
   padding: 16px 18px;
   border: 2px solid var(--borde);
   border-radius: 10px;
-  font-size: 1.4rem;
+  font-size: 1.52rem;
   font-weight: 600;
   letter-spacing: 2px;
   text-align: center;
@@ -361,7 +361,7 @@
   width: 100%;
   margin-top: 16px;
   padding: 16px;
-  font-size: 1.15rem;
+  font-size: 1.27rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   border-radius: 10px;
@@ -369,7 +369,7 @@
 
 .nota-horario {
   margin: 16px 4px 0;
-  font-size: 0.88rem;
+  font-size: 1rem;
   line-height: 1.5;
   color: var(--tinta-suave);
   text-align: center;
@@ -393,13 +393,13 @@
 
 #resultado-titulo {
   margin: 0 0 6px;
-  font-size: 1.1rem;
+  font-size: 1.22rem;
   letter-spacing: 0.5px;
 }
 
 #resultado-mensaje {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 1.14rem;
   line-height: 1.55;
   color: var(--tinta);
 }
@@ -513,7 +513,7 @@
   }
 
   .titulo-principal {
-    font-size: 1.8rem;
+    font-size: 1.92rem;
   }
 
   .barra-marca-interior {
