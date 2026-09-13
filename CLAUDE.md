@@ -84,7 +84,9 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Nomina** (`/nomina`, solo admin): liquidacion mensual de los empleados con contrato **NOMINA**, con descuento automatico de prestamos e informes Excel/PDF.
 - **Liquidaciones** (`/liquidaciones`, solo admin): pago semanal de los de contrato **SERVICIOS** (por encomienda entregada) y liquidacion laboral en sus cuatro clases (anual, retiro voluntario, retiro forzoso, pension).
 - **Modulo Usuarios** (`/usuarios`, solo admin): usuarios del sistema y **datos laborales del empleado** (nombre, contrato, fechas, cedula, celular, salario o valor por encomienda). El boton **Editar** de la tabla apunta tambien la seccion de datos laborales a esa persona. **Dashboard** (`/dashboard`, solo admin).
-- **Consulta publica** (`/`): el cliente final consulta el estado de su guia.
+- **Consulta publica** (`/`): el cliente final consulta el estado de su guia. Es la unica pagina pensada para gente de fuera, y no reusa los estilos del panel (`consulta.html` + `consulta.css`): barra de marca, buscador destacado que acompaña el desplazamiento y en el celular va de primero, datos de contacto accionables (la direccion abre el mapa, los telefonos marcan) e instructivo del formato de la guia. El acceso del personal es un boton delineado debajo del buscador.
+
+  **Cuidado al tocarla**: `style.css` estiliza todo `header` como columna centrada para el panel, y esa regla alcanza a la barra de marca — `.barra-marca` la neutraliza a proposito. Los IDs del HTML son el contrato con `consulta.js`: si se renombra uno hay que ajustar el JS.
 
 ## Informes
 
@@ -157,6 +159,8 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Nombres de archivos de salida en espanol con dia y mes (ej. `informe diario 09 junio.xlsx`); el mes sale de `MONTHS_ES` en `exporter.py`.
 - Moneda colombiana: separador de miles con punto (`format_currency_co`).
 - Endpoints de admin: proteger siempre con `self._require_admin()`. Acciones destructivas: `registrar_auditoria(...)` y doble confirmacion en el frontend.
+- Los campos de un `.opcion` comparten una caja en `style.css` que lista los `type` uno por uno. Si usas un `type` nuevo, agregalo a ese bloque y al `:focus`, o queda con el estilo por defecto del navegador.
+- `.tabla-guias` trae `width: 100%`, que aprieta las columnas en vez de desbordar: una tabla ancha que deba tener scroll horizontal necesita `width: auto; min-width: 100%` (ver `.tabla-nomina`/`.tabla-prestamos`).
 
 ## Git y archivos ignorados
 
@@ -190,7 +194,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
-- Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli.
+- Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
 - Suite de 129 tests en verde.
 
 ## Que se puede mejorar
@@ -213,3 +217,6 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - No hay paginacion en la Zona de Trabajo: con miles de guias el navegador renderiza toda la tabla.
 - La nomina no genera colilla de pago individual por empleado.
 - Los abonos a prestamos se registran a mano: liquidar la nomina no descuenta automaticamente la cuota del saldo.
+- En Prestamos el empleado se escribe en un `datalist` cuyo texto **es la clave** del registro: por eso ahi no se muestran apellidos y un error de tipeo crea un empleado fantasma. Deberia guardar el `usuario` y mostrar el nombre, como hace Nomina.
+- `renombrar_operador()` arrastra el historial de la base, pero **no** los informes de Excel y PDF ya generados en `data/`, que conservan el nombre viejo.
+- El nombre del empleado debe coincidir letra por letra con la columna OPERADOR de las planillas de Envia; no hay validacion que avise cuando deja de coincidir.
