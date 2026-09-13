@@ -19,7 +19,15 @@
 
 /* ---------------------------- Barra de marca ---------------------------- */
 
+/* `style.css` convierte todo `header` en una columna centrada para el panel
+   interno; aqui hay que deshacerlo o la barra se encoge al centro en vez de
+   ocupar el ancho. */
 .barra-marca {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  text-align: left;
   background: linear-gradient(120deg, var(--rojo-oscuro) 0%, var(--rojo) 100%);
   color: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
@@ -28,18 +36,18 @@
 .barra-marca-interior {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 22px;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 16px 28px;
+  padding: 22px 28px;
 }
 
 .marca-logo {
-  width: 58px;
+  width: 86px;
   height: auto;
   background: #fff;
-  border-radius: 10px;
-  padding: 6px;
+  border-radius: 12px;
+  padding: 8px;
   flex-shrink: 0;
 }
 
@@ -50,25 +58,25 @@
 }
 
 .marca-nombre {
-  font-size: 1.45rem;
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: 2px;
   line-height: 1.2;
 }
 
 .marca-lema {
-  font-size: 0.88rem;
+  font-size: 1.05rem;
   opacity: 0.9;
 }
 
 .marca-telefono {
   margin-left: auto;
-  padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  padding: 13px 26px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
   border-radius: 999px;
   color: #fff;
-  font-weight: 600;
-  font-size: 0.98rem;
+  font-weight: 700;
+  font-size: 1.15rem;
   text-decoration: none;
   white-space: nowrap;
   transition: background 0.15s ease-in-out;
@@ -416,16 +424,16 @@
 /* --------------------------------- Pie ---------------------------------- */
 
 .pie {
-  padding: 26px 28px 34px;
+  padding: 34px 28px 40px;
   background: #fff;
   border-top: 1px solid var(--borde);
   text-align: center;
 }
 
 .pie-lema {
-  margin: 0 0 14px;
-  font-size: 1.02rem;
-  font-weight: 600;
+  margin: 0 0 18px;
+  font-size: 1.35rem;
+  font-weight: 700;
   color: var(--rojo);
 }
 
@@ -435,7 +443,7 @@
   background: none;
   padding: 4px 8px;
   font: inherit;
-  font-size: 0.86rem;
+  font-size: 0.98rem;
   color: var(--tinta-suave);
   text-decoration: underline;
   cursor: pointer;
@@ -507,18 +515,39 @@
   }
 
   .barra-marca-interior {
-    padding: 14px 20px;
+    gap: 16px;
+    padding: 16px 20px;
+  }
+
+  .marca-logo {
+    width: 66px;
+  }
+
+  .marca-nombre {
+    font-size: 1.6rem;
   }
 
   .marca-lema {
     display: none;
   }
+
+  .pie-lema {
+    font-size: 1.15rem;
+  }
 }
 
 @media (max-width: 560px) {
+  .marca-logo {
+    width: 56px;
+  }
+
+  .marca-nombre {
+    font-size: 1.35rem;
+  }
+
   .marca-telefono {
-    padding: 8px 14px;
-    font-size: 0.9rem;
+    padding: 10px 16px;
+    font-size: 1rem;
   }
 
   .tarjeta-consulta,
