@@ -6,6 +6,9 @@ import sqlite3
 import pytest
 import pandas as pd
 
+from contextlib import closing
+
+from gestor_guias.db import transaccion
 from gestor_guias.repository import GuiaRepository
 
 
@@ -433,14 +436,12 @@ def test_archivar_entregadas_mueve_guias_e_al_archivo(tmp_path: Path) -> None:
     assert archivadas == 1
     dataframe = repository.to_dataframe()
     assert list(dataframe["GUIA"]) == ["200"]
-    with repository._connect() as connection:
-        rows = connection.execute(
-            "SELECT guia, estado, archivado_en FROM guias_archivo"
-        ).fetchall()
+    with transaccion(repository._connect()) as connection:
+        rows = connection.consultar("SELECT guia, estado, archivado_en FROM guias_archivo")
     assert len(rows) == 1
-    assert rows[0][0] == "100"
-    assert rows[0][1] == "E"
-    assert rows[0][2] != ""
+    assert rows[0]["guia"] == "100"
+    assert rows[0]["estado"] == "E"
+    assert rows[0]["archivado_en"] != ""
 
 
 def test_snapshot_y_restaurar_guias_permite_deshacer(tmp_path: Path) -> None:
@@ -533,8 +534,10 @@ def test_conexion_usa_synchronous_full(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
     repository.initialize()
 
-    with repository._connect() as connection:
-        assert connection.execute("PRAGMA synchronous").fetchone()[0] == 2
+    # `_connect` no se usa con `with` a secas a proposito: en sqlite3 eso
+    # confirma pero NO cierra, que es lo que corrompio la base en produccion.
+    with closing(repository._connect_sqlite_crudo()) as conexion:
+        assert conexion.execute("PRAGMA synchronous").fetchone()[0] == 2
 
 
 def test_respaldo_periodico_no_se_hace_si_la_base_esta_danada(tmp_path: Path) -> None:

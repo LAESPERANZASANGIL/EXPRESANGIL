@@ -125,12 +125,15 @@ class Conexion:
         return self._conexion.execute(adaptar(sql, self.motor), parametros)
 
     def executemany(self, sql: str, secuencia):
+        """Devuelve el cursor en los dos motores: hay quien lee `rowcount`."""
         sentencia = adaptar(sql, self.motor)
         if self.motor == SQLITE:
             return self._conexion.executemany(sentencia, secuencia)
-        with self._conexion.cursor() as cursor:
-            cursor.executemany(sentencia, secuencia)
-        return None
+        # El cursor no se cierra aqui a proposito: `rowcount` se consulta
+        # despues de volver. Se libera al cerrar la conexion.
+        cursor = self._conexion.cursor()
+        cursor.executemany(sentencia, secuencia)
+        return cursor
 
     def consultar(self, sql: str, parametros=()) -> list[dict]:
         """Todas las filas, como diccionarios."""
