@@ -162,6 +162,17 @@ CREATE TABLE IF NOT EXISTS liquidaciones_laborales (
     registrada_en TEXT NOT NULL DEFAULT ''
 );
 
+-- Sesiones del panel. Se guarda el hash del token, no el token: los
+-- respaldos salen del servidor y una copia no debe entregar sesiones vivas.
+CREATE TABLE IF NOT EXISTS sesiones (
+    token_hash TEXT PRIMARY KEY,
+    usuario    TEXT NOT NULL,
+    nombre     TEXT NOT NULL,
+    rol        TEXT NOT NULL,
+    creada_en  TEXT NOT NULL,
+    expira_en  TEXT NOT NULL
+);
+
 -- Indices para las consultas que mas se repiten en la operacion diaria.
 CREATE INDEX IF NOT EXISTS idx_guias_operador_estado ON guias (operador, estado);
 CREATE INDEX IF NOT EXISTS idx_guias_ingreso ON guias (ingreso);
@@ -170,6 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_archivo_ingreso ON guias_archivo (ingreso);
 CREATE INDEX IF NOT EXISTS idx_archivo_operador ON guias_archivo (operador);
 CREATE INDEX IF NOT EXISTS idx_prestamos_empleado ON prestamos (empleado);
 CREATE INDEX IF NOT EXISTS idx_abonos_prestamo ON prestamo_abonos (prestamo_id);
+CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones (usuario);
 
 -- Seguridad: aqui hay salarios, cedulas y prestamos de personas reales.
 -- Supabase publica estas tablas por PostgREST con la clave anonima, que es
@@ -187,3 +199,4 @@ ALTER TABLE prestamo_abonos         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE nomina                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE liquidaciones_semanales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE liquidaciones_laborales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sesiones                ENABLE ROW LEVEL SECURITY;

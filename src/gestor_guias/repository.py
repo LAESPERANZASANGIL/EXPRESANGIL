@@ -247,6 +247,19 @@ class GuiaRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sesiones (
+                    token_hash TEXT PRIMARY KEY,
+                    usuario TEXT NOT NULL,
+                    nombre TEXT NOT NULL,
+                    rol TEXT NOT NULL,
+                    creada_en TEXT NOT NULL,
+                    expira_en TEXT NOT NULL
+                )
+                """
+            )
+
             columnas_liq = {
                 row[1] for row in connection.execute("PRAGMA table_info(liquidaciones_laborales)")
             }
@@ -910,6 +923,65 @@ class GuiaRepository:
                 (int(salario_base), int(auxilio_transporte), cedula, cargo, usuario),
             )
             return cursor.rowcount > 0
+
+    # ------------------------------ Sesiones ------------------------------
+    #
+    # Viven en la base y no en memoria para que un despliegue o un reinicio
+    # del VPS no expulse a todo el mundo. **Se guarda el hash del token, no
+    # el token**: los respaldos salen del servidor (boton de descarga y copia
+    # externa), y una copia no debe entregar sesiones vivas a quien la tenga.
+
+    def crear_sesion(
+        self, token_hash: str, usuario: str, nombre: str, rol: str, expira_en: str
+    ) -> None:
+        """Abre la sesion y cierra las anteriores de ese mismo usuario."""
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            connection.execute("DELETE FROM sesiones WHERE usuario = ?", (usuario,))
+            connection.execute(
+                """
+                INSERT INTO sesiones (token_hash, usuario, nombre, rol, creada_en, expira_en)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    token_hash,
+                    usuario,
+                    nombre,
+                    rol,
+                    datetime.now().isoformat(timespec="seconds"),
+                    expira_en,
+                ),
+            )
+
+    def obtener_sesion(self, token_hash: str, ahora: str) -> dict | None:
+        """Sesion vigente, o None si no existe o ya vencio.
+
+        La vencida se borra al encontrarla: asi la tabla no crece sola.
+        """
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            sesion = connection.consultar_una(
+                "SELECT usuario, nombre, rol, creada_en, expira_en FROM sesiones "
+                "WHERE token_hash = ?",
+                (token_hash,),
+            )
+            if sesion is None:
+                return None
+            if str(sesion["expira_en"]) <= ahora:
+                connection.execute("DELETE FROM sesiones WHERE token_hash = ?", (token_hash,))
+                return None
+            return sesion
+
+    def eliminar_sesion(self, token_hash: str) -> None:
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            connection.execute("DELETE FROM sesiones WHERE token_hash = ?", (token_hash,))
+
+    def limpiar_sesiones_vencidas(self, ahora: str) -> int:
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            cursor = connection.execute("DELETE FROM sesiones WHERE expira_en <= ?", (ahora,))
+            return int(cursor.rowcount or 0)
 
     def renombrar_operador(self, usuario: str, nombre_nuevo: str) -> dict:
         """Cambia el nombre del empleado y arrastra todo su historial.
