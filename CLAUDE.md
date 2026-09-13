@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 178 tests (18 se saltan sin Postgres).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 188 tests (18 se saltan sin Postgres).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -30,7 +30,7 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 ## Arquitectura (importante para no romper nada)
 
 - **`app.py`** es la CLI con `argparse`. Toda accion (importar, exportar, informes, operadores) es un subcomando aqui.
-- **`launcher_server.py`** es el panel web: handler HTTP (`http.server`, sin frameworks). Llama a `app.py` por `subprocess` (`run_command`) para informes/importar/exportar, e invoca directamente `operadores.py` + `repository.py` para login, salidas, novedades, cierres y acciones de admin. Las sesiones viven en memoria (`SESSIONS`, cookie `session`) y se pierden al reiniciar. Tambien arranca el hilo de respaldo periodico.
+- **`launcher_server.py`** es el panel web: handler HTTP (`http.server`, sin frameworks). Llama a `app.py` por `subprocess` (`run_command`) para informes/importar/exportar, e invoca directamente `operadores.py` + `repository.py` para login, salidas, novedades, cierres y acciones de admin. Las sesiones viven en la tabla `sesiones` (cookie `session`) y **sobreviven a un reinicio**: de la cookie se guarda solo el hash SHA-256, porque los respaldos salen del servidor y una copia no debe entregar sesiones vivas. Vencen a las 12 horas (`SESSION_MAX_EDAD_SEGUNDOS`), medidas contra el reloj y no con `time.monotonic()`, que se reinicia con el proceso. El hilo de respaldo barre las vencidas. Tambien arranca el hilo de respaldo periodico.
 - **`launcher/`** es frontend estatico (HTML/CSS/JS plano, sin build). Se sirve desde `STATIC_FILES` en `launcher_server.py`; **si agregas un archivo nuevo hay que registrarlo en ese diccionario** o devuelve 404.
 - **`config.py`** carga `config/settings.toml` con `tomllib` a dataclasses congeladas (`Settings`). Rutas relativas se resuelven contra la raiz del repo (`BASE_DIR`).
 - **`repository.py`** es el unico acceso a SQLite. `initialize()` hace migracion ligera (crea tablas y agrega columnas faltantes).
@@ -53,6 +53,7 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 | `nomina` | `periodo, empleado` | Liquidacion mensual por empleado |
 | `liquidaciones_semanales` | `semana_inicio, empleado` | Pago semanal de contratistas por encomienda |
 | `liquidaciones_laborales` | `id` | Liquidacion definitiva al retirar a un empleado |
+| `sesiones` | `token_hash` | Sesiones del panel, para que sobrevivan a un reinicio |
 
 **Renombrar a un empleado**: `guias`, `guias_archivo`, `cierres_operador`, `prestamos`, `nomina`, `liquidaciones_semanales` y `liquidaciones_laborales` guardan el **nombre** del empleado como texto, no su `usuario`. Por eso el cambio de nombre pasa siempre por `repository.renombrar_operador()`, que arrastra esas siete tablas en la misma transaccion y rechaza un nombre ya usado por otro. Nunca actualizar `operadores.nombre` a secas.
 
@@ -229,20 +230,20 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
+- Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 178 tests en verde (160 corren siempre; 18 solo si hay un Postgres de pruebas).
+- Suite de 188 tests en verde (170 corren siempre; 18 solo si hay un Postgres de pruebas).
 
 ## Que se puede mejorar
 
 **Robustez / operacion**
-- Las sesiones viven en memoria: cada despliegue expulsa a todos los usuarios y un operador con la pestana abierta pierde la sesion sin aviso claro. Persistirlas (tabla o archivo firmado) evitaria el problema.
 - Despliegue manual por SSH. Un timer de systemd que haga `fetch`/`reset`/`restart` automatizaria el paso mas repetitivo.
 - Los reinicios inesperados del VPS siguen siendo un tema de infraestructura con el proveedor. La causa de codigo (conexiones sin cerrar) ya esta corregida, y por eso se decidio **no** conmutar a Supabase: ver "Soporte de Supabase".
 - La copia externa automatica avisa sus fallos solo por el log del servicio: si lleva dias sin salir, nadie se entera desde el panel.
 
 **Calidad de codigo**
 - `launcher_server.py` supera las 1.300 lineas con toda la logica HTTP en un solo `do_POST`/`do_GET`. Separarlo por modulos (rutas de admin, operador, informes) lo haria mantenible.
-- No hay tests del servidor HTTP: los endpoints solo se prueban a mano. Las regresiones del panel (403 al descargar, cierre general en cero) se habrian detectado con tests de integracion.
+- Los tests del servidor HTTP solo cubren las sesiones (`test_sesiones_persistentes.py`, que levanta el panel de verdad). El resto de endpoints se prueba a mano; las regresiones del panel (403 al descargar, cierre general en cero) se habrian detectado extendiendo ese patron.
 - Archivos muertos: `launcher/zona.html`, `zona.css`, `zona.js` no estan en `STATIC_FILES` y no se sirven. `editor_gui.py` (Tkinter) quedo obsoleto tras la Zona de Trabajo web y es el unico consumidor de `generate_daily_report`.
 - `run_command` lanza un subproceso Python por cada informe; llamar a las funciones directamente seria mas rapido y daria mejores errores.
 

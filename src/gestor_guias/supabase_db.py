@@ -28,6 +28,7 @@ TABLAS = (
     "nomina",
     "liquidaciones_semanales",
     "liquidaciones_laborales",
+    "sesiones",
 )
 
 # Tablas cuya clave primaria la genera Postgres (IDENTITY). Al migrar hay

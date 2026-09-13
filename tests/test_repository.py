@@ -636,3 +636,69 @@ def test_copia_para_descarga_rechaza_una_base_danada(tmp_path: Path) -> None:
 
     with pytest.raises(sqlite3.DatabaseError):
         repository.copia_para_descarga(tmp_path / "respaldo.db")
+
+
+def _sesion_de_prueba(repository: GuiaRepository, expira_en: str) -> str:
+    repository.crear_operador("adm", "hash", "ADMIN", rol="admin")
+    repository.crear_sesion("hash-del-token", "adm", "ADMIN", "admin", expira_en)
+    return "hash-del-token"
+
+
+def test_la_sesion_se_guarda_y_se_recupera(tmp_path: Path) -> None:
+    """Vive en la base para que un reinicio del VPS no expulse a nadie."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    token = _sesion_de_prueba(repository, "2099-01-01T00:00:00")
+
+    sesion = repository.obtener_sesion(token, "2026-09-13T10:00:00")
+
+    assert sesion["usuario"] == "adm"
+    assert sesion["rol"] == "admin"
+    assert sesion["nombre"] == "ADMIN"
+
+
+def test_una_sesion_vencida_no_sirve_y_se_borra(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    token = _sesion_de_prueba(repository, "2026-09-13T08:00:00")
+
+    assert repository.obtener_sesion(token, "2026-09-13T10:00:00") is None
+    # Se elimina al encontrarla vencida: la tabla no debe crecer sola.
+    assert repository.limpiar_sesiones_vencidas("2099-01-01T00:00:00") == 0
+
+
+def test_un_token_desconocido_no_abre_sesion(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    _sesion_de_prueba(repository, "2099-01-01T00:00:00")
+
+    assert repository.obtener_sesion("otro-hash", "2026-09-13T10:00:00") is None
+
+
+def test_entrar_de_nuevo_cierra_la_sesion_anterior(tmp_path: Path) -> None:
+    """Un usuario tiene una sola sesion viva, como antes."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    viejo = _sesion_de_prueba(repository, "2099-01-01T00:00:00")
+    repository.crear_sesion("hash-nuevo", "adm", "ADMIN", "admin", "2099-01-01T00:00:00")
+
+    assert repository.obtener_sesion(viejo, "2026-09-13T10:00:00") is None
+    assert repository.obtener_sesion("hash-nuevo", "2026-09-13T10:00:00")["usuario"] == "adm"
+
+
+def test_cerrar_sesion_la_invalida(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    token = _sesion_de_prueba(repository, "2099-01-01T00:00:00")
+
+    repository.eliminar_sesion(token)
+
+    assert repository.obtener_sesion(token, "2026-09-13T10:00:00") is None
+
+
+def test_la_limpieza_barre_solo_las_vencidas(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("a", "h", "A")
+    repository.crear_operador("b", "h", "B")
+    repository.crear_sesion("vencida", "a", "A", "operador", "2026-09-13T08:00:00")
+    repository.crear_sesion("vigente", "b", "B", "operador", "2099-01-01T00:00:00")
+
+    barridas = repository.limpiar_sesiones_vencidas("2026-09-13T10:00:00")
+
+    assert barridas == 1
+    assert repository.obtener_sesion("vigente", "2026-09-13T10:00:00")["usuario"] == "b"

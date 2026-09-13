@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from http.cookies import SimpleCookie
+import hashlib
 import json
 import os
 import re
@@ -79,8 +80,24 @@ PORT = int(os.environ.get("GESTOR_GUIAS_PORT", "8765"))
 SETTINGS = load_settings()
 REPOSITORY = GuiaRepository(SETTINGS.paths.database_file)
 
-# Sesiones en memoria: token -> {"usuario": ..., "nombre": ..., "rol": ...}
-SESSIONS: dict[str, dict] = {}
+# Las sesiones viven en la base (tabla `sesiones`), no en memoria: asi un
+# despliegue o un reinicio inesperado del VPS no expulsa a todo el mundo a
+# mitad de la jornada. De la cookie solo se guarda el **hash**, porque los
+# respaldos salen del servidor y una copia no debe entregar sesiones vivas.
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _ahora() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _vencimiento() -> str:
+    return (datetime.now() + timedelta(seconds=SESSION_MAX_EDAD_SEGUNDOS)).isoformat(
+        timespec="seconds"
+    )
 
 ROLES_VALIDOS = {"operador", "admin"}
 
@@ -239,16 +256,20 @@ class LauncherHandler(BaseHTTPRequestHandler):
         return morsel.value if morsel else None
 
     def _get_session(self) -> dict | None:
+        """Sesion vigente segun la cookie, o None.
+
+        El vencimiento se compara contra la hora del reloj, no contra
+        `time.monotonic()`, que se reinicia con el proceso: ese era uno de
+        los motivos por los que la sesion no podia sobrevivir a un reinicio.
+        """
         token = self._session_token()
-        if token is None:
+        if not token:
             return None
-        session = SESSIONS.get(token)
-        if session is None:
+        try:
+            return REPOSITORY.obtener_sesion(_hash_token(token), _ahora())
+        except Exception as error:  # noqa: BLE001 - la base puede fallar
+            print(f"Aviso: no se pudo leer la sesion: {error}")
             return None
-        if time.monotonic() - session["creada"] > SESSION_MAX_EDAD_SEGUNDOS:
-            SESSIONS.pop(token, None)
-            return None
-        return session
 
     def _require_admin(self) -> bool:
         """Responde 401 y devuelve False si la sesion actual no es de administrador."""
@@ -896,18 +917,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-            for token_previo, sesion_previa in list(SESSIONS.items()):
-                if sesion_previa.get("usuario") == usuario:
-                    SESSIONS.pop(token_previo, None)
-
-            token = secrets.token_hex(16)
+            # `crear_sesion` cierra por su cuenta las sesiones anteriores de
+            # ese usuario, en la misma transaccion.
+            token = secrets.token_hex(32)
             rol = operador.get("rol", "operador")
-            SESSIONS[token] = {
-                "usuario": usuario,
-                "nombre": operador["nombre"],
-                "rol": rol,
-                "creada": time.monotonic(),
-            }
+            REPOSITORY.crear_sesion(
+                _hash_token(token), usuario, operador["nombre"], rol, _vencimiento()
+            )
             self._send_json(
                 {
                     "ok": True,
@@ -1029,7 +1045,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
         if self.path == "/api/operador/logout":
             token = self._session_token()
-            SESSIONS.pop(token, None)
+            if token:
+                REPOSITORY.eliminar_sesion(_hash_token(token))
             self._send_json(
                 {"ok": True, "output": "Sesion cerrada."},
                 headers={
@@ -1972,6 +1989,12 @@ def _bucle_respaldo_periodico() -> None:
         except Exception as error:  # noqa: BLE001 - no debe tumbar el panel
             print(f"Aviso: fallo el respaldo periodico: {error}")
         _copiar_respaldo_fuera()
+        # Las sesiones vencidas ya no sirven a nadie y la tabla no debe
+        # crecer sola: se barren aprovechando este mismo hilo.
+        try:
+            REPOSITORY.limpiar_sesiones_vencidas(_ahora())
+        except Exception as error:  # noqa: BLE001 - no debe tumbar el panel
+            print(f"Aviso: fallo la limpieza de sesiones: {error}")
         time.sleep(INTERVALO_RESPALDO_SEGUNDOS)
 
 
