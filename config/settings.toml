@@ -42,15 +42,16 @@ telefono = "3042624407"
 cert_file = ""
 key_file = ""
 
-# Copia del respaldo en Google Drive, fuera del disco del servidor: si el
-# disco del VPS falla, los respaldos locales se pierden todos a la vez.
-# Autoriza una sola vez desde el PC con
-#   python -m gestor_guias.app respaldo-drive --autorizar
-# y copia el token_drive.json resultante al servidor.
-[respaldo_drive]
+# Copia del respaldo fuera del disco del servidor: si el disco del VPS falla,
+# los respaldos locales se pierden todos a la vez.
+#
+# `comando` recibe la ruta del respaldo en {archivo}. Para OneDrive de Office
+# 365 se usa rclone, que no exige registrar la aplicacion en Azure:
+#   1. apt install rclone   (en el VPS)
+#   2. rclone config  -> new remote -> onedrive -> seguir el asistente
+#   3. activo = true
+# Tambien sirve para otro servidor:  comando = "scp {archivo} usuario@host:/ruta/"
+[respaldo_externo]
 activo = false
-carpeta = "WILLIANS, Institucion Educativa La Esperanza"
-copias = 30
+comando = "rclone copy {archivo} onedrive:Respaldos Expresangil"
 horas = 24
-credentials_file = "config/credentials.json"
-token_file = "config/token_drive.json"
