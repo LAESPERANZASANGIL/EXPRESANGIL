@@ -39,12 +39,24 @@ class OficinaSettings:
 
 
 @dataclass(frozen=True)
+<<<<<<< HEAD
 class RespaldoExternoSettings:
     """Copia del respaldo fuera del disco del servidor, por comando."""
 
     activo: bool
     comando: str
     horas: int
+=======
+class RespaldoDriveSettings:
+    """Copia del respaldo en Google Drive, fuera del disco del servidor."""
+
+    activo: bool
+    carpeta: str
+    copias: int
+    horas: int
+    credentials_file: Path
+    token_file: Path
+>>>>>>> origin/main
 
 
 @dataclass(frozen=True)
@@ -60,7 +72,11 @@ class Settings:
     excel: ExcelSettings
     oficina: OficinaSettings
     servidor: ServidorSettings
+<<<<<<< HEAD
     respaldo_externo: RespaldoExternoSettings
+=======
+    respaldo_drive: RespaldoDriveSettings
+>>>>>>> origin/main
 
 
 def _project_path(value: str) -> Path:
@@ -83,7 +99,11 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
     excel = raw["excel"]
     oficina = raw.get("oficina", {})
     servidor = raw.get("servidor", {})
+<<<<<<< HEAD
     externo = raw.get("respaldo_externo", {})
+=======
+    drive = raw.get("respaldo_drive", {})
+>>>>>>> origin/main
 
     cert_file = str(servidor.get("cert_file", "")).strip()
     key_file = str(servidor.get("key_file", "")).strip()
@@ -114,9 +134,21 @@ def load_settings(config_file: str | Path = "config/settings.toml") -> Settings:
             cert_file=_project_path(cert_file) if cert_file else None,
             key_file=_project_path(key_file) if key_file else None,
         ),
+<<<<<<< HEAD
         respaldo_externo=RespaldoExternoSettings(
             activo=bool(externo.get("activo", False)),
             comando=str(externo.get("comando", "")),
             horas=max(1, int(externo.get("horas", 24))),
+=======
+        respaldo_drive=RespaldoDriveSettings(
+            activo=bool(drive.get("activo", False)),
+            carpeta=str(drive.get("carpeta", "Respaldos Expresangil")),
+            copias=int(drive.get("copias", 30)),
+            horas=max(1, int(drive.get("horas", 24))),
+            credentials_file=_project_path(
+                str(drive.get("credentials_file", "config/credentials.json"))
+            ),
+            token_file=_project_path(str(drive.get("token_file", "config/token_drive.json"))),
+>>>>>>> origin/main
         ),
     )
