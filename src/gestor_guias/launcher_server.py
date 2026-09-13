@@ -9,6 +9,7 @@ import secrets
 import ssl
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
@@ -520,6 +521,36 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Disposition", f'attachment; filename="{nombre}"')
             self.end_headers()
             self.wfile.write(data)
+            return
+
+        if route == "/api/respaldo/descargar":
+            if not self._require_admin():
+                return
+
+            # Se genera en el momento, no se entrega una copia vieja: lo que
+            # el administrador se lleva es el estado actual de la base.
+            marca = datetime.now().strftime("%Y-%m-%d %H%M")
+            nombre = f"respaldo expresangil {marca}.db"
+            with tempfile.TemporaryDirectory() as carpeta:
+                destino = Path(carpeta) / nombre
+                try:
+                    REPOSITORY.copia_para_descarga(destino)
+                except Exception as error:
+                    self._send_json({"ok": False, "output": f"No se pudo generar el respaldo: {error}"})
+                    return
+                datos = destino.read_bytes()
+
+            registrar_auditoria(
+                self._get_session()["usuario"],
+                "descargar-respaldo",
+                f"{nombre} ({len(datos)} bytes)",
+            )
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(datos)))
+            self.send_header("Content-Disposition", f'attachment; filename="{nombre}"')
+            self.end_headers()
+            self.wfile.write(datos)
             return
 
         if route in STATIC_FILES:

@@ -538,3 +538,44 @@ document.getElementById("btn-recalcular-cierre").addEventListener("click", async
     mostrarLog("No se pudo conectar con el panel: " + error);
   }
 });
+
+// ----------------------------- Respaldo de la base -----------------------------
+// La descarga no puede ir por `fetch` a secas: el navegador necesita el blob
+// para ofrecer el archivo, y si el servidor responde un error en JSON hay que
+// mostrarlo en vez de guardar un archivo invalido.
+document.getElementById("btn-respaldo").addEventListener("click", async () => {
+  const boton = document.getElementById("btn-respaldo");
+  boton.disabled = true;
+  mostrarLog("Generando el respaldo de la base de datos...");
+  try {
+    const respuesta = await fetch("/api/respaldo/descargar", { credentials: "same-origin" });
+    const tipo = respuesta.headers.get("Content-Type") || "";
+
+    if (!respuesta.ok || tipo.includes("application/json")) {
+      const datos = await respuesta.json().catch(() => ({}));
+      mostrarLog(datos.output || "No se pudo generar el respaldo.");
+      return;
+    }
+
+    const blob = await respuesta.blob();
+    const cabecera = respuesta.headers.get("Content-Disposition") || "";
+    const coincidencia = cabecera.match(/filename="([^"]+)"/);
+    const nombre = coincidencia ? coincidencia[1] : "respaldo expresangil.db";
+
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = nombre;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+
+    const megas = (blob.size / (1024 * 1024)).toFixed(2);
+    mostrarLog(`Respaldo descargado: ${nombre} (${megas} MB). Guardalo fuera del servidor.`);
+  } catch (error) {
+    mostrarLog("No se pudo descargar el respaldo: " + error);
+  } finally {
+    boton.disabled = false;
+  }
+});
