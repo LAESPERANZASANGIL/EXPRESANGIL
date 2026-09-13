@@ -11,6 +11,8 @@ dependencies = [
     "google-api-python-client>=2.130.0",
     "google-auth>=2.30.0",
     "google-auth-oauthlib>=1.2.0",
+    # Driver de Postgres para la base en Supabase.
+    "psycopg[binary]>=3.1",
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",
     "xlrd>=2.0.1",
