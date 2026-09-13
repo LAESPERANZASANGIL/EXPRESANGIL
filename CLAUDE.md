@@ -56,21 +56,37 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 
 **Renombrar a un empleado**: `guias`, `guias_archivo`, `cierres_operador`, `prestamos`, `nomina`, `liquidaciones_semanales` y `liquidaciones_laborales` guardan el **nombre** del empleado como texto, no su `usuario`. Por eso el cambio de nombre pasa siempre por `repository.renombrar_operador()`, que arrastra esas siete tablas en la misma transaccion y rechaza un nombre ya usado por otro. Nunca actualizar `operadores.nombre` a secas.
 
-## Mudanza a Supabase (en curso)
+## Soporte de Supabase (listo, pero NO activo)
 
-La base se esta moviendo de SQLite a **Postgres en Supabase** (proyecto `EXPRESANGIL`, plan Pro), para que las corrupciones por reinicio del VPS dejen de ser posibles. Va por fases y **hoy el aplicativo sigue leyendo y escribiendo en SQLite**.
+**La aplicacion corre sobre SQLite y esa es la decision vigente.** El soporte de Postgres/Supabase esta completo y probado, y conmutar toma diez minutos, pero no se usa. Conviene entender por que antes de reactivarlo.
 
-- **Esquema**: `supabase/migrations/0001_esquema_inicial.sql`, espejo del de SQLite. Las fechas siguen siendo `TEXT` en formato ISO porque toda la aplicacion las compara como texto; pasarlas a `DATE` obliga a revisar cada consulta y cada informe, y es para despues. Los importes son `BIGINT` (pesos sin decimales).
-- **RLS activo y sin politicas en las 10 tablas**: aqui hay salarios, cedulas y prestamos, y Supabase publica las tablas por PostgREST con la clave anonima, que es publica por diseño. El aplicativo entra por conexion directa de Postgres, que no pasa por RLS. **No desactivar RLS** para "que funcione algo": agregar politicas explicitas.
-- **La cadena de conexion va en la variable de entorno `EXPRESANGIL_DB_DSN`, nunca en `settings.toml`**, que si se versiona en GitHub y publicaria la contraseña.
-- **Migracion de datos**: `python -m gestor_guias.app migrar-a-supabase` copia las 10 tablas y muestra el cuadre origen/destino. No borra nada del origen, corre en una sola transaccion y se puede repetir (vacia el destino antes, salvo `--conservar`). Conserva los ids de `prestamos`, `prestamo_abonos` y `liquidaciones_laborales` con `OVERRIDING SYSTEM VALUE` y luego reajusta la secuencia con `setval`: sin eso los abonos colgarian de otro prestamo y el siguiente registro chocaria por id repetido.
-- **`repository.py` ya habla los dos motores.** Se construye con `GuiaRepository(archivo)` para SQLite o con `dsn=` (o la variable de entorno) para Postgres; `repository.motor` dice cual. El SQL se escribe **una sola vez** en un subconjunto portable y `db.py` traduce. Al tocarlo, tres reglas:
-  - Nada de `rowid` ni de `PRAGMA` fuera de `initialize()` y los respaldos: no existen en Postgres. `initialize()` **no hace nada** en Postgres, porque alli el esquema lo gobierna `supabase/migrations/`.
-  - Para leer filas, `connection.consultar()` / `consultar_una()`, que devuelven diccionarios en ambos. `execute().fetchall()` entrega tuplas en psycopg y `fila["columna"]` revienta.
-  - Para el id recien insertado, `connection.insertar_devolviendo_id()`: `lastrowid` no existe en Postgres.
-- **`Conexion` no soporta `with` a proposito**: en sqlite3 eso confirma pero **no cierra**, que es lo que corrompio la base en produccion. Se usa siempre `transaccion()`, que ademas cierra.
-- **Conexion desde el VPS**: hay que usar el **pooler** de Supabase (`...pooler.supabase.com`), no la conexion directa: `db.<ref>.supabase.co` solo responde por IPv6 y la mayoria de VPS son IPv4. Por eso `abrir_postgres()` pasa `prepare_threshold=None`: el pooler en modo transaccion no admite sentencias preparadas y la conexion empieza a fallar con "prepared statement already exists". No se pierde nada, porque cada operacion abre su propia conexion.
-- **Falta para conmutar**: definir `EXPRESANGIL_DB_DSN` en el servicio del VPS y decidir el momento. El respaldo por archivo y `verificar_integridad` dejan de aplicar en Postgres: de eso se encarga Supabase.
+**Por que se hizo**: las corrupciones repetidas de la base (`database disk image is malformed`). **Por que no se conmuto**: esa causa ya estaba resuelta. Eran 43 conexiones SQLite que no se cerraban, agotaban los descriptores del sistema y producian el `disk I/O error` que terminaba en corrupcion; se corrigio con `contextlib.closing`. Sumado a los respaldos fuera del servidor, el seguro que daba Supabase ya se tenia por otra via.
+
+**El costo medido** (300 guias, contra Postgres local, extrapolando ~100 ms de ida y vuelta a Oregon):
+
+| | SQLite | Supabase | Supabase reutilizando conexion |
+|---|---|---|---|
+| Abrir conexion | 0 ms | ~300 ms (TLS son 3 viajes) | 0 ms |
+| Consultar | 0,4 ms | ~100 ms | ~100 ms |
+| **Por cada clic** | **~5 ms** | **~400 ms** | **~100 ms** |
+
+Cada operacion del panel abre **una sola** conexion y hace 1-2 consultas, asi que el costo no se multiplica por guia; pero esos 400 ms se pagan en cada clic. A eso se suma que sin internet la oficina no podria trabajar.
+
+**Que hay listo, si algun dia se reactiva**:
+
+- `supabase/migrations/0001_esquema_inicial.sql`: esquema espejo del de SQLite, **ya aplicado** al proyecto `EXPRESANGIL` (plan Pro). Fechas como `TEXT` ISO porque toda la app las compara como texto; importes en `BIGINT`.
+- **RLS activo y sin politicas en las 10 tablas**: hay salarios, cedulas y prestamos, y Supabase publica las tablas por PostgREST con la clave anonima, que es publica por diseño. La app entra por conexion directa, que no pasa por RLS. **No desactivar RLS** para "que funcione algo": agregar politicas explicitas.
+- `migrar-a-supabase` copia las 10 tablas en una transaccion, sin tocar el origen, y muestra el cuadre. Conserva los ids con `OVERRIDING SYSTEM VALUE` y reajusta la secuencia con `setval`: sin eso los abonos colgarian de otro prestamo y el siguiente registro chocaria por id repetido.
+- **La cadena de conexion va en `EXPRESANGIL_DB_DSN`, nunca en `settings.toml`**, que se versiona en GitHub y publicaria la contraseña.
+- Desde el VPS hay que entrar por el **pooler** (`...pooler.supabase.com`): la conexion directa solo responde por IPv6. Por eso `abrir_postgres()` pasa `prepare_threshold=None`, porque el pooler en modo transaccion no admite sentencias preparadas.
+- `psycopg` es una dependencia **opcional** (`pip install -e ".[supabase]"`) y se importa de forma diferida: sin el, todo lo demas funciona igual.
+
+**`repository.py` habla los dos motores** y eso hay que respetarlo al tocarlo, aunque hoy solo se use SQLite:
+
+- Nada de `rowid` ni de `PRAGMA` fuera de `initialize()` y los respaldos: no existen en Postgres. `initialize()` no hace nada en Postgres, porque alli el esquema lo gobierna `supabase/migrations/`.
+- Para leer filas, `connection.consultar()` / `consultar_una()`, que devuelven diccionarios en ambos. `execute().fetchall()` entrega tuplas en psycopg y `fila["columna"]` revienta.
+- Para el id recien insertado, `connection.insertar_devolviendo_id()`: `lastrowid` no existe en Postgres.
+- **`Conexion` no soporta `with` a proposito**: en sqlite3 eso confirma pero **no cierra**, que es lo que corrompio la base. Se usa siempre `transaccion()`, que ademas cierra.
 
 ## Estados de guia (no inventar nuevos sin confirmar)
 
@@ -214,14 +230,14 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 178 tests en verde.
+- Suite de 178 tests en verde (160 corren siempre; 18 solo si hay un Postgres de pruebas).
 
 ## Que se puede mejorar
 
 **Robustez / operacion**
 - Las sesiones viven en memoria: cada despliegue expulsa a todos los usuarios y un operador con la pestana abierta pierde la sesion sin aviso claro. Persistirlas (tabla o archivo firmado) evitaria el problema.
 - Despliegue manual por SSH. Un timer de systemd que haga `fetch`/`reset`/`restart` automatizaria el paso mas repetitivo.
-- Los reinicios inesperados del VPS siguen siendo la causa de fondo de las corrupciones: es un tema de infraestructura con el proveedor, no del codigo.
+- Los reinicios inesperados del VPS siguen siendo un tema de infraestructura con el proveedor. La causa de codigo (conexiones sin cerrar) ya esta corregida, y por eso se decidio **no** conmutar a Supabase: ver "Soporte de Supabase".
 - La copia externa automatica avisa sus fallos solo por el log del servicio: si lleva dias sin salir, nadie se entera desde el panel.
 
 **Calidad de codigo**
