@@ -432,32 +432,47 @@
 }
 
 .pie-lema {
-  margin: 0 0 20px;
+  margin: 0;
   font-size: 2rem;
   line-height: 1.3;
   font-weight: 700;
   color: var(--rojo);
 }
 
-/* El acceso del personal no compite con el buscador: es un enlace discreto. */
-.enlace-panel {
-  border: none;
-  background: none;
-  padding: 4px 8px;
+/* Acceso del personal: boton en los colores de la pagina, pero delineado en
+   vez de solido para que no compita con el de Consultar. */
+.boton-panel {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px 18px;
   font: inherit;
-  font-size: 1.45rem;
-  color: var(--tinta-suave);
-  text-decoration: underline;
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--rojo);
+  background: #fff;
+  border: 2px solid var(--rojo);
+  border-radius: 10px;
   cursor: pointer;
+  transition: background 0.15s ease-in-out, color 0.15s ease-in-out,
+              box-shadow 0.15s ease-in-out;
 }
 
-.enlace-panel:hover {
-  color: var(--rojo);
+.boton-panel:hover {
+  background: var(--rojo);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(163, 21, 21, 0.22);
+}
+
+.boton-panel:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(163, 21, 21, 0.22);
 }
 
 #panel-acceso {
-  max-width: 340px;
-  margin: 18px auto 0;
+  max-width: none;
+  margin: 14px 0 0;
   padding: 22px 24px 24px;
   background: #fff;
   border: 1px solid var(--borde);
@@ -537,9 +552,6 @@
     font-size: 1.75rem;
   }
 
-  .enlace-panel {
-    font-size: 1.3rem;
-  }
 }
 
 @media (max-width: 560px) {
@@ -560,9 +572,6 @@
     font-size: 1.4rem;
   }
 
-  .enlace-panel {
-    font-size: 1.1rem;
-  }
 
   .tarjeta-consulta,
   .bloque-ayuda {

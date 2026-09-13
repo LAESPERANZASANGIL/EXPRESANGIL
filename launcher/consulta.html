@@ -100,22 +100,24 @@
       <p class="nota-horario">
         Si tu guia acaba de ser despachada, puede tardar unas horas en aparecer.
       </p>
+
+      <!-- Acceso del personal: debajo de la consulta, no en el pie. -->
+      <button class="boton-panel" id="btn-ingresar-panel">Ingresar al panel</button>
+
+      <section class="oculto" id="panel-acceso">
+        <h3>Ingresar al panel</h3>
+        <label for="panel-usuario">Usuario</label>
+        <input type="text" id="panel-usuario" autocomplete="username" />
+        <label for="panel-password">Contrasena del administrador</label>
+        <input type="password" id="panel-password" autocomplete="current-password" />
+        <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
+        <p id="panel-error" class="panel-error oculto"></p>
+      </section>
     </div>
   </main>
 
   <footer class="pie">
     <p class="pie-lema">🚚 "Recogemos donde estas, entregamos donde necesitas."</p>
-    <button class="enlace-panel" id="btn-ingresar-panel">Ingresar al panel</button>
-
-    <section class="oculto" id="panel-acceso">
-      <h3>Ingresar al panel</h3>
-      <label for="panel-usuario">Usuario</label>
-      <input type="text" id="panel-usuario" autocomplete="username" />
-      <label for="panel-password">Contrasena del administrador</label>
-      <input type="password" id="panel-password" autocomplete="current-password" />
-      <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
-      <p id="panel-error" class="panel-error oculto"></p>
-    </section>
   </footer>
 
   <script src="consulta.js"></script>
