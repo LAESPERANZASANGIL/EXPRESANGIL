@@ -36,18 +36,19 @@
 .barra-marca-interior {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 28px;
+  flex-wrap: wrap;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 22px 28px;
+  padding: 26px 28px;
 }
 
 .marca-logo {
-  width: 86px;
+  width: 172px;
   height: auto;
   background: #fff;
-  border-radius: 12px;
-  padding: 8px;
+  border-radius: 16px;
+  padding: 12px;
   flex-shrink: 0;
 }
 
@@ -58,25 +59,25 @@
 }
 
 .marca-nombre {
-  font-size: 2rem;
+  font-size: 4rem;
   font-weight: 700;
   letter-spacing: 2px;
   line-height: 1.2;
 }
 
 .marca-lema {
-  font-size: 1.05rem;
+  font-size: 2.1rem;
   opacity: 0.9;
 }
 
 .marca-telefono {
   margin-left: auto;
-  padding: 13px 26px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  padding: 18px 38px;
+  border: 3px solid rgba(255, 255, 255, 0.6);
   border-radius: 999px;
   color: #fff;
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 2.3rem;
   text-decoration: none;
   white-space: nowrap;
   transition: background 0.15s ease-in-out;
@@ -424,15 +425,16 @@
 /* --------------------------------- Pie ---------------------------------- */
 
 .pie {
-  padding: 34px 28px 40px;
+  padding: 44px 28px 52px;
   background: #fff;
   border-top: 1px solid var(--borde);
   text-align: center;
 }
 
 .pie-lema {
-  margin: 0 0 18px;
-  font-size: 1.35rem;
+  margin: 0 0 24px;
+  font-size: 2.7rem;
+  line-height: 1.3;
   font-weight: 700;
   color: var(--rojo);
 }
@@ -443,7 +445,7 @@
   background: none;
   padding: 4px 8px;
   font: inherit;
-  font-size: 0.98rem;
+  font-size: 1.95rem;
   color: var(--tinta-suave);
   text-decoration: underline;
   cursor: pointer;
@@ -520,11 +522,11 @@
   }
 
   .marca-logo {
-    width: 66px;
+    width: 132px;
   }
 
   .marca-nombre {
-    font-size: 1.6rem;
+    font-size: 3.2rem;
   }
 
   .marca-lema {
@@ -532,22 +534,34 @@
   }
 
   .pie-lema {
-    font-size: 1.15rem;
+    font-size: 2.3rem;
+  }
+
+  .enlace-panel {
+    font-size: 1.6rem;
   }
 }
 
 @media (max-width: 560px) {
   .marca-logo {
-    width: 56px;
+    width: 96px;
   }
 
   .marca-nombre {
-    font-size: 1.35rem;
+    font-size: 2.2rem;
   }
 
   .marca-telefono {
-    padding: 10px 16px;
-    font-size: 1rem;
+    padding: 12px 22px;
+    font-size: 1.5rem;
+  }
+
+  .pie-lema {
+    font-size: 1.7rem;
+  }
+
+  .enlace-panel {
+    font-size: 1.3rem;
   }
 
   .tarjeta-consulta,
