@@ -178,9 +178,18 @@ def abrir_sqlite(ruta) -> Conexion:
 
 
 def abrir_postgres(dsn: str) -> Conexion:
+    """Conexion a Postgres, compatible con el pooler de Supabase.
+
+    `prepare_threshold=None` desactiva las sentencias preparadas. Hacen
+    falta desactivarlas porque el pooler en modo transaccion (el puerto
+    6543, el unico camino IPv4 en muchos VPS) no las soporta y la conexion
+    empieza a fallar con "prepared statement already exists". Aqui no se
+    pierde nada: cada operacion abre su propia conexion, asi que una
+    sentencia preparada no se llegaria a reutilizar.
+    """
     import psycopg
 
-    return Conexion(psycopg.connect(dsn), POSTGRES)
+    return Conexion(psycopg.connect(dsn, prepare_threshold=None), POSTGRES)
 
 
 @contextmanager

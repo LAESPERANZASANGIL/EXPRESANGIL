@@ -69,6 +69,7 @@ La base se esta moviendo de SQLite a **Postgres en Supabase** (proyecto `EXPRESA
   - Para leer filas, `connection.consultar()` / `consultar_una()`, que devuelven diccionarios en ambos. `execute().fetchall()` entrega tuplas en psycopg y `fila["columna"]` revienta.
   - Para el id recien insertado, `connection.insertar_devolviendo_id()`: `lastrowid` no existe en Postgres.
 - **`Conexion` no soporta `with` a proposito**: en sqlite3 eso confirma pero **no cierra**, que es lo que corrompio la base en produccion. Se usa siempre `transaccion()`, que ademas cierra.
+- **Conexion desde el VPS**: hay que usar el **pooler** de Supabase (`...pooler.supabase.com`), no la conexion directa: `db.<ref>.supabase.co` solo responde por IPv6 y la mayoria de VPS son IPv4. Por eso `abrir_postgres()` pasa `prepare_threshold=None`: el pooler en modo transaccion no admite sentencias preparadas y la conexion empieza a fallar con "prepared statement already exists". No se pierde nada, porque cada operacion abre su propia conexion.
 - **Falta para conmutar**: definir `EXPRESANGIL_DB_DSN` en el servicio del VPS y decidir el momento. El respaldo por archivo y `verificar_integridad` dejan de aplicar en Postgres: de eso se encarga Supabase.
 
 ## Estados de guia (no inventar nuevos sin confirmar)
