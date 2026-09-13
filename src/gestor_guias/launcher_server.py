@@ -1931,44 +1931,38 @@ class LauncherHandler(BaseHTTPRequestHandler):
 # se dana o se pierde trabajo.
 INTERVALO_RESPALDO_SEGUNDOS = 2 * 60 * 60
 
-# Momento de la ultima subida a Drive (reloj monotono). None = todavia
-# ninguna en esta ejecucion, asi que al arrancar se sube enseguida.
-ULTIMA_SUBIDA_DRIVE: float | None = None
+# Momento de la ultima copia fuera del servidor (reloj monotono). None =
+# todavia ninguna en esta ejecucion, asi que al arrancar se envia enseguida.
+ULTIMA_COPIA_EXTERNA: float | None = None
 
 
-def _subir_respaldo_a_drive() -> None:
-    """Copia el respaldo fuera del servidor, si esta configurado.
+def _copiar_respaldo_fuera() -> None:
+    """Manda el respaldo fuera del servidor, si esta configurado.
 
     Los respaldos locales no protegen contra una falla del disco del VPS.
     Cualquier error aqui solo se avisa: el respaldo local ya se hizo y el
-    panel debe seguir funcionando aunque Google no responda.
+    panel debe seguir funcionando aunque el destino no responda.
     """
-    config = SETTINGS.respaldo_drive
+    config = SETTINGS.respaldo_externo
     if not config.activo:
         return
 
-    global ULTIMA_SUBIDA_DRIVE
+    global ULTIMA_COPIA_EXTERNA
     ahora = time.monotonic()
-    if ULTIMA_SUBIDA_DRIVE is not None and ahora - ULTIMA_SUBIDA_DRIVE < config.horas * 3600:
+    if ULTIMA_COPIA_EXTERNA is not None and ahora - ULTIMA_COPIA_EXTERNA < config.horas * 3600:
         return
 
     try:
-        # Import diferido: sin las librerias de Google el panel sigue vivo.
-        from .drive_backup import RespaldoDrive
+        from .respaldo_externo import copiar_fuera
 
-        resultado = RespaldoDrive(
-            credentials_file=config.credentials_file,
-            token_file=config.token_file,
-            carpeta=config.carpeta,
-            copias=config.copias,
-        ).subir(REPOSITORY)
-        ULTIMA_SUBIDA_DRIVE = ahora
+        resultado = copiar_fuera(REPOSITORY, config.comando)
+        ULTIMA_COPIA_EXTERNA = ahora
         print(
-            f"Respaldo subido a Google Drive: {resultado['nombre']} "
+            f"Respaldo copiado fuera del servidor: {resultado['nombre']} "
             f"({resultado['tamano'] / (1024 * 1024):.2f} MB)."
         )
     except Exception as error:  # noqa: BLE001 - no debe tumbar el panel
-        print(f"AVISO: no se pudo subir el respaldo a Google Drive: {error}")
+        print(f"AVISO: no se pudo copiar el respaldo fuera del servidor: {error}")
 
 
 def _bucle_respaldo_periodico() -> None:
@@ -1977,7 +1971,7 @@ def _bucle_respaldo_periodico() -> None:
             REPOSITORY.respaldo_periodico()
         except Exception as error:  # noqa: BLE001 - no debe tumbar el panel
             print(f"Aviso: fallo el respaldo periodico: {error}")
-        _subir_respaldo_a_drive()
+        _copiar_respaldo_fuera()
         time.sleep(INTERVALO_RESPALDO_SEGUNDOS)
 
 
