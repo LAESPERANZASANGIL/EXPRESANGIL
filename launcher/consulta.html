@@ -3,78 +3,120 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Consultar guia - Expresangil</title>
+  <title>Expresangil - Consulta el estado de tu encomienda</title>
+  <meta name="description" content="Recogemos y entregamos tus encomiendas en San Gil y los municipios circunvecinos. Consulta el estado de tu guia en linea." />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="consulta.css" />
 </head>
-<body>
-  <div class="pagina">
-    <div class="container">
-      <header>
-        <img class="logo-marca" src="/logo.png" alt="Expresangil" />
-        <h1>EXPRESANGIL</h1>
-        <p class="subtitulo">Consulta el estado de tu guia</p>
-      </header>
+<body class="pagina-publica">
 
-      <section class="opcion">
-        <label>Numero de guia</label>
-        <input type="text" id="guia" placeholder="Ej: 980941" autofocus />
-        <button class="boton boton-accion" id="btn-consultar">Consultar</button>
-      </section>
+  <header class="barra-marca">
+    <div class="barra-marca-interior">
+      <img class="marca-logo" src="/logo.png" alt="Expresangil" />
+      <div class="marca-texto">
+        <span class="marca-nombre">EXPRESANGIL</span>
+        <span class="marca-lema">Recogemos donde estas, entregamos donde necesitas</span>
+      </div>
+      <a class="marca-telefono" href="tel:3042624407">304 262 4407</a>
+    </div>
+  </header>
 
-      <section class="opcion oculto" id="resultado">
-        <h3 id="resultado-titulo"></h3>
-        <p id="resultado-mensaje"></p>
-      </section>
+  <main class="pagina">
 
-      <button class="boton boton-volver" id="btn-ingresar-panel">Ingresar al panel</button>
+    <!-- Columna izquierda: quienes somos y como escribir la guia. -->
+    <div class="columna-info">
+      <h1 class="titulo-principal">
+        Llevamos tus encomiendas <span>a donde las necesites</span>
+      </h1>
+      <p class="entradilla">
+        Recogemos tus paquetes directamente en la puerta de tu casa o negocio y
+        los entregamos de manera rapida y segura en San Gil y los municipios
+        circunvecinos.
+      </p>
 
-      <section class="opcion oculto" id="panel-acceso">
-        <h3>Ingresar al panel</h3>
-        <label>Usuario</label>
-        <input type="text" id="panel-usuario" autocomplete="username" />
-        <label>Contrasena del administrador</label>
-        <input type="password" id="panel-password" autocomplete="current-password" />
-        <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
-        <p id="panel-error" class="panel-error oculto"></p>
+      <div class="tarjetas-contacto">
+        <a class="tarjeta-contacto" href="https://maps.google.com/?q=Carrera+9+%2317-22+San+Gil+Santander"
+           target="_blank" rel="noopener">
+          <span class="tarjeta-icono" aria-hidden="true">📍</span>
+          <span class="tarjeta-titulo">Nuestra oficina</span>
+          <span class="tarjeta-dato">Carrera 9 No. 17-22, San Gil</span>
+        </a>
+        <a class="tarjeta-contacto" href="tel:3042624407">
+          <span class="tarjeta-icono" aria-hidden="true">📱</span>
+          <span class="tarjeta-titulo">Llamanos</span>
+          <span class="tarjeta-dato">304 262 4407</span>
+        </a>
+        <a class="tarjeta-contacto" href="tel:3142693385">
+          <span class="tarjeta-icono" aria-hidden="true">📱</span>
+          <span class="tarjeta-titulo">Tambien aqui</span>
+          <span class="tarjeta-dato">314 269 3385</span>
+        </a>
+      </div>
+
+      <section class="bloque-ayuda">
+        <h2>Como escribir tu numero de guia</h2>
+        <p class="ayuda-intro">
+          Para que el sistema encuentre tu envio de forma rapida y precisa,
+          escribe el numero <strong>solo con numeros</strong>:
+        </p>
+
+        <ul class="lista-reglas">
+          <li class="regla regla-mal">Sin puntos <code>.</code></li>
+          <li class="regla regla-mal">Sin guiones <code>-</code></li>
+          <li class="regla regla-mal">Sin espacios</li>
+          <li class="regla regla-ok">Solo numeros</li>
+        </ul>
+
+        <div class="ejemplos">
+          <div class="ejemplo ejemplo-ok">
+            <span class="ejemplo-etiqueta">Asi si</span>
+            <span class="ejemplo-valor">123456789</span>
+          </div>
+          <div class="ejemplo ejemplo-mal">
+            <span class="ejemplo-etiqueta">Asi no</span>
+            <span class="ejemplo-valor">123-456-789 &nbsp;·&nbsp; 123.456.789</span>
+          </div>
+        </div>
       </section>
     </div>
 
-    <aside class="info-empresa">
-      <h2>¡En EXPRESANGIL llevamos tus encomiendas a donde las necesites!</h2>
-      <p>
-        Recogemos tus paquetes directamente en la puerta de tu casa o negocio
-        y los entregamos de manera rapida y segura en San Gil y los
-        municipios circunvecinos.
+    <!-- Columna derecha: el buscador, que es a lo que viene el cliente. -->
+    <div class="columna-consulta">
+      <section class="tarjeta-consulta">
+        <h2 class="consulta-titulo">Consulta tu encomienda</h2>
+        <p class="consulta-sub">Escribe el numero de guia que aparece en tu recibo.</p>
+
+        <label for="guia">Numero de guia</label>
+        <input type="text" id="guia" inputmode="numeric" autocomplete="off"
+               placeholder="Ej: 980941" autofocus />
+        <button class="boton boton-accion" id="btn-consultar">Consultar</button>
+
+        <section class="oculto" id="resultado">
+          <h3 id="resultado-titulo"></h3>
+          <p id="resultado-mensaje"></p>
+        </section>
+      </section>
+
+      <p class="nota-horario">
+        Si tu guia acaba de ser despachada, puede tardar unas horas en aparecer.
       </p>
+    </div>
+  </main>
 
-      <p class="info-ubicacion">📍 Estamos ubicados en la carrera 9 No. 17-22, San Gil</p>
-      <p class="info-telefonos">📱 304 262 4407 &nbsp;-&nbsp; 📱 314 269 3385</p>
+  <footer class="pie">
+    <p class="pie-lema">🚚 "Recogemos donde estas, entregamos donde necesitas."</p>
+    <button class="enlace-panel" id="btn-ingresar-panel">Ingresar al panel</button>
 
-      <h3 class="info-seccion">CONSULTA EL ESTADO DE TU ENCOMIENDA:</h3>
-
-      <p class="info-importante">Importante:</p>
-      <p>Para realizar correctamente la consulta de tu envio, el numero de guia debe ingresarse:</p>
-
-      <ul class="lista-reglas">
-        <li class="regla-ok">✅ Solo con numeros</li>
-        <li class="regla-mal">❌ Sin puntos (.)</li>
-        <li class="regla-mal">❌ Sin guiones (-)</li>
-        <li class="regla-mal">❌ Sin espacios</li>
-      </ul>
-
-      <p class="info-importante">Ejemplo:</p>
-      <ul class="lista-reglas">
-        <li class="regla-ok">✅ Correcto: 123456789</li>
-        <li class="regla-mal">❌ Incorrecto: 123-456-789</li>
-        <li class="regla-mal">❌ Incorrecto: 123.456.789</li>
-      </ul>
-
-      <p>Esto permitira que nuestro sistema encuentre tu envio de forma rapida y precisa.</p>
-
-      <p class="info-lema">🚚 "Recogemos donde estas, entregamos donde necesitas."</p>
-    </aside>
-  </div>
+    <section class="oculto" id="panel-acceso">
+      <h3>Ingresar al panel</h3>
+      <label for="panel-usuario">Usuario</label>
+      <input type="text" id="panel-usuario" autocomplete="username" />
+      <label for="panel-password">Contrasena del administrador</label>
+      <input type="password" id="panel-password" autocomplete="current-password" />
+      <button class="boton boton-accion" id="btn-panel-ingresar">Ingresar</button>
+      <p id="panel-error" class="panel-error oculto"></p>
+    </section>
+  </footer>
 
   <script src="consulta.js"></script>
 </body>
