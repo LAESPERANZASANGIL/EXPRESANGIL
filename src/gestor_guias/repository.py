@@ -1574,6 +1574,40 @@ class GuiaRepository:
             viejo.unlink(missing_ok=True)
         return destino
 
+    def copia_para_descarga(self, destino: Path) -> None:
+        """Copia integra de la base en `destino`, lista para llevarse fuera.
+
+        Todos los respaldos viven en el mismo disco del servidor: si ese
+        disco falla se pierden todos a la vez. Esta copia existe para que el
+        administrador pueda guardarla en otra parte.
+
+        Usa la API de backup de SQLite, que produce una copia consistente
+        con la base en uso, y la verifica antes de entregarla: un respaldo
+        danado da una falsa sensacion de seguridad, que es peor que no
+        tener ninguno.
+        """
+        if not self.database_file.exists():
+            raise FileNotFoundError("Todavia no existe la base de datos.")
+
+        estado = self.verificar_integridad()
+        if estado != "ok":
+            raise sqlite3.DatabaseError(
+                f"La base de datos esta danada ({estado}); no se genera la copia."
+            )
+
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with closing(self._connect()) as origen, origen:
+            copia = sqlite3.connect(destino)
+            try:
+                origen.backup(copia)
+            finally:
+                copia.close()
+
+        with closing(sqlite3.connect(destino)) as revision:
+            if str(revision.execute("PRAGMA quick_check").fetchone()[0]) != "ok":
+                destino.unlink(missing_ok=True)
+                raise sqlite3.DatabaseError("La copia salio danada y se descarto.")
+
     def _backup_antes_de_borrar(self) -> None:
         # Copia de seguridad de la base completa antes de un borrado masivo,
         # para poder recuperar la informacion si el borrado fue un error.

@@ -2,6 +2,7 @@ from datetime import date
 from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
 
+import sqlite3
 import pytest
 import pandas as pd
 
@@ -599,3 +600,36 @@ def test_renombrar_operador_rechaza_nombre_ya_usado(tmp_path: Path) -> None:
         repository.renombrar_operador("pipe", "ANA")
 
     assert repository.obtener_operador("pipe")["nombre"] == "PIPE"
+
+
+def test_copia_para_descarga_entrega_una_base_usable(tmp_path: Path) -> None:
+    """La copia debe abrirse sola y traer los datos del momento."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100", "Cliente"))
+    repository.crear_operador("pipe", "hash", "PIPE")
+
+    destino = tmp_path / "salida" / "respaldo.db"
+    repository.copia_para_descarga(destino)
+
+    assert destino.is_file()
+    copia = GuiaRepository(destino)
+    assert copia.verificar_integridad() == "ok"
+    assert copia.to_dataframe()["GUIA"].tolist() == ["100"]
+    assert copia.obtener_operador("pipe")["nombre"] == "PIPE"
+
+
+def test_copia_para_descarga_sin_base_avisa(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "no_existe.db")
+
+    with pytest.raises(FileNotFoundError):
+        repository.copia_para_descarga(tmp_path / "respaldo.db")
+
+
+def test_copia_para_descarga_rechaza_una_base_danada(tmp_path: Path) -> None:
+    """Un respaldo danado da falsa seguridad: mejor fallar y avisar."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.initialize()
+    (tmp_path / "guias.db").write_bytes(b"esto no es una base de datos")
+
+    with pytest.raises(sqlite3.DatabaseError):
+        repository.copia_para_descarga(tmp_path / "respaldo.db")
