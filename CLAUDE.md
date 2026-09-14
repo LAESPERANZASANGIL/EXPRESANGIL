@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 202 tests (18 se saltan sin Postgres).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 212 tests (18 se saltan sin Postgres; 6 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -114,6 +114,12 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Zona de Trabajo** (`/zona-trabajo`, solo admin): tabla editable con busqueda, filtros estilo Excel, orden por VALOR, edicion individual y masiva, eliminacion, deshacer la ultima modificacion, reversar/regenerar cierres de operador, simular y ejecutar el cierre del dia.
 - **Entregas del Mes** (`/entregas-mes`, solo admin): consulta de entregadas del mes (archivo + zona), buscador de guia, informes finales en Excel y PDF, informes de rendimiento mensual (por operador y de todos), y borrado de las guias del mes.
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
+
+  **Guias repetidas en Salidas**: escanear dos veces el mismo paquete cuadra el conteo con lo escaneado pero no con lo que el repartidor lleva encima. Por eso las repetidas se resaltan en rojo **dentro del campo** y el boton queda deshabilitado hasta corregirlas, y el servidor ademas **no registra nada** si llegan duplicadas (`guias_duplicadas()`), por si alguien salta el frontend. El campo siempre dice cuantas encomiendas va a sacar.
+
+  Un `textarea` no puede pintar texto de colores, asi que el resaltado es una **capa espejo** detras del campo con el mismo texto y las repetidas marcadas. Las dos capas comparten tipografia, tamaño, interlineado, borde y relleno: **si se cambia uno hay que cambiar el otro**, o la marca roja señala el numero equivocado. Hay un test que lo comprueba en el navegador.
+
+  La normalizacion del JavaScript debe seguir a `normalize_guide` (rellena con ceros hasta 12 digitos, **no** los quita): si no, `064108001` y `64108001` parecerian guias distintas.
 - **Ingresos y Egresos** (`/ingresos-egresos`, solo admin): libro de caja de la oficina. **Todo se digita**, salvo dos egresos que se traen solos de donde ya viven, para no teclearlos dos veces: la **nomina** liquidada del mes (`nomina.total_pagar`) y los **gastos** que cada repartidor reporta en su cierre (`cierres_operador.gastos`). Llegan marcados como `automatico` y **no se guardan** en `movimientos`: su fuente de verdad sigue siendo la nomina y el cierre, y por eso no se pueden borrar desde esta pantalla.
 
   **Lo que a proposito NO entra solo** (y no es un olvido): el **recaudo** no es ingreso de la oficina, es plata del cliente que se le entrega a Envia — el ingreso real es la comision, y se digita. Los **prestamos y adelantos** no son egreso: ese dinero vuelve y ademas ya se descuenta de la nomina, que si entra, asi que contarlos restaria el mismo dinero dos veces.
@@ -234,10 +240,11 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
+- Aviso de guias repetidas al registrar salidas, resaltadas en el campo y bloqueadas tambien en el servidor.
 - Libro de caja de la oficina: ingresos y egresos digitados, con la nomina y los gastos de los repartidores sumados automaticamente y desglose por categoria.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 202 tests en verde (184 corren siempre; 18 solo si hay un Postgres de pruebas).
+- Suite de 212 tests en verde (194 corren siempre; 18 con un Postgres de pruebas y 6 con Chromium).
 
 ## Que se puede mejorar
 
@@ -248,7 +255,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 
 **Calidad de codigo**
 - `launcher_server.py` supera las 1.300 lineas con toda la logica HTTP en un solo `do_POST`/`do_GET`. Separarlo por modulos (rutas de admin, operador, informes) lo haria mantenible.
-- Los tests del servidor HTTP solo cubren las sesiones (`test_sesiones_persistentes.py`, que levanta el panel de verdad). El resto de endpoints se prueba a mano; las regresiones del panel (403 al descargar, cierre general en cero) se habrian detectado extendiendo ese patron.
+- Los tests del servidor HTTP cubren las sesiones (`test_sesiones_persistentes.py`) y el resaltado de salidas en Chromium (`test_salidas_navegador.py`); ambos levantan el panel de verdad. El resto de endpoints se prueba a mano; las regresiones del panel (403 al descargar, cierre general en cero) se habrian detectado extendiendo ese patron.
 - Archivos muertos: `launcher/zona.html`, `zona.css`, `zona.js` no estan en `STATIC_FILES` y no se sirven. `editor_gui.py` (Tkinter) quedo obsoleto tras la Zona de Trabajo web y es el unico consumidor de `generate_daily_report`.
 - `run_command` lanza un subproceso Python por cada informe; llamar a las funciones directamente seria mas rapido y daria mejores errores.
 

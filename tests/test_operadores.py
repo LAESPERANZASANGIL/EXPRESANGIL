@@ -86,7 +86,7 @@ def test_registrar_salidas_acepta_guias_con_cero_inicial(tmp_path: Path) -> None
 
     resultado = registrar_salidas(repository, "OMAR", "064108678163")
 
-    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
+    assert resultado == {"ok": True, "recibidas": 1, "actualizadas": 1, "no_encontradas": [], "duplicadas": []}
     dataframe = repository.to_dataframe()
     assert list(dataframe["OPERADOR"]) == ["OMAR"]
 
@@ -98,7 +98,7 @@ def test_registrar_salidas_marca_operador_y_estado(tmp_path: Path) -> None:
 
     resultado = registrar_salidas(repository, "KEVIN", "100000000000\n100000000001\n100000000099")
 
-    assert resultado == {"recibidas": 3, "actualizadas": 3, "no_encontradas": ["100000000099"]}
+    assert resultado == {"ok": True, "recibidas": 3, "actualizadas": 3, "no_encontradas": ["100000000099"], "duplicadas": []}
     dataframe = repository.to_dataframe()
     assert list(dataframe["OPERADOR"]) == ["KEVIN", "KEVIN", "KEVIN"]
     assert list(dataframe["ESTADO"]) == ["R", "R", "R"]
@@ -111,7 +111,7 @@ def test_registrar_salidas_con_planillada_deja_estado_en_blanco(tmp_path: Path) 
 
     resultado = registrar_salidas(repository, "planillada", "100000000000")
 
-    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
+    assert resultado == {"ok": True, "recibidas": 1, "actualizadas": 1, "no_encontradas": [], "duplicadas": []}
     dataframe = repository.to_dataframe()
     assert dataframe.loc[0, "OPERADOR"] == "planillada"
     assert dataframe.loc[0, "ESTADO"] == ""
@@ -123,7 +123,7 @@ def test_registrar_salidas_con_bodega_deja_estado_en_blanco(tmp_path: Path) -> N
 
     resultado = registrar_salidas(repository, "bodega", "100000000000")
 
-    assert resultado == {"recibidas": 1, "actualizadas": 1, "no_encontradas": []}
+    assert resultado == {"ok": True, "recibidas": 1, "actualizadas": 1, "no_encontradas": [], "duplicadas": []}
     dataframe = repository.to_dataframe()
     assert dataframe.loc[0, "OPERADOR"] == "bodega"
     assert dataframe.loc[0, "ESTADO"] == ""
@@ -413,3 +413,39 @@ def test_cerrar_dia_descuenta_gastos_y_adelanto_salario(tmp_path: Path) -> None:
     cierre = repository.obtener_cierre(fecha, "KEVIN")
     assert cierre["gastos"] == 5_000
     assert cierre["adelanto_salario"] == 8_000
+
+
+def test_guias_duplicadas_detecta_las_repetidas() -> None:
+    from gestor_guias.operadores import guias_duplicadas
+
+    assert guias_duplicadas(["100", "200", "100", "300", "200", "100"]) == ["100", "200"]
+
+
+def test_guias_duplicadas_sin_repetidas_devuelve_vacio() -> None:
+    from gestor_guias.operadores import guias_duplicadas
+
+    assert guias_duplicadas(["100", "200", "300"]) == []
+
+
+def test_registrar_salidas_no_registra_nada_si_hay_repetidas(tmp_path: Path) -> None:
+    """Escanear dos veces el mismo paquete cuadraria el conteo pero no la carga."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("100000000001", "Persona A"))
+
+    resultado = registrar_salidas(repository, "PIPE", "100000000001\n100000000001")
+
+    assert resultado["ok"] is False
+    assert resultado["duplicadas"] == ["100000000001"]
+    assert resultado["actualizadas"] == 0
+    # La guia sigue como estaba: no se toco la base.
+    assert repository.obtener_guia("100000000001")["operador"] != "PIPE"
+
+
+def test_el_cero_inicial_no_disimula_una_repetida(tmp_path: Path) -> None:
+    """`064108001` y `64108001` son la misma guia una vez normalizada a 12 digitos."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe("64108001", "Persona A"))
+
+    resultado = registrar_salidas(repository, "PIPE", "064108001\n64108001")
+
+    assert resultado["duplicadas"] == ["000064108001"]

@@ -113,22 +113,104 @@ document.getElementById("btn-logout").addEventListener("click", async () => {
 
 const salidasGuias = document.getElementById("salidas-guias");
 const salidasContador = document.getElementById("salidas-contador");
+const salidasResaltado = document.getElementById("salidas-resaltado");
+const salidasDuplicadas = document.getElementById("salidas-duplicadas");
+const campoGuias = salidasGuias.closest(".campo-guias");
+const btnSalidas = document.getElementById("btn-salidas");
+
+// Mismo criterio que el servidor (`parse_guides` + `normalize_guide`): seis
+// digitos o mas, rellenados con ceros a la izquierda hasta doce. El escaner
+// y la planilla no siempre conservan el cero inicial, asi que sin normalizar
+// "064108001" y "64108001" parecerian dos guias distintas siendo la misma.
+// Si cambia `normalize_guide`, hay que cambiar esto tambien.
+const PATRON_GUIA = /\d{6,}/g;
+
+function normalizarGuia(texto) {
+  return texto.padStart(12, "0");
+}
+
+function escapar(texto) {
+  return texto.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Guias repetidas: las normalizadas para comparar, y como se digitaron.
+ *
+ * El aviso muestra el numero tal como lo escribio el operador; la forma
+ * normalizada solo sirve para comparar por dentro.
+ */
+function buscarDuplicadas(texto) {
+  const vistas = new Map();
+  const repetidas = new Set();
+  const comoSeDigitaron = new Map();
+  for (const encontrada of texto.match(PATRON_GUIA) || []) {
+    const guia = normalizarGuia(encontrada);
+    if (vistas.has(guia)) {
+      repetidas.add(guia);
+      comoSeDigitaron.set(guia, vistas.get(guia));
+    }
+    vistas.set(guia, vistas.get(guia) || encontrada);
+  }
+  return { repetidas, comoSeDigitaron };
+}
+
+/** Pinta la capa espejo marcando cada aparicion de una guia repetida. */
+function pintarResaltado(texto, repetidas) {
+  let html = "";
+  let ultimo = 0;
+  PATRON_GUIA.lastIndex = 0;
+  let coincidencia;
+  while ((coincidencia = PATRON_GUIA.exec(texto)) !== null) {
+    const guia = normalizarGuia(coincidencia[0]);
+    html += escapar(texto.slice(ultimo, coincidencia.index));
+    html += repetidas.has(guia)
+      ? `<mark>${escapar(coincidencia[0])}</mark>`
+      : escapar(coincidencia[0]);
+    ultimo = coincidencia.index + coincidencia[0].length;
+  }
+  // El espacio final evita que la ultima linea vacia se colapse y desalinee.
+  salidasResaltado.innerHTML = html + escapar(texto.slice(ultimo)) + " ";
+}
 
 function actualizarContadorSalidas() {
-  const coincidencias = salidasGuias.value.match(/\d{6,}/g) || [];
-  salidasContador.textContent = String(coincidencias.length);
+  const texto = salidasGuias.value;
+  const encontradas = texto.match(PATRON_GUIA) || [];
+  const { repetidas, comoSeDigitaron } = buscarDuplicadas(texto);
+
+  salidasContador.textContent = String(encontradas.length);
+  pintarResaltado(texto, repetidas);
+
+  // Con una guia repetida no se deja registrar: el conteo cuadraria con lo
+  // escaneado pero no con lo que el repartidor lleva encima.
+  const hayDuplicadas = repetidas.size > 0;
+  campoGuias.classList.toggle("tiene-duplicadas", hayDuplicadas);
+  salidasDuplicadas.classList.toggle("oculto", !hayDuplicadas);
+  btnSalidas.disabled = hayDuplicadas;
+  if (hayDuplicadas) {
+    const lista = [...repetidas].map((g) => comoSeDigitaron.get(g) || g).join(", ");
+    salidasDuplicadas.textContent =
+      repetidas.size === 1
+        ? `La guia ${lista} esta repetida. Quitala para poder registrar la salida.`
+        : `Hay ${repetidas.size} guias repetidas: ${lista}. Quitalas para poder registrar la salida.`;
+  }
 }
 
 salidasGuias.addEventListener("input", actualizarContadorSalidas);
+// La capa espejo no se desplaza sola: hay que seguirla al hacer scroll.
+salidasGuias.addEventListener("scroll", () => {
+  salidasResaltado.scrollTop = salidasGuias.scrollTop;
+  salidasResaltado.scrollLeft = salidasGuias.scrollLeft;
+});
 
-document.getElementById("btn-salidas").addEventListener("click", async () => {
+btnSalidas.addEventListener("click", async () => {
   const guias = salidasGuias.value;
   const resultado = await llamar("/api/operador/salidas", { guias });
   if (resultado.ok) {
     salidasGuias.value = "";
-    actualizarContadorSalidas();
   }
+  actualizarContadorSalidas();
 });
+
+actualizarContadorSalidas();
 
 document.getElementById("btn-novedades").addEventListener("click", async () => {
   const ro = document.getElementById("novedad-ro").value;
