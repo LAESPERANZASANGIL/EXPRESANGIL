@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingresos y Egresos - Expresangil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="zona-trabajo.css" />
+  <link rel="stylesheet" href="nomina.css" />
+</head>
+<body>
+  <div class="container ancho">
+    <header>
+      <img class="logo-marca" src="/logo.png" alt="Expresangil" />
+      <h1>INGRESOS Y EGRESOS</h1>
+      <p class="subtitulo">Libro de caja de la oficina</p>
+    </header>
+
+    <section class="opcion">
+      <h3>Registrar movimiento</h3>
+      <div class="campos-grid">
+        <div class="campo">
+          <label>TIPO</label>
+          <select id="nuevo-tipo">
+            <option value="EGRESO">Egreso (sale plata)</option>
+            <option value="INGRESO">Ingreso (entra plata)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>FECHA</label>
+          <input type="date" id="nuevo-fecha" />
+        </div>
+        <div class="campo">
+          <label>CATEGORIA</label>
+          <input type="text" id="nuevo-categoria" list="lista-categorias"
+                 placeholder="Ej: ARRIENDO" />
+          <datalist id="lista-categorias"></datalist>
+        </div>
+        <div class="campo">
+          <label>VALOR</label>
+          <input type="text" id="nuevo-valor" placeholder="0" />
+        </div>
+        <div class="campo">
+          <label>FORMA DE PAGO</label>
+          <select id="nuevo-forma-pago">
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="NEQUI">Nequi</option>
+            <option value="OTRO">Otra</option>
+          </select>
+        </div>
+        <div class="campo campo-ancho">
+          <label>DESCRIPCION</label>
+          <input type="text" id="nuevo-descripcion" placeholder="Detalle del movimiento" />
+        </div>
+      </div>
+      <div class="fila-botones">
+        <button class="boton boton-accion" id="btn-crear">Registrar</button>
+      </div>
+      <p class="ayuda">La <strong>nomina</strong> liquidada y los <strong>gastos</strong> que reportan los repartidores en su cierre entran solos a los egresos: no hay que digitarlos aqui. El recaudo no es ingreso de la oficina (es plata de Envia), y los prestamos y adelantos tampoco son egreso, porque ese dinero vuelve.</p>
+    </section>
+
+    <section class="opcion">
+      <div class="fila-archivo">
+        <input type="month" id="mes" />
+        <button class="boton boton-buscar" id="btn-consultar">Consultar</button>
+      </div>
+      <p id="contador" class="contador">Selecciona un mes y consulta.</p>
+    </section>
+
+    <section class="opcion">
+      <h3>Resumen del mes</h3>
+      <table class="tabla-resumen">
+        <tbody id="tabla-resumen-body"></tbody>
+      </table>
+    </section>
+
+    <section class="opcion tabla-contenedor">
+      <h3>Movimientos</h3>
+      <table class="tabla-guias tabla-movimientos">
+        <thead>
+          <tr>
+            <th>FECHA</th>
+            <th>TIPO</th>
+            <th>CATEGORIA</th>
+            <th>DESCRIPCION</th>
+            <th>FORMA DE PAGO</th>
+            <th>VALOR</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-movimientos"></tbody>
+      </table>
+    </section>
+
+    <a class="boton boton-volver" href="/panel">VOLVER AL MENU PRINCIPAL</a>
+
+    <section class="log-seccion">
+      <h3>Resultado</h3>
+      <pre id="log">Listo.</pre>
+    </section>
+  </div>
+
+  <script src="ingresos-egresos.js"></script>
+</body>
+</html>

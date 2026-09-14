@@ -249,6 +249,22 @@ class GuiaRepository:
             )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS movimientos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    fecha TEXT NOT NULL,
+                    tipo TEXT NOT NULL,
+                    categoria TEXT NOT NULL DEFAULT '',
+                    descripcion TEXT NOT NULL DEFAULT '',
+                    valor INTEGER NOT NULL DEFAULT 0,
+                    forma_pago TEXT NOT NULL DEFAULT '',
+                    registrado_por TEXT NOT NULL DEFAULT '',
+                    registrado_en TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS sesiones (
                     token_hash TEXT PRIMARY KEY,
                     usuario TEXT NOT NULL,
@@ -923,6 +939,147 @@ class GuiaRepository:
                 (int(salario_base), int(auxilio_transporte), cedula, cargo, usuario),
             )
             return cursor.rowcount > 0
+
+    # ------------------------ Ingresos y egresos --------------------------
+    #
+    # Libro de caja de la oficina. **Todo se digita**, salvo dos egresos que
+    # ya viven en la base y se traen solos para no teclearlos dos veces:
+    # la nomina liquidada del mes y los gastos que cada repartidor reporta
+    # en su cierre.
+    #
+    # Lo que a proposito NO entra solo:
+    # - El **recaudo** no es ingreso de la oficina: es plata del cliente que
+    #   se le entrega a Envia. El ingreso real (la comision) se digita.
+    # - Los **adelantos y prestamos** no son gasto: es plata que vuelve, y
+    #   ademas se descuenta de la nomina, que si entra. Contarlos seria
+    #   restar el mismo dinero dos veces.
+
+    TIPOS_MOVIMIENTO = ("INGRESO", "EGRESO")
+
+    def crear_movimiento(self, datos: dict) -> int:
+        """Registra un movimiento digitado y devuelve su id."""
+        tipo = str(datos.get("tipo", "")).strip().upper()
+        if tipo not in self.TIPOS_MOVIMIENTO:
+            raise ValueError("El tipo debe ser INGRESO o EGRESO.")
+        valor = int(datos.get("valor", 0) or 0)
+        if valor <= 0:
+            raise ValueError("El valor debe ser mayor que cero.")
+        fecha = str(datos.get("fecha", "")).strip()[:10]
+        if not fecha:
+            raise ValueError("La fecha es obligatoria.")
+
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            return connection.insertar_devolviendo_id(
+                """
+                INSERT INTO movimientos
+                    (fecha, tipo, categoria, descripcion, valor, forma_pago,
+                     registrado_por, registrado_en)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fecha,
+                    tipo,
+                    str(datos.get("categoria", "") or "").strip().upper(),
+                    str(datos.get("descripcion", "") or "").strip(),
+                    valor,
+                    str(datos.get("forma_pago", "") or "").strip().upper(),
+                    str(datos.get("registrado_por", "") or "").strip(),
+                    datetime.now().isoformat(timespec="seconds"),
+                ),
+            )
+
+    def listar_movimientos(self, anio: int, mes: int) -> list[dict]:
+        """Movimientos digitados del mes, del mas reciente al mas viejo."""
+        self.initialize()
+        prefijo = f"{int(anio):04d}-{int(mes):02d}"
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
+                "SELECT * FROM movimientos WHERE fecha LIKE ? ORDER BY fecha DESC, id DESC",
+                (prefijo + "%",),
+            )
+
+    def eliminar_movimiento(self, movimiento_id: int) -> bool:
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            cursor = connection.execute(
+                "DELETE FROM movimientos WHERE id = ?", (int(movimiento_id),)
+            )
+            return int(cursor.rowcount or 0) > 0
+
+    def egresos_automaticos_mes(self, anio: int, mes: int) -> list[dict]:
+        """Nomina y gastos del mes, que ya estan registrados en otra parte.
+
+        Se devuelven como movimientos para que el informe los sume igual que
+        los digitados, pero **no se guardan** en `movimientos`: la fuente de
+        verdad sigue siendo la nomina y el cierre de cada repartidor.
+        """
+        self.initialize()
+        periodo = f"{int(anio):04d}-{int(mes):02d}"
+        automaticos: list[dict] = []
+
+        with transaccion(self._connect()) as connection:
+            nomina = connection.consultar_una(
+                "SELECT COALESCE(SUM(total_pagar), 0) AS total FROM nomina WHERE periodo = ?",
+                (periodo,),
+            )
+            gastos = connection.consultar_una(
+                "SELECT COALESCE(SUM(gastos), 0) AS total FROM cierres_operador "
+                "WHERE fecha LIKE ?",
+                (periodo + "%",),
+            )
+
+        total_nomina = int((nomina or {}).get("total") or 0)
+        if total_nomina:
+            automaticos.append(
+                {
+                    "fecha": periodo,
+                    "tipo": "EGRESO",
+                    "categoria": "NOMINA",
+                    "descripcion": f"Nomina liquidada de {periodo}",
+                    "valor": total_nomina,
+                    "forma_pago": "",
+                    "automatico": True,
+                }
+            )
+
+        total_gastos = int((gastos or {}).get("total") or 0)
+        if total_gastos:
+            automaticos.append(
+                {
+                    "fecha": periodo,
+                    "tipo": "EGRESO",
+                    "categoria": "GASTOS",
+                    "descripcion": "Gastos reportados por los repartidores en su cierre",
+                    "valor": total_gastos,
+                    "forma_pago": "",
+                    "automatico": True,
+                }
+            )
+        return automaticos
+
+    def resumen_ingresos_egresos(self, anio: int, mes: int) -> dict:
+        """Estado del mes: lo digitado mas la nomina y los gastos."""
+        digitados = self.listar_movimientos(anio, mes)
+        automaticos = self.egresos_automaticos_mes(anio, mes)
+        movimientos = [{**m, "automatico": False} for m in digitados] + automaticos
+
+        ingresos = sum(m["valor"] for m in movimientos if m["tipo"] == "INGRESO")
+        egresos = sum(m["valor"] for m in movimientos if m["tipo"] == "EGRESO")
+
+        por_categoria: dict[str, dict[str, int]] = {}
+        for movimiento in movimientos:
+            categoria = movimiento.get("categoria") or "SIN CATEGORIA"
+            fila = por_categoria.setdefault(categoria, {"INGRESO": 0, "EGRESO": 0})
+            fila[movimiento["tipo"]] += movimiento["valor"]
+
+        return {
+            "movimientos": movimientos,
+            "ingresos": ingresos,
+            "egresos": egresos,
+            "saldo": ingresos - egresos,
+            "por_categoria": por_categoria,
+        }
 
     # ------------------------------ Sesiones ------------------------------
     #
