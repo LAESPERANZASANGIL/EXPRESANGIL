@@ -131,3 +131,51 @@
   text-align: right;
   white-space: nowrap;
 }
+
+/* ------------------------- Ingresos y egresos -------------------------- */
+
+.tabla-movimientos {
+  width: auto;
+  min-width: 100%;
+}
+
+.tabla-movimientos td:nth-child(6) {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+/* El color dice de un vistazo si la plata entra o sale. */
+.fila-ingreso td:nth-child(2) {
+  color: #1b7a3d;
+  font-weight: bold;
+}
+
+.fila-egreso td:nth-child(2) {
+  color: var(--azul-medio);
+  font-weight: bold;
+}
+
+.nota-automatico {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #6c757d;
+}
+
+.fila-saldo td {
+  font-size: 1.15rem;
+  font-weight: bold;
+}
+
+.saldo-positivo {
+  color: #1b7a3d;
+}
+
+.saldo-negativo {
+  color: var(--azul-medio);
+}
+
+.fila-categoria {
+  color: #5b6472;
+  font-size: 0.95rem;
+}

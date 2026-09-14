@@ -29,12 +29,18 @@ TABLAS = (
     "liquidaciones_semanales",
     "liquidaciones_laborales",
     "sesiones",
+    "movimientos",
 )
 
 # Tablas cuya clave primaria la genera Postgres (IDENTITY). Al migrar hay
 # que conservar los ids de SQLite, o los abonos quedarian apuntando a otro
 # prestamo, y luego reajustar la secuencia.
-TABLAS_CON_IDENTITY = ("prestamos", "prestamo_abonos", "liquidaciones_laborales")
+TABLAS_CON_IDENTITY = (
+    "prestamos",
+    "prestamo_abonos",
+    "liquidaciones_laborales",
+    "movimientos",
+)
 
 
 def dsn_configurado() -> str:

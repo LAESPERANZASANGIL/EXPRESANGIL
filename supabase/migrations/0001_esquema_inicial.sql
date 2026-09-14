@@ -173,6 +173,21 @@ CREATE TABLE IF NOT EXISTS sesiones (
     expira_en  TEXT NOT NULL
 );
 
+-- Libro de caja de la oficina: ingresos y egresos digitados a mano. La
+-- nomina y los gastos NO se copian aqui; se leen de su propia tabla al
+-- armar el informe, para que no haya dos verdades.
+CREATE TABLE IF NOT EXISTS movimientos (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    fecha       TEXT NOT NULL,
+    tipo        TEXT NOT NULL,
+    categoria   TEXT NOT NULL DEFAULT '',
+    descripcion TEXT NOT NULL DEFAULT '',
+    valor       BIGINT NOT NULL DEFAULT 0,
+    forma_pago  TEXT NOT NULL DEFAULT '',
+    registrado_por TEXT NOT NULL DEFAULT '',
+    registrado_en  TEXT NOT NULL DEFAULT ''
+);
+
 -- Indices para las consultas que mas se repiten en la operacion diaria.
 CREATE INDEX IF NOT EXISTS idx_guias_operador_estado ON guias (operador, estado);
 CREATE INDEX IF NOT EXISTS idx_guias_ingreso ON guias (ingreso);
@@ -182,6 +197,7 @@ CREATE INDEX IF NOT EXISTS idx_archivo_operador ON guias_archivo (operador);
 CREATE INDEX IF NOT EXISTS idx_prestamos_empleado ON prestamos (empleado);
 CREATE INDEX IF NOT EXISTS idx_abonos_prestamo ON prestamo_abonos (prestamo_id);
 CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones (usuario);
+CREATE INDEX IF NOT EXISTS idx_movimientos_fecha ON movimientos (fecha);
 
 -- Seguridad: aqui hay salarios, cedulas y prestamos de personas reales.
 -- Supabase publica estas tablas por PostgREST con la clave anonima, que es
@@ -200,3 +216,4 @@ ALTER TABLE nomina                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE liquidaciones_semanales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE liquidaciones_laborales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sesiones                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE movimientos             ENABLE ROW LEVEL SECURITY;

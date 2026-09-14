@@ -151,6 +151,9 @@ STATIC_FILES = {
     "/entregas-mes.html": ("entregas-mes.html", "text/html; charset=utf-8"),
     "/entregas-mes.js": ("entregas-mes.js", "application/javascript; charset=utf-8"),
     "/entregas-mes.css": ("entregas-mes.css", "text/css; charset=utf-8"),
+    "/ingresos-egresos": ("ingresos-egresos.html", "text/html; charset=utf-8"),
+    "/ingresos-egresos.html": ("ingresos-egresos.html", "text/html; charset=utf-8"),
+    "/ingresos-egresos.js": ("ingresos-egresos.js", "application/javascript; charset=utf-8"),
     "/prestamos": ("prestamos.html", "text/html; charset=utf-8"),
     "/prestamos.html": ("prestamos.html", "text/html; charset=utf-8"),
     "/prestamos.js": ("prestamos.js", "application/javascript; charset=utf-8"),
@@ -1413,6 +1416,61 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     for e in REPOSITORY.listar_empleados_nomina()
                 ],
             })
+            return
+
+        # ----------------------- Ingresos y egresos -----------------------
+
+        if self.path == "/api/movimientos":
+            if not self._require_admin():
+                return
+            anio, mes = _parse_mes(str(data.get("mes", "")))
+            if anio is None:
+                self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
+                return
+            resumen = REPOSITORY.resumen_ingresos_egresos(anio, mes)
+            self._send_json({
+                "ok": True,
+                "output": f"{len(resumen['movimientos'])} movimiento(s).",
+                **resumen,
+            })
+            return
+
+        if self.path == "/api/movimientos/crear":
+            if not self._require_admin():
+                return
+            fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
+            try:
+                _validar_fecha_opcional(fecha_texto)
+            except ValueError:
+                self._send_json({"ok": False, "output": "Fecha invalida."})
+                return
+            try:
+                movimiento_id = REPOSITORY.crear_movimiento({
+                    "fecha": fecha_texto,
+                    "tipo": data.get("tipo", ""),
+                    "categoria": data.get("categoria", ""),
+                    "descripcion": data.get("descripcion", ""),
+                    "valor": value_to_number(data.get("valor", 0)),
+                    "forma_pago": data.get("forma_pago", ""),
+                    "registrado_por": self._get_session()["usuario"],
+                })
+            except ValueError as error:
+                self._send_json({"ok": False, "output": str(error)})
+                return
+            self._send_json({"ok": True, "output": f"Movimiento #{movimiento_id} registrado."})
+            return
+
+        if self.path == "/api/movimientos/eliminar":
+            if not self._require_admin():
+                return
+            movimiento_id = int(value_to_number(data.get("id", 0)))
+            if not REPOSITORY.eliminar_movimiento(movimiento_id):
+                self._send_json({"ok": False, "output": "No se encontro el movimiento."})
+                return
+            registrar_auditoria(
+                self._get_session()["usuario"], "eliminar-movimiento", f"#{movimiento_id}"
+            )
+            self._send_json({"ok": True, "output": f"Movimiento #{movimiento_id} eliminado."})
             return
 
         if self.path == "/api/prestamos/crear":

@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 188 tests (18 se saltan sin Postgres).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 202 tests (18 se saltan sin Postgres).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -54,6 +54,7 @@ El reinicio **cierra las sesiones activas** de admin y operadores (viven en memo
 | `liquidaciones_semanales` | `semana_inicio, empleado` | Pago semanal de contratistas por encomienda |
 | `liquidaciones_laborales` | `id` | Liquidacion definitiva al retirar a un empleado |
 | `sesiones` | `token_hash` | Sesiones del panel, para que sobrevivan a un reinicio |
+| `movimientos` | `id` | Ingresos y egresos digitados (libro de caja de la oficina) |
 
 **Renombrar a un empleado**: `guias`, `guias_archivo`, `cierres_operador`, `prestamos`, `nomina`, `liquidaciones_semanales` y `liquidaciones_laborales` guardan el **nombre** del empleado como texto, no su `usuario`. Por eso el cambio de nombre pasa siempre por `repository.renombrar_operador()`, que arrastra esas siete tablas en la misma transaccion y rechaza un nombre ya usado por otro. Nunca actualizar `operadores.nombre` a secas.
 
@@ -113,6 +114,9 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Zona de Trabajo** (`/zona-trabajo`, solo admin): tabla editable con busqueda, filtros estilo Excel, orden por VALOR, edicion individual y masiva, eliminacion, deshacer la ultima modificacion, reversar/regenerar cierres de operador, simular y ejecutar el cierre del dia.
 - **Entregas del Mes** (`/entregas-mes`, solo admin): consulta de entregadas del mes (archivo + zona), buscador de guia, informes finales en Excel y PDF, informes de rendimiento mensual (por operador y de todos), y borrado de las guias del mes.
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
+- **Ingresos y Egresos** (`/ingresos-egresos`, solo admin): libro de caja de la oficina. **Todo se digita**, salvo dos egresos que se traen solos de donde ya viven, para no teclearlos dos veces: la **nomina** liquidada del mes (`nomina.total_pagar`) y los **gastos** que cada repartidor reporta en su cierre (`cierres_operador.gastos`). Llegan marcados como `automatico` y **no se guardan** en `movimientos`: su fuente de verdad sigue siendo la nomina y el cierre, y por eso no se pueden borrar desde esta pantalla.
+
+  **Lo que a proposito NO entra solo** (y no es un olvido): el **recaudo** no es ingreso de la oficina, es plata del cliente que se le entrega a Envia — el ingreso real es la comision, y se digita. Los **prestamos y adelantos** no son egreso: ese dinero vuelve y ademas ya se descuenta de la nomina, que si entra, asi que contarlos restaria el mismo dinero dos veces.
 - **Prestamos y Adelantos** (`/prestamos`, solo admin): registro de prestamos y adelantos, abonos, saldos con interes e informe mensual.
 - **Nomina** (`/nomina`, solo admin): liquidacion mensual de los empleados con contrato **NOMINA**, con descuento automatico de prestamos e informes Excel/PDF.
 - **Liquidaciones** (`/liquidaciones`, solo admin): pago semanal de los de contrato **SERVICIOS** (por encomienda entregada) y liquidacion laboral en sus cuatro clases (anual, retiro voluntario, retiro forzoso, pension).
@@ -230,9 +234,10 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Datos laborales por empleado (contrato de nomina o servicios, fechas, salario o valor por encomienda).
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
+- Libro de caja de la oficina: ingresos y egresos digitados, con la nomina y los gastos de los repartidores sumados automaticamente y desglose por categoria.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 188 tests en verde (170 corren siempre; 18 solo si hay un Postgres de pruebas).
+- Suite de 202 tests en verde (184 corren siempre; 18 solo si hay un Postgres de pruebas).
 
 ## Que se puede mejorar
 
@@ -248,6 +253,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - `run_command` lanza un subproceso Python por cada informe; llamar a las funciones directamente seria mas rapido y daria mejores errores.
 
 **Funcionalidad**
+- Ingresos y Egresos no genera todavia un informe en Excel ni compara meses; solo se consulta en pantalla.
 - El "deshacer" es de un solo nivel y en memoria: se pierde al reiniciar y no cubre acciones de operadores.
 - Las fechas de trabajo se refrescan por reloj del navegador; un desfase de zona horaria en el equipo del operador aun podria guardar un cierre con fecha equivocada. Validarlo contra la hora del servidor seria mas seguro.
 - No hay paginacion en la Zona de Trabajo: con miles de guias el navegador renderiza toda la tabla.

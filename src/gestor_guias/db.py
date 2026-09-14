@@ -35,6 +35,7 @@ CLAVES_PRIMARIAS = {
     "nomina": ("periodo", "empleado"),
     "liquidaciones_semanales": ("semana_inicio", "empleado"),
     "sesiones": ("token_hash",),
+    "movimientos": ("id",),
 }
 
 _INSERT_OR_REPLACE = re.compile(
