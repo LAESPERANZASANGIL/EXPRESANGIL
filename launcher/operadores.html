@@ -38,8 +38,16 @@
       <div class="opcion">
         <h3>1. Salidas</h3>
         <label>Pega o escanea los numeros de guia que salen hoy (puedes repetirlo varias veces)</label>
-        <textarea id="salidas-guias" rows="4"></textarea>
-        <p class="nota-campo">Guias detectadas: <strong id="salidas-contador">0</strong></p>
+        <!-- El resaltado va en una capa espejo detras del campo: un textarea
+             no puede pintar texto de colores por si mismo. -->
+        <div class="campo-guias">
+          <div class="resaltado-guias" id="salidas-resaltado" aria-hidden="true"></div>
+          <textarea id="salidas-guias" rows="4" spellcheck="false"></textarea>
+        </div>
+        <p class="nota-campo" id="salidas-contador-texto">
+          Vas a sacar <strong id="salidas-contador">0</strong> encomienda(s).
+        </p>
+        <p class="aviso-duplicadas oculto" id="salidas-duplicadas"></p>
         <button class="boton boton-accion" id="btn-salidas">Registrar salidas</button>
       </div>
 

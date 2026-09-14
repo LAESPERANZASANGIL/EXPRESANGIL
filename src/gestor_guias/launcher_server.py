@@ -1065,6 +1065,21 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 return
 
             resultado = registrar_salidas(REPOSITORY, session["nombre"], str(data.get("guias", "")))
+
+            # Una guia escaneada dos veces no se registra: el conteo cuadraria
+            # con lo escaneado pero no con lo que el repartidor lleva encima.
+            if resultado["duplicadas"]:
+                self._send_json({
+                    "ok": False,
+                    "output": (
+                        "No se registro nada: hay guia(s) repetida(s) -> "
+                        + ", ".join(resultado["duplicadas"])
+                        + ". Corrigelas y vuelve a intentar."
+                    ),
+                    "duplicadas": resultado["duplicadas"],
+                })
+                return
+
             salida = (
                 f"Guias recibidas: {resultado['recibidas']}. "
                 f"Asignadas a {session['nombre']}: {resultado['actualizadas']}."
@@ -1072,7 +1087,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
             creadas = resultado["no_encontradas"]
             if creadas:
                 salida += " Creadas sin planilla: " + ", ".join(creadas) + "."
-            self._send_json({"ok": True, "output": salida, "no_encontradas": creadas})
+            self._send_json({
+                "ok": True,
+                "output": salida,
+                "no_encontradas": creadas,
+                "duplicadas": [],
+            })
             return
 
         if self.path == "/api/operador/novedades":

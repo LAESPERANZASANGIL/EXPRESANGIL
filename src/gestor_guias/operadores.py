@@ -79,11 +79,45 @@ def parse_guides_con_causal(text: str) -> tuple[list[tuple[str, str]], list[str]
     return items, errores
 
 
+def guias_duplicadas(guias: list[str]) -> list[str]:
+    """Guias que aparecen mas de una vez, en el orden en que se repiten.
+
+    Escanear dos veces el mismo paquete es el error mas facil de cometer y
+    el mas dificil de ver: el conteo cuadra con lo escaneado, pero no con lo
+    que el repartidor lleva en la moto.
+    """
+    vistas: set[str] = set()
+    repetidas: list[str] = []
+    for guia in guias:
+        if guia in vistas and guia not in repetidas:
+            repetidas.append(guia)
+        vistas.add(guia)
+    return repetidas
+
+
 def registrar_salidas(repository: GuiaRepository, operador: str, guias_texto: str) -> dict:
     guias = parse_guides(guias_texto)
+    repetidas = guias_duplicadas(guias)
+    if repetidas:
+        # No se registra nada: el repartidor tiene que corregir primero, o
+        # saldria con menos encomiendas de las que dice el conteo.
+        return {
+            "ok": False,
+            "recibidas": len(guias),
+            "actualizadas": 0,
+            "no_encontradas": [],
+            "duplicadas": repetidas,
+        }
+
     estado = "" if operador.strip().upper() in (OPERADOR_PLANILLADA, OPERADOR_BODEGA) else ESTADO_SALIDA
     actualizadas, no_encontradas = repository.asignar_salida(guias, operador, estado)
-    return {"recibidas": len(guias), "actualizadas": actualizadas, "no_encontradas": no_encontradas}
+    return {
+        "ok": True,
+        "recibidas": len(guias),
+        "actualizadas": actualizadas,
+        "no_encontradas": no_encontradas,
+        "duplicadas": [],
+    }
 
 
 def registrar_novedades(

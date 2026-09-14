@@ -139,3 +139,95 @@
   color: var(--azul-oscuro);
   background: #fdf3e0;
 }
+
+/* ------------------- Resaltado de guias repetidas ---------------------- */
+/*
+ * Un `textarea` no puede pintar texto de colores: solo muestra texto plano.
+ * El truco es una capa espejo detras con el MISMO texto y las repetidas
+ * marcadas, y el textarea encima con fondo transparente. Para que el
+ * resaltado caiga justo sobre el numero, las dos capas tienen que compartir
+ * exactamente tipografia, tamaño, interlineado, borde y relleno: si se
+ * cambia uno, hay que cambiar el otro.
+ */
+
+.campo-guias {
+  position: relative;
+}
+
+#pantalla-operador .campo-guias textarea,
+.resaltado-guias {
+  width: 100%;
+  min-height: 110px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.resaltado-guias {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: transparent;
+  background: #fff;
+  pointer-events: none;
+}
+
+#pantalla-operador .campo-guias textarea {
+  position: relative;
+  /* `block` y no inline: el hueco de linea base de un inline dejaba la capa
+     espejo 8px mas alta que el campo. */
+  display: block;
+  background: transparent;
+  resize: vertical;
+}
+
+#pantalla-operador .campo-guias textarea:focus {
+  outline: none;
+  border-color: var(--azul-info);
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.18);
+}
+
+/* La guia repetida, en rojo y subrayada: el color solo no basta para quien
+   no lo distingue bien. */
+.resaltado-guias mark {
+  background: #f8d7da;
+  color: transparent;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #b71c1c;
+  text-decoration: underline wavy #b71c1c;
+}
+
+#pantalla-operador .campo-guias.tiene-duplicadas textarea {
+  border-color: #b71c1c;
+}
+
+.aviso-duplicadas {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-left: 4px solid #b71c1c;
+  background: #fbeaea;
+  border-radius: 6px;
+  color: #b71c1c;
+  font-weight: bold;
+}
+
+.aviso-duplicadas.oculto {
+  display: none;
+}
+
+#salidas-contador-texto {
+  font-size: 1.05rem;
+}
+
+.boton-accion[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
