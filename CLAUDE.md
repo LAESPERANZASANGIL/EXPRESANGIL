@@ -25,7 +25,9 @@ git reset --hard origin/main
 systemctl restart gestor-guias.service
 ```
 
-El reinicio **cierra las sesiones activas** de admin y operadores (viven en memoria): avisar antes de desplegar en horario de trabajo.
+Las **sesiones sobreviven al reinicio** desde que viven en la tabla `sesiones`, asi que desplegar ya no expulsa a nadie. Aun asi conviene hacerlo fuera del horario de operacion: el servicio queda unos segundos abajo y una peticion en curso (un informe, un cierre) se corta.
+
+Tras un cambio de frontend hay que recargar con **Ctrl+F5**: el navegador conserva el `.js` y el `.css` viejos y la pagina parece no haber cambiado.
 
 ## Arquitectura (importante para no romper nada)
 
