@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from gestor_guias.operadores import (
+    CONCEPTOS_GASTO,
     calcular_diferencia_caja,
     cerrar_dia,
     documentos_vencidos,
@@ -551,3 +552,22 @@ def test_el_gasto_se_descuenta_del_efectivo_del_operador(tmp_path: Path) -> None
     )
 
     assert resumen["efectivo"] == resumen["recaudado"] - 50000 - 100000
+
+
+def test_los_conceptos_del_javascript_son_los_mismos_del_servidor() -> None:
+    """El servidor rechaza un concepto que no este en su lista.
+
+    Si alguien agrega uno solo en el frontend, el operador lo elige y el
+    cierre falla al guardarse. Aqui se comprueba que las dos listas digan
+    lo mismo.
+    """
+    import re
+
+    fuente = (
+        Path(__file__).resolve().parents[1] / "launcher" / "operadores.js"
+    ).read_text(encoding="utf-8")
+    bloque = re.search(r"const CONCEPTOS_GASTO = \[(.*?)\];", fuente, re.S)
+    assert bloque, "no se encontro CONCEPTOS_GASTO en operadores.js"
+    del_js = tuple(re.findall(r'"([^"]+)"', bloque.group(1)))
+
+    assert del_js == CONCEPTOS_GASTO

@@ -65,6 +65,8 @@ CONCEPTOS_GASTO = (
     "CAMBIO DE ACEITE",
     "MANTENIMIENTO MOTO",
     "OTROS MANTENIMIENTOS",
+    "RESTAURANTE",
+    "OTROS GASTOS DE OFICINA",
 )
 
 # Cuantas lineas de gasto caben en un cierre. El limite es del negocio, no
