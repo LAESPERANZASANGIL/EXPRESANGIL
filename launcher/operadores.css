@@ -257,8 +257,15 @@
   background: var(--gris-claro);
 }
 
-.tabla-gastos tfoot td:last-child {
+.tabla-gastos tfoot td:nth-child(2) {
   text-align: right;
+}
+
+/* La tercera columna solo lleva el boton de quitar: que no robe ancho. */
+.tabla-gastos th:last-child,
+.tabla-gastos td:last-child {
+  width: 1%;
+  white-space: nowrap;
 }
 
 #pantalla-operador .tabla-gastos select,
@@ -273,8 +280,55 @@
   box-sizing: border-box;
 }
 
-.tabla-gastos td:last-child input {
+.tabla-gastos td:nth-child(2) input {
   text-align: right;
+}
+
+/* Las lineas se agregan a pedido: casi ningun cierre trae cinco gastos, y
+   cinco casillas vacias parecen de llenado obligatorio. */
+#pantalla-operador .agregar-gasto {
+  width: auto;
+  min-height: 0;
+  margin: 0 0 14px;
+  padding: 8px 14px;
+  border: 1px dashed var(--azul-medio);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--azul-medio);
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#pantalla-operador .agregar-gasto:hover:not(:disabled) {
+  background: var(--gris-claro);
+}
+
+#pantalla-operador .agregar-gasto:disabled {
+  border-color: var(--gris-borde);
+  color: #888;
+  cursor: default;
+}
+
+#pantalla-operador .quitar-gasto {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  background: #fff;
+  color: #b71c1c;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+#pantalla-operador .quitar-gasto:hover {
+  background: #fbeaea;
+}
+
+#pantalla-operador .quitar-gasto.oculto {
+  display: none;
 }
 
 /* Un concepto sin valor (o al reves) no se manda: mejor avisarlo que dejar

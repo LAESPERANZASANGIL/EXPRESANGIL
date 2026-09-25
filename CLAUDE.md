@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 228 tests (18 se saltan sin Postgres; 6 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 231 tests (18 se saltan sin Postgres; 6 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -117,7 +117,7 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Entregas del Mes** (`/entregas-mes`, solo admin): consulta de entregadas del mes (archivo + zona), buscador de guia, informes finales en Excel y PDF, informes de rendimiento mensual (por operador y de todos), y borrado de las guias del mes.
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
 
-  **Gastos del cierre**: hasta `MAX_GASTOS = 5` lineas, cada una con un concepto de la lista cerrada `CONCEPTOS_GASTO` (`operadores.py`: COMBUSTIBLE VAN, COMBUSTIBLE TURBO, CAMBIO DE ACEITE, MANTENIMIENTO MOTO, OTROS MANTENIMIENTOS) y su valor. Se guardan en `cierres_operador.gastos_detalle` (JSON) y su suma es `gastos`, que **se resta del efectivo** que el repartidor entrega, para que el cierre no quede descuadrado. El servidor valida concepto, valor y cantidad (`normalizar_gastos`), no solo el frontend. Al **regenerar** un cierre sin mandar detalle se conserva el que ya tenia.
+  **Gastos del cierre**: **ninguno es obligatorio**. El formulario arranca con **una sola linea vacia** y el operador agrega las que necesite con "+ Agregar gasto", hasta `MAX_GASTOS = 5` (el boton se deshabilita ahi); cada linea de mas se puede quitar, y la ultima que queda no, porque es el espacio en blanco del dia sin gastos. Cada linea lleva un concepto de la lista cerrada `CONCEPTOS_GASTO` (`operadores.py`: COMBUSTIBLE VAN, COMBUSTIBLE TURBO, CAMBIO DE ACEITE, MANTENIMIENTO MOTO, OTROS MANTENIMIENTOS) y su valor. Se guardan en `cierres_operador.gastos_detalle` (JSON) y su suma es `gastos`, que **se resta del efectivo** que el repartidor entrega, para que el cierre no quede descuadrado. El servidor valida concepto, valor y cantidad (`normalizar_gastos`), no solo el frontend. Al **regenerar** un cierre sin mandar detalle se conserva el que ya tenia.
 
   **Guias repetidas en Salidas**: escanear dos veces el mismo paquete cuadra el conteo con lo escaneado pero no con lo que el repartidor lleva encima. Por eso las repetidas se resaltan en rojo **dentro del campo** y el boton queda deshabilitado hasta corregirlas, y el servidor ademas **no registra nada** si llegan duplicadas (`guias_duplicadas()`), por si alguien salta el frontend. El campo siempre dice cuantas encomiendas va a sacar.
 
@@ -259,7 +259,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 228 tests en verde (210 corren siempre; 18 con un Postgres de pruebas y 6 con Chromium).
+- Suite de 231 tests en verde (213 corren siempre; 18 con un Postgres de pruebas y 9 con Chromium).
 
 ## Que se puede mejorar
 

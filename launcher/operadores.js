@@ -390,41 +390,56 @@ const MAX_GASTOS = 5;
 const cuerpoGastos = document.getElementById("tabla-gastos-body");
 const totalGastos = document.getElementById("cierre-gastos-total");
 const avisoGastos = document.getElementById("cierre-gastos-aviso");
+const botonAgregarGasto = document.getElementById("agregar-gasto");
+botonAgregarGasto.addEventListener("click", agregarFilaGasto);
 
-function pintarFilasGasto() {
-  cuerpoGastos.innerHTML = "";
-  for (let fila = 0; fila < MAX_GASTOS; fila += 1) {
-    const tr = document.createElement("tr");
+/** Una fila de gasto. Se agregan a pedido: casi nunca son cinco. */
+function agregarFilaGasto() {
+  if (cuerpoGastos.querySelectorAll("tr").length >= MAX_GASTOS) return;
+  const tr = document.createElement("tr");
 
-    const tdConcepto = document.createElement("td");
-    const select = document.createElement("select");
-    select.className = "gasto-concepto";
-    const vacia = document.createElement("option");
-    vacia.value = "";
-    vacia.textContent = "-- sin gasto --";
-    select.appendChild(vacia);
-    for (const concepto of CONCEPTOS_GASTO) {
-      const opcion = document.createElement("option");
-      opcion.value = concepto;
-      opcion.textContent = concepto;
-      select.appendChild(opcion);
-    }
-    tdConcepto.appendChild(select);
-
-    const tdValor = document.createElement("td");
-    const valor = document.createElement("input");
-    valor.type = "text";
-    valor.className = "gasto-valor";
-    valor.placeholder = "0";
-    tdValor.appendChild(valor);
-
-    select.addEventListener("change", actualizarTotalGastos);
-    valor.addEventListener("input", actualizarTotalGastos);
-
-    tr.appendChild(tdConcepto);
-    tr.appendChild(tdValor);
-    cuerpoGastos.appendChild(tr);
+  const tdConcepto = document.createElement("td");
+  const select = document.createElement("select");
+  select.className = "gasto-concepto";
+  const vacia = document.createElement("option");
+  vacia.value = "";
+  vacia.textContent = "-- elige el concepto --";
+  select.appendChild(vacia);
+  for (const concepto of CONCEPTOS_GASTO) {
+    const opcion = document.createElement("option");
+    opcion.value = concepto;
+    opcion.textContent = concepto;
+    select.appendChild(opcion);
   }
+  tdConcepto.appendChild(select);
+
+  const tdValor = document.createElement("td");
+  const valor = document.createElement("input");
+  valor.type = "text";
+  valor.className = "gasto-valor";
+  valor.placeholder = "0";
+  tdValor.appendChild(valor);
+
+  const tdQuitar = document.createElement("td");
+  const quitar = document.createElement("button");
+  quitar.type = "button";
+  quitar.className = "quitar-gasto";
+  quitar.textContent = "Quitar";
+  quitar.title = "Quitar esta linea de gasto";
+  quitar.addEventListener("click", () => {
+    tr.remove();
+    actualizarTotalGastos();
+  });
+  tdQuitar.appendChild(quitar);
+
+  select.addEventListener("change", actualizarTotalGastos);
+  valor.addEventListener("input", actualizarTotalGastos);
+
+  tr.appendChild(tdConcepto);
+  tr.appendChild(tdValor);
+  tr.appendChild(tdQuitar);
+  cuerpoGastos.appendChild(tr);
+  actualizarTotalGastos();
 }
 
 /** Las lineas con concepto y valor, tal como las espera el servidor. */
@@ -439,13 +454,23 @@ function obtenerGastos() {
 }
 
 function actualizarTotalGastos() {
+  const filas = [...cuerpoGastos.querySelectorAll("tr")];
   const lineas = obtenerGastos();
   const total = lineas.reduce((suma, linea) => suma + linea.valor, 0);
   totalGastos.textContent = "$ " + total.toLocaleString("es-CO");
 
+  // Una sola linea no se puede quitar: es el espacio en blanco del dia sin
+  // gastos, y dejarlo vacio es valido.
+  for (const fila of filas) {
+    fila.querySelector(".quitar-gasto").classList.toggle("oculto", filas.length <= 1);
+  }
+  botonAgregarGasto.disabled = filas.length >= MAX_GASTOS;
+  botonAgregarGasto.textContent =
+    filas.length >= MAX_GASTOS ? "Maximo " + MAX_GASTOS + " gastos" : "+ Agregar gasto";
+
   // Un concepto sin valor, o un valor sin concepto, no se manda: mejor
   // avisarlo que dejar que el gasto se pierda en silencio.
-  const incompletas = [...cuerpoGastos.querySelectorAll("tr")].filter((fila) => {
+  const incompletas = filas.filter((fila) => {
     const concepto = fila.querySelector(".gasto-concepto").value;
     const valor = sumarValores(fila.querySelector(".gasto-valor").value);
     return (concepto && valor <= 0) || (!concepto && valor > 0);
@@ -457,9 +482,10 @@ function actualizarTotalGastos() {
   }
 }
 
+/** Vuelve al estado inicial: una sola linea vacia. */
 function limpiarGastos() {
-  pintarFilasGasto();
-  actualizarTotalGastos();
+  cuerpoGastos.innerHTML = "";
+  agregarFilaGasto();
 }
 
 function sumarValores(texto) {
@@ -505,4 +531,4 @@ btnCierre.addEventListener("click", async () => {
 
 verificarSesion();
 
-pintarFilasGasto();
+limpiarGastos();

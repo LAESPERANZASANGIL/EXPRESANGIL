@@ -139,3 +139,39 @@ def test_el_resaltado_cae_justo_sobre_el_campo(pagina) -> None:
 
     assert (medidas["dx"], medidas["dy"], medidas["dw"], medidas["dh"]) == (0, 0, 0, 0)
     assert medidas["mismaFuente"] is True
+
+
+# --------------------- Gastos: las lineas se agregan a pedido ---------------
+
+
+@sin_navegador
+def test_el_cierre_arranca_con_una_sola_linea_de_gasto(pagina) -> None:
+    """Cinco casillas vacias parecian de llenado obligatorio."""
+    assert pagina.locator("#tabla-gastos-body tr").count() == 1
+    # Con una sola linea no hay nada que quitar.
+    assert pagina.locator("#tabla-gastos-body .quitar-gasto:visible").count() == 0
+
+
+@sin_navegador
+def test_se_agregan_lineas_hasta_el_maximo_de_cinco(pagina) -> None:
+    for _ in range(10):
+        if pagina.locator("#agregar-gasto").is_disabled():
+            break
+        pagina.click("#agregar-gasto")
+    assert pagina.locator("#tabla-gastos-body tr").count() == 5
+    assert pagina.locator("#agregar-gasto").is_disabled() is True
+
+
+@sin_navegador
+def test_quitar_una_linea_la_borra_y_recalcula_el_total(pagina) -> None:
+    pagina.click("#agregar-gasto")
+    filas = pagina.locator("#tabla-gastos-body tr")
+    filas.nth(0).locator(".gasto-concepto").select_option("COMBUSTIBLE VAN")
+    filas.nth(0).locator(".gasto-valor").fill("50000")
+    filas.nth(1).locator(".gasto-concepto").select_option("CAMBIO DE ACEITE")
+    filas.nth(1).locator(".gasto-valor").fill("20000")
+    assert pagina.text_content("#cierre-gastos-total").strip() == "$ 70.000"
+
+    filas.nth(1).locator(".quitar-gasto").click()
+    assert pagina.locator("#tabla-gastos-body tr").count() == 1
+    assert pagina.text_content("#cierre-gastos-total").strip() == "$ 50.000"
