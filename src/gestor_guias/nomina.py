@@ -144,12 +144,32 @@ def estados_prestamos(
     return resultado
 
 
-def descuento_nomina_empleado(repository: GuiaRepository, empleado: str, periodo: str) -> int:
-    """Cuanto se le debe descontar al empleado en la nomina del periodo."""
-    return sum(
+def detalle_descuento_nomina(repository: GuiaRepository, empleado: str, periodo: str) -> dict:
+    """De donde sale cada peso que se le descuenta al empleado en el mes.
+
+    Son dos fuentes distintas y las dos tienen que llegar a la nomina:
+
+    - Las **cuotas** de los prestamos y adelantos que el admin registro en
+      el modulo de Prestamos.
+    - Los **adelantos que el repartidor se tomo del recaudo** al cerrar su
+      dia. Antes no se descontaban: el repartidor se llevaba la plata y a
+      fin de mes cobraba el sueldo completo.
+    """
+    cuotas = sum(
         estado["cuota_sugerida"]
         for estado in estados_prestamos(repository, empleado, periodo, solo_pendientes=True)
     )
+    adelantos_cierre = repository.sumar_adelantos_cierre_periodo(empleado, periodo)
+    return {
+        "cuotas_prestamos": cuotas,
+        "adelantos_cierre": adelantos_cierre,
+        "total": cuotas + adelantos_cierre,
+    }
+
+
+def descuento_nomina_empleado(repository: GuiaRepository, empleado: str, periodo: str) -> int:
+    """Cuanto se le debe descontar al empleado en la nomina del periodo."""
+    return detalle_descuento_nomina(repository, empleado, periodo)["total"]
 
 
 def calcular_nomina_empleado(

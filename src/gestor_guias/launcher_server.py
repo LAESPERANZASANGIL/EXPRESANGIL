@@ -1165,10 +1165,17 @@ class LauncherHandler(BaseHTTPRequestHandler):
             }
             simular = bool(data.get("simular"))
 
-            resumen = cerrar_dia(
-                REPOSITORY, session["nombre"], fecha, bancos, nequi, envia,
-                denominaciones, gastos, adelanto_salario, simular=simular,
-            )
+            try:
+                resumen = cerrar_dia(
+                    REPOSITORY, session["nombre"], fecha, bancos, nequi, envia,
+                    denominaciones, gastos, adelanto_salario, simular=simular,
+                    gastos_detalle=data.get("gastos_detalle"),
+                )
+            except ValueError as error:
+                # Concepto desconocido o valor invalido: se avisa en vez de
+                # guardar un cierre con la plata mal explicada.
+                self._send_json({"ok": False, "output": str(error)})
+                return
 
             if simular:
                 self._send_json(

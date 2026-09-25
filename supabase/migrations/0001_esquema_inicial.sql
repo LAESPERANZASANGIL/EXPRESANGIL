@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS cierres_operador (
     gastos            BIGINT NOT NULL DEFAULT 0,
     adelanto_salario  BIGINT NOT NULL DEFAULT 0,
     denominaciones    TEXT NOT NULL DEFAULT '{}',
+    gastos_detalle    TEXT NOT NULL DEFAULT '[]',
     PRIMARY KEY (fecha, operador)
 );
 
