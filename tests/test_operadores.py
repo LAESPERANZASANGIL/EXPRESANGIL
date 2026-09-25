@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import date
 from gestor_guias.excel_processor import hoy_colombia
 from pathlib import Path
@@ -449,3 +451,103 @@ def test_el_cero_inicial_no_disimula_una_repetida(tmp_path: Path) -> None:
     resultado = registrar_salidas(repository, "PIPE", "064108001\n64108001")
 
     assert resultado["duplicadas"] == ["000064108001"]
+
+
+# ------------------------- Gastos con concepto ----------------------------
+
+def test_normalizar_gastos_descarta_las_lineas_vacias() -> None:
+    """El formulario manda siempre cinco filas, casi todas en blanco."""
+    from gestor_guias.operadores import normalizar_gastos
+
+    detalle = normalizar_gastos([
+        {"concepto": "COMBUSTIBLE VAN", "valor": 50000},
+        {"concepto": "", "valor": 0},
+        {"concepto": "", "valor": ""},
+    ])
+
+    assert detalle == [{"concepto": "COMBUSTIBLE VAN", "valor": 50000}]
+
+
+def test_normalizar_gastos_sube_el_concepto_a_mayusculas() -> None:
+    from gestor_guias.operadores import normalizar_gastos
+
+    detalle = normalizar_gastos([{"concepto": "cambio de aceite", "valor": "20000"}])
+
+    assert detalle == [{"concepto": "CAMBIO DE ACEITE", "valor": 20000}]
+
+
+def test_un_concepto_inventado_se_rechaza() -> None:
+    """Si no, entraria basura a la contabilidad."""
+    from gestor_guias.operadores import normalizar_gastos
+
+    with pytest.raises(ValueError, match="no valido"):
+        normalizar_gastos([{"concepto": "LO QUE SEA", "valor": 1000}])
+
+
+def test_un_gasto_en_cero_o_negativo_se_rechaza() -> None:
+    from gestor_guias.operadores import normalizar_gastos
+
+    for valor in (0, -1000):
+        with pytest.raises(ValueError, match="mayor que cero"):
+            normalizar_gastos([{"concepto": "COMBUSTIBLE VAN", "valor": valor}])
+
+
+def test_no_caben_mas_de_cinco_gastos() -> None:
+    from gestor_guias.operadores import MAX_GASTOS, normalizar_gastos
+
+    demasiados = [{"concepto": "COMBUSTIBLE VAN", "valor": 1000}] * (MAX_GASTOS + 1)
+
+    with pytest.raises(ValueError, match="5 gastos"):
+        normalizar_gastos(demasiados)
+
+
+def test_el_total_de_gastos_sale_del_detalle(tmp_path: Path) -> None:
+    """El total y el detalle no pueden discrepar, o el efectivo descuadra."""
+    from gestor_guias.operadores import cerrar_dia
+
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+
+    resumen = cerrar_dia(
+        repository, "PIPE", "2026-09-10", 0, 0, 0,
+        gastos=999999,  # valor equivocado que debe ser ignorado
+        gastos_detalle=[
+            {"concepto": "COMBUSTIBLE VAN", "valor": 50000},
+            {"concepto": "CAMBIO DE ACEITE", "valor": 20000},
+        ],
+    )
+
+    assert resumen["gastos"] == 70000
+
+
+def test_regenerar_el_cierre_no_borra_el_detalle(tmp_path: Path) -> None:
+    """El admin regenera sin mandar detalle; no debe perderse en que se gasto."""
+    from gestor_guias.operadores import cerrar_dia
+
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    cerrar_dia(
+        repository, "PIPE", "2026-09-10", 0, 0, 0,
+        gastos_detalle=[{"concepto": "COMBUSTIBLE VAN", "valor": 50000}],
+    )
+
+    cerrar_dia(repository, "PIPE", "2026-09-10", 0, 0, 0, gastos=50000)
+
+    guardado = repository.obtener_cierre("2026-09-10", "PIPE")
+    assert guardado["gastos_detalle"] == [{"concepto": "COMBUSTIBLE VAN", "valor": 50000}]
+
+
+def test_el_gasto_se_descuenta_del_efectivo_del_operador(tmp_path: Path) -> None:
+    """Para que al repartidor no le salga descuadrada la caja."""
+    from gestor_guias.operadores import cerrar_dia
+
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+
+    resumen = cerrar_dia(
+        repository, "PIPE", "2026-09-10", bancos=0, nequi=0, envia=0,
+        adelanto_salario=100000,
+        gastos_detalle=[{"concepto": "COMBUSTIBLE VAN", "valor": 50000}],
+    )
+
+    assert resumen["efectivo"] == resumen["recaudado"] - 50000 - 100000

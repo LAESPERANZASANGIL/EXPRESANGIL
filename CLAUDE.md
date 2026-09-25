@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 212 tests (18 se saltan sin Postgres; 6 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 228 tests (18 se saltan sin Postgres; 6 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -48,7 +48,7 @@ Tras un cambio de frontend hay que recargar con **Ctrl+F5**: el navegador conser
 | `guias` | `guia` | Zona de trabajo: guias vivas del dia |
 | `guias_archivo` | `guia` | Historico de entregadas archivadas al cerrar el dia |
 | `operadores` | `usuario` | Usuarios/empleados: `rol`, documentos, `celular` (se le muestra al cliente) y datos laborales (`apellidos`, `fecha_ingreso`, `fecha_retiro`, `tipo_contrato`, `salario_base`, `auxilio_transporte`, `valor_encomienda`) |
-| `cierres_operador` | `fecha, operador` | Cierre diario por repartidor (incluye `denominaciones` en JSON) |
+| `cierres_operador` | `fecha, operador` | Cierre diario por repartidor (incluye `denominaciones` y `gastos_detalle` en JSON) |
 | `cierres_generales` | `fecha` | Conteo de billetes del cierre general de la oficina |
 | `prestamos` | `id` | Prestamos (2% mensual) y adelantos de nomina |
 | `prestamo_abonos` | `id` | Abonos aplicados a cada prestamo o adelanto |
@@ -117,14 +117,24 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Entregas del Mes** (`/entregas-mes`, solo admin): consulta de entregadas del mes (archivo + zona), buscador de guia, informes finales en Excel y PDF, informes de rendimiento mensual (por operador y de todos), y borrado de las guias del mes.
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
 
+  **Gastos del cierre**: hasta `MAX_GASTOS = 5` lineas, cada una con un concepto de la lista cerrada `CONCEPTOS_GASTO` (`operadores.py`: COMBUSTIBLE VAN, COMBUSTIBLE TURBO, CAMBIO DE ACEITE, MANTENIMIENTO MOTO, OTROS MANTENIMIENTOS) y su valor. Se guardan en `cierres_operador.gastos_detalle` (JSON) y su suma es `gastos`, que **se resta del efectivo** que el repartidor entrega, para que el cierre no quede descuadrado. El servidor valida concepto, valor y cantidad (`normalizar_gastos`), no solo el frontend. Al **regenerar** un cierre sin mandar detalle se conserva el que ya tenia.
+
   **Guias repetidas en Salidas**: escanear dos veces el mismo paquete cuadra el conteo con lo escaneado pero no con lo que el repartidor lleva encima. Por eso las repetidas se resaltan en rojo **dentro del campo** y el boton queda deshabilitado hasta corregirlas, y el servidor ademas **no registra nada** si llegan duplicadas (`guias_duplicadas()`), por si alguien salta el frontend. El campo siempre dice cuantas encomiendas va a sacar.
 
   Un `textarea` no puede pintar texto de colores, asi que el resaltado es una **capa espejo** detras del campo con el mismo texto y las repetidas marcadas. Las dos capas comparten tipografia, tamaño, interlineado, borde y relleno: **si se cambia uno hay que cambiar el otro**, o la marca roja señala el numero equivocado. Hay un test que lo comprueba en el navegador.
 
   La normalizacion del JavaScript debe seguir a `normalize_guide` (rellena con ceros hasta 12 digitos, **no** los quita): si no, `064108001` y `64108001` parecerian guias distintas.
-- **Ingresos y Egresos** (`/ingresos-egresos`, solo admin): libro de caja de la oficina. **Todo se digita**, salvo dos egresos que se traen solos de donde ya viven, para no teclearlos dos veces: la **nomina** liquidada del mes (`nomina.total_pagar`) y los **gastos** que cada repartidor reporta en su cierre (`cierres_operador.gastos`). Llegan marcados como `automatico` y **no se guardan** en `movimientos`: su fuente de verdad sigue siendo la nomina y el cierre, y por eso no se pueden borrar desde esta pantalla.
+- **Ingresos y Egresos** (`/ingresos-egresos`, solo admin): libro de caja de la oficina. **Todo se digita**, salvo los egresos que se traen solos de donde ya viven, para no teclearlos dos veces:
+  - la **nomina** liquidada del mes (`nomina.total_pagar`),
+  - los **gastos** del cierre de cada repartidor, **una linea por concepto** (`cierres_operador.gastos_detalle`; los cierres viejos sin detalle caen en `GASTOS SIN DETALLE`),
+  - los **adelantos de salario** entregados en el cierre (`ADELANTOS DEL CIERRE`),
+  - los **desembolsos** de `prestamos` del mes, agrupados por tipo (`PRESTAMOS ENTREGADOS`, `ADELANTOS ENTREGADOS`), sin contar los `ANULADO`.
 
-  **Lo que a proposito NO entra solo** (y no es un olvido): el **recaudo** no es ingreso de la oficina, es plata del cliente que se le entrega a Envia — el ingreso real es la comision, y se digita. Los **prestamos y adelantos** no son egreso: ese dinero vuelve y ademas ya se descuenta de la nomina, que si entra, asi que contarlos restaria el mismo dinero dos veces.
+  Llegan marcados como `automatico` y **no se guardan** en `movimientos`: su fuente de verdad sigue siendo la nomina, el cierre y el prestamo, y por eso no se pueden borrar desde esta pantalla.
+
+  Es un **libro de caja**, no contabilidad de causacion: entregar un prestamo o un adelanto **es** salida de dinero y por eso entra. No hay doble conteo, porque la nomina que entra ya llega **neta** del descuento.
+
+  **Lo que a proposito NO entra solo**: el **recaudo** no es ingreso de la oficina, es plata del cliente que se le entrega a Envia — el ingreso real es la comision, y se digita.
 - **Prestamos y Adelantos** (`/prestamos`, solo admin): registro de prestamos y adelantos, abonos, saldos con interes e informe mensual.
 - **Nomina** (`/nomina`, solo admin): liquidacion mensual de los empleados con contrato **NOMINA**, con descuento automatico de prestamos e informes Excel/PDF.
 - **Liquidaciones** (`/liquidaciones`, solo admin): pago semanal de los de contrato **SERVICIOS** (por encomienda entregada) y liquidacion laboral en sus cuatro clases (anual, retiro voluntario, retiro forzoso, pension).
@@ -144,8 +154,9 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 
 - **Prestamo**: causa **2% mensual sobre el saldo de capital** (`TASA_INTERES_MENSUAL`). El mes del desembolso no causa interes; cada mes posterior si, sobre el capital vigente. Los abonos se aplican **primero a intereses** y el remanente a capital.
 - **Adelanto de nomina**: sin interes; se descuenta de la nomina del mes.
+- **Adelanto de salario del cierre**: el que el repartidor recibe al cerrar el dia (`cierres_operador.adelanto_salario`) tambien se descuenta de la nomina del mes. `nomina.detalle_descuento_nomina()` devuelve `cuotas_prestamos`, `adelantos_cierre` y `total`; `descuento_nomina_empleado()` es su total y es lo que usa la liquidacion.
 - `estado_prestamo()` recorre mes a mes hasta la fecha de corte y devuelve saldo de capital, intereses causados/pendientes y la cuota sugerida del mes (capital/cuotas + interes).
-- **Nomina mensual**: salario prorrateado sobre `DIAS_MES_NOMINA = 30`, mas auxilio de transporte (tambien prorrateado) y bonificaciones; menos salud 4%, pension 4%, cuotas de prestamos y otros descuentos. **Salud y pension se calculan solo sobre el salario**, no sobre el auxilio.
+- **Nomina mensual**: salario prorrateado sobre `DIAS_MES_NOMINA = 30`, mas auxilio de transporte (tambien prorrateado) y bonificaciones; menos salud 4%, pension 4%, cuotas de prestamos, adelantos de salario del cierre y otros descuentos. **Salud y pension se calculan solo sobre el salario**, no sobre el auxilio.
 - Los empleados salen de la tabla `operadores` (columnas `salario_base`, `auxilio_transporte`, `cedula`, `cargo`).
 - Informes: `prestamos y adelantos {mes} {anio}.xlsx` y `nomina {mes} {anio}` (Excel y PDF).
 
@@ -243,10 +254,12 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Liquidacion semanal de contratistas por encomiendas entregadas y liquidacion laboral en sus cuatro clases (corte anual, retiro voluntario, retiro forzoso con indemnizacion de ley, y pension), todas con prima y vacaciones de ley y almacenadas como soporte de pago.
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
 - Aviso de guias repetidas al registrar salidas, resaltadas en el campo y bloqueadas tambien en el servidor.
-- Libro de caja de la oficina: ingresos y egresos digitados, con la nomina y los gastos de los repartidores sumados automaticamente y desglose por categoria.
+- Libro de caja de la oficina: ingresos y egresos digitados, con la nomina, los gastos del cierre desglosados por concepto, los adelantos de salario y los desembolsos de prestamos sumados automaticamente.
+- Gastos del cierre con concepto de una lista cerrada (hasta 5 por cierre), descontados del efectivo del repartidor y llevados a contabilidad por concepto.
+- Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 212 tests en verde (194 corren siempre; 18 con un Postgres de pruebas y 6 con Chromium).
+- Suite de 228 tests en verde (210 corren siempre; 18 con un Postgres de pruebas y 6 con Chromium).
 
 ## Que se puede mejorar
 
@@ -267,7 +280,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Las fechas de trabajo se refrescan por reloj del navegador; un desfase de zona horaria en el equipo del operador aun podria guardar un cierre con fecha equivocada. Validarlo contra la hora del servidor seria mas seguro.
 - No hay paginacion en la Zona de Trabajo: con miles de guias el navegador renderiza toda la tabla.
 - La nomina no genera colilla de pago individual por empleado.
-- Los abonos a prestamos se registran a mano: liquidar la nomina no descuenta automaticamente la cuota del saldo.
+- Los abonos a prestamos se registran a mano: la nomina descuenta la cuota del mes, pero no crea el abono que baja el saldo del prestamo.
 - En Prestamos el empleado se escribe en un `datalist` cuyo texto **es la clave** del registro: por eso ahi no se muestran apellidos y un error de tipeo crea un empleado fantasma. Deberia guardar el `usuario` y mostrar el nombre, como hace Nomina.
 - `renombrar_operador()` arrastra el historial de la base, pero **no** los informes de Excel y PDF ya generados en `data/`, que conservan el nombre viejo.
 - El nombre del empleado debe coincidir letra por letra con la columna OPERADOR de las planillas de Envia; no hay validacion que avise cuando deja de coincidir.

@@ -135,6 +135,11 @@ class GuiaRepository:
                 """
             )
             columnas_cierre = {row[1] for row in connection.execute("PRAGMA table_info(cierres_operador)")}
+            if "gastos_detalle" not in columnas_cierre:
+                connection.execute(
+                    "ALTER TABLE cierres_operador ADD COLUMN "
+                    "gastos_detalle TEXT NOT NULL DEFAULT '[]'"
+                )
             for columna in ("gastos", "adelanto_salario"):
                 if columna not in columnas_cierre:
                     connection.execute(
@@ -1008,11 +1013,26 @@ class GuiaRepository:
             return int(cursor.rowcount or 0) > 0
 
     def egresos_automaticos_mes(self, anio: int, mes: int) -> list[dict]:
-        """Nomina y gastos del mes, que ya estan registrados en otra parte.
+        """Egresos del mes que ya estan registrados en otra parte.
 
         Se devuelven como movimientos para que el informe los sume igual que
         los digitados, pero **no se guardan** en `movimientos`: la fuente de
-        verdad sigue siendo la nomina y el cierre de cada repartidor.
+        verdad sigue siendo la nomina, el cierre y el modulo de Prestamos.
+
+        Son tres origenes:
+
+        - **Nomina** liquidada del mes. Ya viene neta: lo que se le descuenta
+          al empleado por cuotas y adelantos la baja por ese mismo valor.
+        - **Gastos** del cierre de cada repartidor, abiertos por concepto
+          (combustible, mantenimiento...). Los cierres viejos no tienen
+          detalle y se agrupan aparte, pero suman igual.
+        - **Prestamos y adelantos** entregados en el mes, incluidos los que
+          el repartidor se toma del recaudo al cerrar. Es plata que salio de
+          la caja. No hay doble conteo con la nomina, justamente porque la
+          nomina llega neta de esos descuentos.
+
+        Lo unico que sigue sin entrar es el **recaudo**: no es ingreso de la
+        oficina, es plata del cliente que se le entrega a Envia.
         """
         self.initialize()
         periodo = f"{int(anio):04d}-{int(mes):02d}"
@@ -1023,11 +1043,6 @@ class GuiaRepository:
                 "SELECT COALESCE(SUM(total_pagar), 0) AS total FROM nomina WHERE periodo = ?",
                 (periodo,),
             )
-            gastos = connection.consultar_una(
-                "SELECT COALESCE(SUM(gastos), 0) AS total FROM cierres_operador "
-                "WHERE fecha LIKE ?",
-                (periodo + "%",),
-            )
 
         total_nomina = int((nomina or {}).get("total") or 0)
         if total_nomina:
@@ -1036,22 +1051,48 @@ class GuiaRepository:
                     "fecha": periodo,
                     "tipo": "EGRESO",
                     "categoria": "NOMINA",
-                    "descripcion": f"Nomina liquidada de {periodo}",
+                    "descripcion": f"Nomina liquidada de {periodo} (ya neta de descuentos)",
                     "valor": total_nomina,
                     "forma_pago": "",
                     "automatico": True,
                 }
             )
 
-        total_gastos = int((gastos or {}).get("total") or 0)
-        if total_gastos:
+        for concepto, valor in sorted(self.sumar_gastos_por_concepto_mes(anio, mes).items()):
             automaticos.append(
                 {
                     "fecha": periodo,
                     "tipo": "EGRESO",
-                    "categoria": "GASTOS",
-                    "descripcion": "Gastos reportados por los repartidores en su cierre",
-                    "valor": total_gastos,
+                    "categoria": concepto,
+                    "descripcion": "Reportado por los repartidores en su cierre",
+                    "valor": valor,
+                    "forma_pago": "",
+                    "automatico": True,
+                }
+            )
+
+        adelantos_cierre = self.sumar_adelantos_cierre_mes(anio, mes)
+        if adelantos_cierre:
+            automaticos.append(
+                {
+                    "fecha": periodo,
+                    "tipo": "EGRESO",
+                    "categoria": "ADELANTOS DEL CIERRE",
+                    "descripcion": "Tomados del recaudo por los repartidores; vuelven por nomina",
+                    "valor": adelantos_cierre,
+                    "forma_pago": "",
+                    "automatico": True,
+                }
+            )
+
+        for tipo, valor in sorted(self.sumar_desembolsos_mes(anio, mes).items()):
+            automaticos.append(
+                {
+                    "fecha": periodo,
+                    "tipo": "EGRESO",
+                    "categoria": f"{tipo}S ENTREGADOS",
+                    "descripcion": "Entregados a empleados en el mes; vuelven por nomina",
+                    "valor": valor,
                     "forma_pago": "",
                     "automatico": True,
                 }
@@ -1563,18 +1604,22 @@ class GuiaRepository:
         gastos: int = 0,
         adelanto_salario: int = 0,
         denominaciones: dict[int, int] | None = None,
+        gastos_detalle: list[dict] | None = None,
     ) -> None:
         self.initialize()
         denominaciones_json = json.dumps(denominaciones or {})
+        # El detalle explica en que se fue la plata; `gastos` sigue siendo el
+        # total, que es lo que consume el resto de la aplicacion.
+        gastos_detalle_json = json.dumps(gastos_detalle or [])
         with transaccion(self._connect()) as connection:
             connection.execute(
                 """
                 INSERT INTO cierres_operador (
                     fecha, operador, gestionadas, ro, n, d, e,
                     recaudado, bancos, nequi, envia, efectivo, gastos, adelanto_salario,
-                    denominaciones
+                    denominaciones, gastos_detalle
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(fecha, operador) DO UPDATE SET
                     gestionadas = excluded.gestionadas,
                     ro = excluded.ro,
@@ -1588,12 +1633,13 @@ class GuiaRepository:
                     efectivo = excluded.efectivo,
                     gastos = excluded.gastos,
                     adelanto_salario = excluded.adelanto_salario,
-                    denominaciones = excluded.denominaciones
+                    denominaciones = excluded.denominaciones,
+                    gastos_detalle = excluded.gastos_detalle
                 """,
                 (
                     fecha, operador, gestionadas, ro, n, d, e, recaudado,
                     bancos, nequi, envia, efectivo, gastos, adelanto_salario,
-                    denominaciones_json,
+                    denominaciones_json, gastos_detalle_json,
                 ),
             )
 
@@ -1613,6 +1659,12 @@ class GuiaRepository:
                 }
             except (json.JSONDecodeError, ValueError):
                 cierre["denominaciones"] = {}
+            try:
+                # Los cierres viejos no tienen detalle: se devuelve vacio en
+                # vez de fallar, porque el total en `gastos` sigue siendo valido.
+                cierre["gastos_detalle"] = json.loads(cierre.get("gastos_detalle") or "[]")
+            except (json.JSONDecodeError, ValueError):
+                cierre["gastos_detalle"] = []
             return cierre
 
     def operadores_con_cierre(self, fecha: str) -> list[str]:
@@ -1659,6 +1711,82 @@ class GuiaRepository:
                 (fecha,),
             ).fetchone()[0]
             return total or 0
+
+    def sumar_adelantos_cierre_periodo(self, empleado: str, periodo: str) -> int:
+        """Adelantos que el repartidor se tomo del recaudo en el periodo.
+
+        Son los que digita en su propio cierre del dia, distintos de los que
+        el admin registra en Prestamos. Antes no llegaban a la nomina: el
+        repartidor se llevaba la plata y despues cobraba el sueldo completo.
+        """
+        self.initialize()
+        with transaccion(self._connect()) as connection:
+            fila = connection.consultar_una(
+                "SELECT COALESCE(SUM(adelanto_salario), 0) AS total FROM cierres_operador "
+                "WHERE UPPER(TRIM(operador)) = UPPER(?) AND fecha LIKE ?",
+                (str(empleado or "").strip(), f"{periodo}%"),
+            )
+            return int((fila or {}).get("total") or 0)
+
+    def sumar_adelantos_cierre_mes(self, anio: int, mes: int) -> int:
+        """Adelantos que los repartidores se tomaron del recaudo en el mes."""
+        self.initialize()
+        prefijo = f"{int(anio):04d}-{int(mes):02d}"
+        with transaccion(self._connect()) as connection:
+            fila = connection.consultar_una(
+                "SELECT COALESCE(SUM(adelanto_salario), 0) AS total FROM cierres_operador "
+                "WHERE fecha LIKE ?",
+                (prefijo + "%",),
+            )
+            return int((fila or {}).get("total") or 0)
+
+    def sumar_desembolsos_mes(self, anio: int, mes: int) -> dict[str, int]:
+        """Prestamos y adelantos entregados en el mes, por tipo.
+
+        Es plata que salio de la caja de la oficina, asi que cuenta como
+        egreso en el libro. No hay doble conteo con la nomina: lo que se le
+        descuenta al empleado hace que la nomina de ese mes salga mas baja
+        por el mismo valor.
+        """
+        self.initialize()
+        prefijo = f"{int(anio):04d}-{int(mes):02d}"
+        with transaccion(self._connect()) as connection:
+            filas = connection.consultar(
+                "SELECT tipo, COALESCE(SUM(monto), 0) AS total FROM prestamos "
+                "WHERE fecha LIKE ? AND estado != 'ANULADO' GROUP BY tipo",
+                (prefijo + "%",),
+            )
+        return {str(fila["tipo"]): int(fila["total"] or 0) for fila in filas if fila["total"]}
+
+    def sumar_gastos_por_concepto_mes(self, anio: int, mes: int) -> dict[str, int]:
+        """Gastos del mes agrupados por concepto, leyendo el detalle.
+
+        Los cierres viejos no tienen detalle; su total se agrupa bajo
+        "GASTOS SIN DETALLE" para que la contabilidad siga cuadrando.
+        """
+        self.initialize()
+        prefijo = f"{int(anio):04d}-{int(mes):02d}"
+        with transaccion(self._connect()) as connection:
+            filas = connection.consultar(
+                "SELECT gastos, gastos_detalle FROM cierres_operador WHERE fecha LIKE ?",
+                (prefijo + "%",),
+            )
+
+        por_concepto: dict[str, int] = {}
+        for fila in filas:
+            try:
+                detalle = json.loads(fila.get("gastos_detalle") or "[]")
+            except (json.JSONDecodeError, ValueError):
+                detalle = []
+            if detalle:
+                for linea in detalle:
+                    concepto = str(linea.get("concepto") or "SIN CONCEPTO").upper()
+                    por_concepto[concepto] = por_concepto.get(concepto, 0) + int(linea.get("valor") or 0)
+            elif int(fila.get("gastos") or 0):
+                por_concepto["GASTOS SIN DETALLE"] = (
+                    por_concepto.get("GASTOS SIN DETALLE", 0) + int(fila["gastos"])
+                )
+        return por_concepto
 
     def sumar_gastos_adelantos_mes(self, anio: int, mes: int) -> dict[str, dict]:
         self.initialize()

@@ -231,3 +231,65 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* --------------------------- Gastos del cierre -------------------------- */
+
+.tabla-gastos {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.tabla-gastos th,
+.tabla-gastos td {
+  border: 1px solid var(--gris-borde);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.tabla-gastos thead th {
+  background: var(--gris-claro);
+  font-size: 0.9rem;
+}
+
+.tabla-gastos tfoot td {
+  font-weight: bold;
+  background: var(--gris-claro);
+}
+
+.tabla-gastos tfoot td:last-child {
+  text-align: right;
+}
+
+#pantalla-operador .tabla-gastos select,
+#pantalla-operador .tabla-gastos input {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.tabla-gastos td:last-child input {
+  text-align: right;
+}
+
+/* Un concepto sin valor (o al reves) no se manda: mejor avisarlo que dejar
+   que el gasto se pierda en silencio. */
+.aviso-gastos {
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border-left: 4px solid #b71c1c;
+  background: #fbeaea;
+  border-radius: 6px;
+  color: #b71c1c;
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.aviso-gastos.oculto {
+  display: none;
+}

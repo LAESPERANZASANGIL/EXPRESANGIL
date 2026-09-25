@@ -59,7 +59,7 @@ function limpiarCamposCierre() {
   document.getElementById("cierre-bancos").value = "";
   document.getElementById("cierre-nequi").value = "";
   document.getElementById("cierre-envia").value = "";
-  document.getElementById("cierre-gastos").value = "";
+  limpiarGastos();
   document.getElementById("cierre-adelanto").value = "";
   document.getElementById("btn-cierre").disabled = true;
 }
@@ -372,6 +372,96 @@ function agregarDesgloseDenominaciones(denominaciones) {
   }
 }
 
+// ----------------------------- Gastos del cierre -----------------------------
+// Antes el gasto era un solo numero sin explicacion, asi que en contabilidad
+// no habia forma de saber en que se fue la plata. Los conceptos deben
+// coincidir con CONCEPTOS_GASTO en operadores.py: el servidor rechaza
+// cualquier otro.
+
+const CONCEPTOS_GASTO = [
+  "COMBUSTIBLE VAN",
+  "COMBUSTIBLE TURBO",
+  "CAMBIO DE ACEITE",
+  "MANTENIMIENTO MOTO",
+  "OTROS MANTENIMIENTOS",
+];
+const MAX_GASTOS = 5;
+
+const cuerpoGastos = document.getElementById("tabla-gastos-body");
+const totalGastos = document.getElementById("cierre-gastos-total");
+const avisoGastos = document.getElementById("cierre-gastos-aviso");
+
+function pintarFilasGasto() {
+  cuerpoGastos.innerHTML = "";
+  for (let fila = 0; fila < MAX_GASTOS; fila += 1) {
+    const tr = document.createElement("tr");
+
+    const tdConcepto = document.createElement("td");
+    const select = document.createElement("select");
+    select.className = "gasto-concepto";
+    const vacia = document.createElement("option");
+    vacia.value = "";
+    vacia.textContent = "-- sin gasto --";
+    select.appendChild(vacia);
+    for (const concepto of CONCEPTOS_GASTO) {
+      const opcion = document.createElement("option");
+      opcion.value = concepto;
+      opcion.textContent = concepto;
+      select.appendChild(opcion);
+    }
+    tdConcepto.appendChild(select);
+
+    const tdValor = document.createElement("td");
+    const valor = document.createElement("input");
+    valor.type = "text";
+    valor.className = "gasto-valor";
+    valor.placeholder = "0";
+    tdValor.appendChild(valor);
+
+    select.addEventListener("change", actualizarTotalGastos);
+    valor.addEventListener("input", actualizarTotalGastos);
+
+    tr.appendChild(tdConcepto);
+    tr.appendChild(tdValor);
+    cuerpoGastos.appendChild(tr);
+  }
+}
+
+/** Las lineas con concepto y valor, tal como las espera el servidor. */
+function obtenerGastos() {
+  const lineas = [];
+  for (const fila of cuerpoGastos.querySelectorAll("tr")) {
+    const concepto = fila.querySelector(".gasto-concepto").value;
+    const valor = sumarValores(fila.querySelector(".gasto-valor").value);
+    if (concepto && valor > 0) lineas.push({ concepto, valor });
+  }
+  return lineas;
+}
+
+function actualizarTotalGastos() {
+  const lineas = obtenerGastos();
+  const total = lineas.reduce((suma, linea) => suma + linea.valor, 0);
+  totalGastos.textContent = "$ " + total.toLocaleString("es-CO");
+
+  // Un concepto sin valor, o un valor sin concepto, no se manda: mejor
+  // avisarlo que dejar que el gasto se pierda en silencio.
+  const incompletas = [...cuerpoGastos.querySelectorAll("tr")].filter((fila) => {
+    const concepto = fila.querySelector(".gasto-concepto").value;
+    const valor = sumarValores(fila.querySelector(".gasto-valor").value);
+    return (concepto && valor <= 0) || (!concepto && valor > 0);
+  }).length;
+  avisoGastos.classList.toggle("oculto", incompletas === 0);
+  if (incompletas) {
+    avisoGastos.textContent =
+      "Hay " + incompletas + " linea(s) de gasto incompleta(s): falta el concepto o el valor.";
+  }
+}
+
+function limpiarGastos() {
+  pintarFilasGasto();
+  actualizarTotalGastos();
+}
+
 function sumarValores(texto) {
   const numeros = String(texto || "").match(/-?\d+(\.\d+)?/g) || [];
   return numeros.reduce((total, numero) => total + Number(numero), 0);
@@ -382,10 +472,11 @@ function datosCierre() {
   const bancos = sumarValores(document.getElementById("cierre-bancos").value);
   const nequi = sumarValores(document.getElementById("cierre-nequi").value);
   const envia = sumarValores(document.getElementById("cierre-envia").value);
-  const gastos = sumarValores(document.getElementById("cierre-gastos").value);
+  const gastos_detalle = obtenerGastos();
+  const gastos = gastos_detalle.reduce((suma, linea) => suma + linea.valor, 0);
   const adelanto_salario = sumarValores(document.getElementById("cierre-adelanto").value);
   const denominaciones = obtenerDenominaciones();
-  return { fecha, bancos, nequi, envia, gastos, adelanto_salario, denominaciones };
+  return { fecha, bancos, nequi, envia, gastos, gastos_detalle, adelanto_salario, denominaciones };
 }
 
 document.getElementById("btn-simular-cierre").addEventListener("click", async () => {
@@ -413,3 +504,5 @@ btnCierre.addEventListener("click", async () => {
 });
 
 verificarSesion();
+
+pintarFilasGasto();

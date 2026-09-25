@@ -1,8 +1,12 @@
 """Libro de caja de la oficina.
 
-Regla del negocio: **todo se digita**, salvo dos egresos que ya viven en la
-base y se traen solos —la nomina liquidada y los gastos que los repartidores
-reportan en su cierre— para no teclearlos dos veces.
+Es un libro de **caja**: cuenta la plata que entra y sale de la oficina.
+Todo se digita, salvo lo que ya vive en otra parte y se trae solo para no
+teclearlo dos veces: la nomina, los gastos del cierre abiertos por concepto,
+y los prestamos y adelantos entregados.
+
+Lo unico que no entra es el **recaudo**: no es plata de la oficina, es del
+cliente y se le entrega a Envia.
 """
 
 from pathlib import Path
@@ -106,17 +110,67 @@ def test_la_nomina_y_los_gastos_entran_solos(repositorio: GuiaRepository) -> Non
 
     automaticos = {m["categoria"]: m["valor"] for m in repositorio.egresos_automaticos_mes(2026, 9)}
 
-    assert automaticos == {"NOMINA": 1396000, "GASTOS": 45000}
+    # Sin detalle (cierre viejo) el gasto sigue sumando, agrupado aparte.
+    assert automaticos == {"NOMINA": 1396000, "GASTOS SIN DETALLE": 45000}
 
 
-def test_los_adelantos_no_son_egreso(repositorio: GuiaRepository) -> None:
-    """El adelanto vuelve y ya se descuenta de la nomina: contarlo seria restar dos veces."""
+def test_los_gastos_entran_abiertos_por_concepto(repositorio: GuiaRepository) -> None:
+    """De nada sirve saber que se fueron 70.000 si no se sabe en que."""
+    repositorio.guardar_cierre(
+        fecha="2026-09-10", operador="PIPE", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=500000, bancos=0, nequi=0, envia=0, efectivo=430000,
+        gastos=70000, adelanto_salario=0,
+        gastos_detalle=[
+            {"concepto": "COMBUSTIBLE VAN", "valor": 50000},
+            {"concepto": "CAMBIO DE ACEITE", "valor": 20000},
+        ],
+    )
+
+    automaticos = {m["categoria"]: m["valor"] for m in repositorio.egresos_automaticos_mes(2026, 9)}
+
+    assert automaticos == {"COMBUSTIBLE VAN": 50000, "CAMBIO DE ACEITE": 20000}
+
+
+def test_los_gastos_del_mismo_concepto_se_agrupan(repositorio: GuiaRepository) -> None:
+    for fecha in ("2026-09-10", "2026-09-11"):
+        repositorio.guardar_cierre(
+            fecha=fecha, operador="PIPE", gestionadas=1, ro=0, n=0, d=0, e=1,
+            recaudado=500000, bancos=0, nequi=0, envia=0, efectivo=450000,
+            gastos=50000, adelanto_salario=0,
+            gastos_detalle=[{"concepto": "COMBUSTIBLE VAN", "valor": 50000}],
+        )
+
+    automaticos = {m["categoria"]: m["valor"] for m in repositorio.egresos_automaticos_mes(2026, 9)}
+
+    assert automaticos == {"COMBUSTIBLE VAN": 100000}
+
+
+def test_los_adelantos_y_prestamos_si_son_egreso_de_caja(
+    repositorio: GuiaRepository,
+) -> None:
+    """Es un libro de caja: esa plata salio de la oficina.
+
+    No se cuenta dos veces porque la nomina llega **neta** del descuento:
+    lo que se le presto al empleado baja su nomina por el mismo valor.
+    """
     _cierre(repositorio, "2026-09-10", gastos=45000, adelanto=100000)
+    repositorio.crear_prestamo(
+        empleado="PIPE", tipo="PRESTAMO", monto=500000, fecha="2026-09-02", cuotas=5
+    )
 
-    automaticos = repositorio.egresos_automaticos_mes(2026, 9)
+    automaticos = {m["categoria"]: m["valor"] for m in repositorio.egresos_automaticos_mes(2026, 9)}
 
-    assert [m["categoria"] for m in automaticos] == ["GASTOS"]
-    assert sum(m["valor"] for m in automaticos) == 45000
+    assert automaticos["ADELANTOS DEL CIERRE"] == 100000
+    assert automaticos["PRESTAMOS ENTREGADOS"] == 500000
+
+
+def test_un_prestamo_anulado_no_cuenta_como_egreso(repositorio: GuiaRepository) -> None:
+    prestamo = repositorio.crear_prestamo(
+        empleado="PIPE", tipo="PRESTAMO", monto=500000, fecha="2026-09-02", cuotas=5
+    )
+    repositorio.anular_prestamo(prestamo)
+
+    assert repositorio.egresos_automaticos_mes(2026, 9) == []
 
 
 def test_el_recaudo_no_es_ingreso_de_la_oficina(repositorio: GuiaRepository) -> None:
@@ -156,10 +210,13 @@ def test_el_resumen_suma_lo_digitado_y_lo_automatico(repositorio: GuiaRepository
 
     resumen = repositorio.resumen_ingresos_egresos(2026, 9)
 
+    #              nomina    gastos   adelanto   arriendo (digitado)
+    egresos = 1396000 + 45000 + 100000 + 800000
     assert resumen["ingresos"] == 2500000
-    assert resumen["egresos"] == 1396000 + 45000 + 800000
-    assert resumen["saldo"] == 2500000 - 2241000
-    assert [m["automatico"] for m in resumen["movimientos"]].count(True) == 2
+    assert resumen["egresos"] == egresos
+    assert resumen["saldo"] == 2500000 - egresos
+    # Nomina, gastos y adelanto vienen solos; el arriendo se digito.
+    assert [m["automatico"] for m in resumen["movimientos"]].count(True) == 3
 
 
 def test_el_desglose_por_categoria_agrupa(repositorio: GuiaRepository) -> None:

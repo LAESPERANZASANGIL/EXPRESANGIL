@@ -76,8 +76,20 @@
         <input type="text" id="cierre-nequi" placeholder="0" />
         <label>Dinero en link Envia <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
         <input type="text" id="cierre-envia" placeholder="0" />
-        <label>Gastos <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
-        <input type="text" id="cierre-gastos" placeholder="0" />
+        <label>Gastos <span class="nota-campo">elige el concepto y escribe el valor; hasta 5 gastos</span></label>
+        <table class="tabla-gastos">
+          <thead>
+            <tr><th>Concepto</th><th>Valor</th></tr>
+          </thead>
+          <tbody id="tabla-gastos-body"></tbody>
+          <tfoot>
+            <tr>
+              <td>TOTAL GASTOS</td>
+              <td id="cierre-gastos-total">$ 0</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p class="aviso-gastos oculto" id="cierre-gastos-aviso"></p>
         <label>Adelanto de salario <span class="nota-campo">puedes escribir varios valores separados por espacio o coma</span></label>
         <input type="text" id="cierre-adelanto" placeholder="0" />
 

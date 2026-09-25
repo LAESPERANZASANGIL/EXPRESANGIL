@@ -56,6 +56,54 @@ def verify_password(password: str, stored: str) -> bool:
     return secrets.compare_digest(digest.hex(), digest_hex)
 
 
+# Conceptos de gasto que el repartidor puede reportar en su cierre. Antes el
+# gasto era un solo numero sin explicacion, asi que en contabilidad no habia
+# forma de saber en que se fue la plata.
+CONCEPTOS_GASTO = (
+    "COMBUSTIBLE VAN",
+    "COMBUSTIBLE TURBO",
+    "CAMBIO DE ACEITE",
+    "MANTENIMIENTO MOTO",
+    "OTROS MANTENIMIENTOS",
+)
+
+# Cuantas lineas de gasto caben en un cierre. El limite es del negocio, no
+# tecnico: mas de cinco en un dia suele ser un error de digitacion.
+MAX_GASTOS = 5
+
+
+def normalizar_gastos(detalle: list[dict] | None) -> list[dict]:
+    """Deja solo las lineas de gasto utilizables, validadas.
+
+    Se descartan las vacias (el formulario manda siempre cinco filas) y se
+    rechaza un concepto desconocido o un valor negativo, para que no entre
+    basura a la contabilidad.
+    """
+    limpio: list[dict] = []
+    for linea in detalle or []:
+        concepto = str((linea or {}).get("concepto", "") or "").strip().upper()
+        try:
+            valor = int(float((linea or {}).get("valor", 0) or 0))
+        except (TypeError, ValueError):
+            raise ValueError(f"El valor del gasto '{concepto}' no es un numero.")
+
+        if not concepto and valor == 0:
+            continue
+        if concepto not in CONCEPTOS_GASTO:
+            raise ValueError(f"Concepto de gasto no valido: '{concepto}'.")
+        if valor <= 0:
+            raise ValueError(f"El gasto de '{concepto}' debe ser mayor que cero.")
+        limpio.append({"concepto": concepto, "valor": valor})
+
+    if len(limpio) > MAX_GASTOS:
+        raise ValueError(f"Solo se pueden reportar {MAX_GASTOS} gastos por cierre.")
+    return limpio
+
+
+def total_gastos(detalle: list[dict] | None) -> int:
+    return sum(linea["valor"] for linea in normalizar_gastos(detalle))
+
+
 def parse_guides(text: str) -> list[str]:
     # Las guias escaneadas o pegadas pueden traer el cero inicial que la
     # base de datos no guarda (064108... -> 64108...), por eso se normalizan.
@@ -183,7 +231,20 @@ def cerrar_dia(
     gastos: int = 0,
     adelanto_salario: int = 0,
     simular: bool = False,
+    gastos_detalle: list[dict] | None = None,
 ) -> dict:
+    # El detalle manda sobre el total: si viene, `gastos` se recalcula de el
+    # para que no puedan discrepar y el efectivo salga descuadrado.
+    detalle = normalizar_gastos(gastos_detalle)
+    if detalle:
+        gastos = sum(linea["valor"] for linea in detalle)
+    elif gastos_detalle is None:
+        # Nadie mando detalle (p. ej. el admin regenerando el cierre): se
+        # conserva el que ya estaba en vez de borrarlo, que dejaria la
+        # contabilidad sin saber en que se fue esa plata.
+        anterior = repository.obtener_cierre(fecha, operador)
+        detalle = (anterior or {}).get("gastos_detalle") or []
+
     if not simular:
         repository.cerrar_dia_operador(operador, fecha, ESTADO_SALIDA, ESTADO_RECAUDO)
 
@@ -218,6 +279,7 @@ def cerrar_dia(
             gastos=gastos,
             adelanto_salario=adelanto_salario,
             denominaciones=denominaciones,
+            gastos_detalle=detalle,
         )
 
     caja = calcular_diferencia_caja(efectivo, denominaciones)
@@ -234,6 +296,7 @@ def cerrar_dia(
         "nequi": nequi,
         "envia": envia,
         "gastos": gastos,
+        "gastos_detalle": detalle,
         "adelanto_salario": adelanto_salario,
         "efectivo": efectivo,
         "efectivo_contado": caja["efectivo_contado"],

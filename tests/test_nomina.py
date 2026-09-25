@@ -3,6 +3,7 @@ from pathlib import Path
 from gestor_guias.nomina import (
     calcular_nomina_empleado,
     descuento_nomina_empleado,
+    detalle_descuento_nomina,
     estado_prestamo,
     estados_prestamos,
     generate_informe_prestamos_excel,
@@ -150,3 +151,66 @@ def test_guardar_y_listar_nomina_actualiza_el_registro(tmp_path: Path) -> None:
     registros = repository.listar_nomina("2026-02")
     assert len(registros) == 1
     assert registros[0]["salario_base"] == 1_200_000
+
+
+def _cierre_con_adelanto(repository, fecha: str, operador: str, adelanto: int) -> None:
+    repository.guardar_cierre(
+        fecha=fecha, operador=operador, gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=500000, bancos=0, nequi=0, envia=0,
+        efectivo=500000 - adelanto, gastos=0, adelanto_salario=adelanto,
+    )
+
+
+def test_el_adelanto_del_cierre_se_descuenta_de_la_nomina(tmp_path: Path) -> None:
+    """Antes el repartidor se llevaba la plata y cobraba el sueldo completo."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    _cierre_con_adelanto(repository, "2026-09-10", "PIPE", 100000)
+
+    detalle = detalle_descuento_nomina(repository, "PIPE", "2026-09")
+
+    assert detalle["adelantos_cierre"] == 100000
+    assert detalle["total"] == 100000
+
+
+def test_se_suman_los_adelantos_de_todo_el_mes(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    _cierre_con_adelanto(repository, "2026-09-10", "PIPE", 100000)
+    _cierre_con_adelanto(repository, "2026-09-20", "PIPE", 50000)
+
+    assert detalle_descuento_nomina(repository, "PIPE", "2026-09")["adelantos_cierre"] == 150000
+
+
+def test_el_adelanto_de_otro_mes_no_se_descuenta_en_este(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    _cierre_con_adelanto(repository, "2026-08-31", "PIPE", 100000)
+
+    assert detalle_descuento_nomina(repository, "PIPE", "2026-09")["adelantos_cierre"] == 0
+
+
+def test_el_adelanto_de_otro_operador_no_se_le_descuenta(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    repository.crear_operador("ana", "hash", "ANA")
+    _cierre_con_adelanto(repository, "2026-09-10", "ANA", 100000)
+
+    assert detalle_descuento_nomina(repository, "PIPE", "2026-09")["adelantos_cierre"] == 0
+
+
+def test_el_descuento_suma_las_cuotas_y_los_adelantos(tmp_path: Path) -> None:
+    """Son dos fuentes distintas y las dos tienen que llegar a la nomina."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.crear_operador("pipe", "hash", "PIPE")
+    _cierre_con_adelanto(repository, "2026-09-10", "PIPE", 100000)
+    repository.crear_prestamo(
+        empleado="PIPE", tipo="PRESTAMO", monto=500000, fecha="2026-01-10", cuotas=5
+    )
+
+    detalle = detalle_descuento_nomina(repository, "PIPE", "2026-09")
+
+    assert detalle["cuotas_prestamos"] > 0
+    assert detalle["adelantos_cierre"] == 100000
+    assert detalle["total"] == detalle["cuotas_prestamos"] + detalle["adelantos_cierre"]
+    assert descuento_nomina_empleado(repository, "PIPE", "2026-09") == detalle["total"]
