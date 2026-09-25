@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 232 tests (18 se saltan sin Postgres; 6 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 232 tests (18 se saltan sin Postgres; 9 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -117,7 +117,7 @@ La operacion del repartidor y los cierres se filtran por **F_ENTREGA**, no por f
 - **Entregas del Mes** (`/entregas-mes`, solo admin): consulta de entregadas del mes (archivo + zona), buscador de guia, informes finales en Excel y PDF, informes de rendimiento mensual (por operador y de todos), y borrado de las guias del mes.
 - **Modulo Operadores** (`/operadores`): salidas, novedades y cierre del dia del repartidor.
 
-  **Gastos del cierre**: **ninguno es obligatorio**. El formulario arranca con **una sola linea vacia** y el operador agrega las que necesite con "+ Agregar gasto", hasta `MAX_GASTOS = 5` (el boton se deshabilita ahi); cada linea de mas se puede quitar, y la ultima que queda no, porque es el espacio en blanco del dia sin gastos. Cada linea lleva un concepto de la lista cerrada `CONCEPTOS_GASTO` (`operadores.py`: COMBUSTIBLE VAN, COMBUSTIBLE TURBO, CAMBIO DE ACEITE, MANTENIMIENTO MOTO, OTROS MANTENIMIENTOS, RESTAURANTE, OTROS GASTOS DE OFICINA). La lista esta **duplicada en `launcher/operadores.js`**, y un test compara las dos: agregar un concepto solo en el frontend haria fallar el cierre al guardarlo. y su valor. Se guardan en `cierres_operador.gastos_detalle` (JSON) y su suma es `gastos`, que **se resta del efectivo** que el repartidor entrega, para que el cierre no quede descuadrado. El servidor valida concepto, valor y cantidad (`normalizar_gastos`), no solo el frontend. Al **regenerar** un cierre sin mandar detalle se conserva el que ya tenia.
+  **Gastos del cierre**: **ninguno es obligatorio**. El formulario arranca con **una sola linea vacia** y el operador agrega las que necesite con "+ Agregar gasto", hasta `MAX_GASTOS = 5` (el boton se deshabilita ahi); cada linea de mas se puede quitar, y la ultima que queda no, porque es el espacio en blanco del dia sin gastos. Cada linea lleva un concepto de la lista cerrada `CONCEPTOS_GASTO` (`operadores.py`: COMBUSTIBLE VAN, COMBUSTIBLE TURBO, CAMBIO DE ACEITE, MANTENIMIENTO MOTO, OTROS MANTENIMIENTOS, RESTAURANTE, OTROS GASTOS DE OFICINA) y su valor. La lista esta **duplicada en `launcher/operadores.js`**, y un test compara las dos: agregar un concepto solo en el frontend haria fallar el cierre al guardarlo, porque el servidor lo rechaza. Se guardan en `cierres_operador.gastos_detalle` (JSON) y su suma es `gastos`, que **se resta del efectivo** que el repartidor entrega, para que el cierre no quede descuadrado. El servidor valida concepto, valor y cantidad (`normalizar_gastos`), no solo el frontend. Al **regenerar** un cierre sin mandar detalle se conserva el que ya tenia.
 
   **Guias repetidas en Salidas**: escanear dos veces el mismo paquete cuadra el conteo con lo escaneado pero no con lo que el repartidor lleva encima. Por eso las repetidas se resaltan en rojo **dentro del campo** y el boton queda deshabilitado hasta corregirlas, y el servidor ademas **no registra nada** si llegan duplicadas (`guias_duplicadas()`), por si alguien salta el frontend. El campo siempre dice cuantas encomiendas va a sacar.
 
@@ -255,7 +255,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Gestion de usuarios con roles y auditoria de acciones destructivas, y cambio de nombre del empleado que arrastra todo su historial.
 - Aviso de guias repetidas al registrar salidas, resaltadas en el campo y bloqueadas tambien en el servidor.
 - Libro de caja de la oficina: ingresos y egresos digitados, con la nomina, los gastos del cierre desglosados por concepto, los adelantos de salario y los desembolsos de prestamos sumados automaticamente.
-- Gastos del cierre con concepto de una lista cerrada (hasta 5 por cierre), descontados del efectivo del repartidor y llevados a contabilidad por concepto.
+- Gastos del cierre con concepto de una lista cerrada de siete (hasta 5 lineas por cierre, agregadas a pedido y ninguna obligatoria), descontados del efectivo del repartidor y llevados a contabilidad por concepto.
 - Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
@@ -280,6 +280,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Las fechas de trabajo se refrescan por reloj del navegador; un desfase de zona horaria en el equipo del operador aun podria guardar un cierre con fecha equivocada. Validarlo contra la hora del servidor seria mas seguro.
 - No hay paginacion en la Zona de Trabajo: con miles de guias el navegador renderiza toda la tabla.
 - La nomina no genera colilla de pago individual por empleado.
+- `MAX_GASTOS` sigue en 5 aunque los conceptos ya son 7: un dia con mas de cinco gastos distintos no cabe. Subirlo es cambiar la constante en `operadores.py` y en `launcher/operadores.js` (queda a decision del usuario).
 - Los abonos a prestamos se registran a mano: la nomina descuenta la cuota del mes, pero no crea el abono que baja el saldo del prestamo.
 - En Prestamos el empleado se escribe en un `datalist` cuyo texto **es la clave** del registro: por eso ahi no se muestran apellidos y un error de tipeo crea un empleado fantasma. Deberia guardar el `usuario` y mostrar el nombre, como hace Nomina.
 - `renombrar_operador()` arrastra el historial de la base, pero **no** los informes de Excel y PDF ya generados en `data/`, que conservan el nombre viejo.
