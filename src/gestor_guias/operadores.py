@@ -67,6 +67,7 @@ CONCEPTOS_GASTO = (
     "OTROS MANTENIMIENTOS",
     "RESTAURANTE",
     "OTROS GASTOS DE OFICINA",
+    "PAGO A TERCEROS",
 )
 
 # Cuantas lineas de gasto caben en un cierre. El limite es del negocio, no
