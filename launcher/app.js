@@ -2,53 +2,12 @@ const pantallaLogin = document.getElementById("pantalla-login");
 const pantallaPrincipal = document.getElementById("pantalla-principal");
 const pantallaIniciar = document.getElementById("pantalla-iniciar");
 const nombreUsuario = document.getElementById("nombre-usuario");
-const log = document.getElementById("log");
-
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
 
 function hoy() {
   const ahora = new Date();
   const mes = String(ahora.getMonth() + 1).padStart(2, "0");
   const dia = String(ahora.getDate()).padStart(2, "0");
   return `${ahora.getFullYear()}-${mes}-${dia}`;
-}
-
-function mostrarAviso(texto, tipo) {
-  let contenedor = document.getElementById("avisos");
-  if (!contenedor) {
-    contenedor = document.createElement("div");
-    contenedor.id = "avisos";
-    document.body.appendChild(contenedor);
-  }
-  const aviso = document.createElement("div");
-  aviso.className = "aviso " + (tipo || "info");
-  aviso.textContent = texto;
-  contenedor.appendChild(aviso);
-  requestAnimationFrame(() => aviso.classList.add("visible"));
-  setTimeout(() => {
-    aviso.classList.remove("visible");
-    setTimeout(() => aviso.remove(), 400);
-  }, 4000);
-}
-
-function mostrarDescargas(descargas) {
-  const anterior = document.getElementById("descargas");
-  if (anterior) anterior.remove();
-  if (!descargas || !descargas.length) return;
-
-  const contenedor = document.createElement("div");
-  contenedor.id = "descargas";
-  for (const nombre of descargas) {
-    const enlace = document.createElement("a");
-    enlace.className = "boton boton-accion";
-    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
-    enlace.textContent = "Descargar " + nombre;
-    enlace.setAttribute("download", nombre);
-    contenedor.appendChild(enlace);
-  }
-  log.insertAdjacentElement("afterend", contenedor);
 }
 
 async function llamar(ruta, datos, accion) {

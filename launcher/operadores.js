@@ -1,14 +1,9 @@
 const pantallaLogin = document.getElementById("pantalla-login");
 const pantallaOperador = document.getElementById("pantalla-operador");
-const log = document.getElementById("log");
 const nombreOperador = document.getElementById("nombre-operador");
 const fechaTrabajo = document.getElementById("fecha-trabajo");
 const resumenCierre = document.getElementById("resumen-cierre");
 const tablaResumenBody = document.getElementById("tabla-resumen-body");
-
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
 
 function hoy() {
   const ahora = new Date();

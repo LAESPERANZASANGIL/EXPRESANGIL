@@ -133,6 +133,8 @@ STATIC_FILES = {
     "/panel.html": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
+    # Avisos y descargas compartidos por todas las pantallas del panel.
+    "/avisos.js": ("avisos.js", "application/javascript; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/operadores": ("operadores.html", "text/html; charset=utf-8"),
     "/operadores.html": ("operadores.html", "text/html; charset=utf-8"),

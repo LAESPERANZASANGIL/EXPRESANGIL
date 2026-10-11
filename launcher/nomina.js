@@ -1,4 +1,3 @@
-const log = document.getElementById("log");
 const contador = document.getElementById("contador");
 const campoMes = document.getElementById("mes");
 const tablaNomina = document.getElementById("tabla-nomina");
@@ -6,33 +5,12 @@ const configUsuario = document.getElementById("config-usuario");
 
 let empleados = [];
 
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
-
 function pesos(valor) {
   return "$ " + Number(valor || 0).toLocaleString("es-CO");
 }
 
 function numero(valor) {
   return Number(String(valor || "0").replace(/[^0-9.-]/g, "")) || 0;
-}
-
-function mostrarDescargas(descargas) {
-  const anterior = document.getElementById("descargas");
-  if (anterior) anterior.remove();
-  if (!descargas || !descargas.length) return;
-  const contenedor = document.createElement("div");
-  contenedor.id = "descargas";
-  for (const nombre of descargas) {
-    const enlace = document.createElement("a");
-    enlace.className = "boton boton-accion";
-    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
-    enlace.textContent = "Descargar " + nombre;
-    enlace.setAttribute("download", nombre);
-    contenedor.appendChild(enlace);
-  }
-  log.parentElement.insertBefore(contenedor, log);
 }
 
 async function llamar(ruta, datos, silencioso) {

@@ -3,16 +3,11 @@
 // automaticos y no se pueden borrar desde esta pantalla, porque su fuente de
 // verdad es la nomina y el cierre de cada operador.
 
-const log = document.getElementById("log");
 const contador = document.getElementById("contador");
 const mes = document.getElementById("mes");
 const tabla = document.getElementById("tabla-movimientos");
 const tablaResumen = document.getElementById("tabla-resumen-body");
 const listaCategorias = document.getElementById("lista-categorias");
-
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
 
 function pesos(valor) {
   return "$ " + Number(valor || 0).toLocaleString("es-CO");

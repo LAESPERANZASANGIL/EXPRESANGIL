@@ -1,4 +1,3 @@
-const log = document.getElementById("log");
 const tablaBody = document.getElementById("tabla-body");
 const contador = document.getElementById("contador");
 const buscar = document.getElementById("buscar");
@@ -30,28 +29,6 @@ const formServicio = document.getElementById("form-servicio");
 let guias = [];
 let marcadas = new Set();
 let seleccionada = null;
-
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
-
-function mostrarDescargas(descargas) {
-  const anterior = document.getElementById("descargas");
-  if (anterior) anterior.remove();
-  if (!descargas || !descargas.length) return;
-
-  const contenedor = document.createElement("div");
-  contenedor.id = "descargas";
-  for (const nombre of descargas) {
-    const enlace = document.createElement("a");
-    enlace.className = "boton boton-accion";
-    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
-    enlace.textContent = "Descargar " + nombre;
-    enlace.setAttribute("download", nombre);
-    contenedor.appendChild(enlace);
-  }
-  log.insertAdjacentElement("afterend", contenedor);
-}
 
 async function llamar(ruta, datos) {
   mostrarLog("Procesando...");

@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 244 tests (18 se saltan sin Postgres; 9 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 249 tests (18 se saltan sin Postgres; 14 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -34,6 +34,10 @@ Tras un cambio de frontend hay que recargar con **Ctrl+F5**: el navegador conser
 - **`app.py`** es la CLI con `argparse`. Toda accion (importar, exportar, informes, operadores) es un subcomando aqui.
 - **`launcher_server.py`** es el panel web: handler HTTP (`http.server`, sin frameworks). Llama a `app.py` por `subprocess` (`run_command`) para informes/importar/exportar, e invoca directamente `operadores.py` + `repository.py` para login, salidas, novedades, cierres y acciones de admin. Las sesiones viven en la tabla `sesiones` (cookie `session`) y **sobreviven a un reinicio**: de la cookie se guarda solo el hash SHA-256, porque los respaldos salen del servidor y una copia no debe entregar sesiones vivas. Vencen a las 12 horas (`SESSION_MAX_EDAD_SEGUNDOS`), medidas contra el reloj y no con `time.monotonic()`, que se reinicia con el proceso. El hilo de respaldo barre las vencidas. Tambien arranca el hilo de respaldo periodico.
 - **`launcher/`** es frontend estatico (HTML/CSS/JS plano, sin build). Se sirve desde `STATIC_FILES` en `launcher_server.py`; **si agregas un archivo nuevo hay que registrarlo en ese diccionario** o devuelve 404.
+- **`launcher/avisos.js`** lo cargan **todas** las pantallas del panel, antes de su propio `.js`: trae `mostrarAviso`, `mostrarLog` y `mostrarDescargas`, que antes estaban copiadas en cada archivo. **No volver a definirlas en una pagina**: se duplicarian y la ultima ganaria.
+  - No hay recuadro de resultados: el mensaje sale como **aviso flotante**. Los de exito e info se van solos a los 4 segundos; los de **error se quedan** con un boton de cerrar, porque hay que poder leerlos con calma (antes ese era el papel del recuadro).
+  - `mostrarDescargas` **dispara la descarga sola**, sin boton: crea un `<a download>` oculto, lo pulsa y lo quita. Varios archivos salen separados 400 ms, porque el navegador bloquea descargas simultaneas.
+  - Hay pruebas en Chromium (`test_avisos_navegador.py`) que recorren las diez pantallas: ninguna conserva el recuadro y en todas existen las tres funciones.
 - **`config.py`** carga `config/settings.toml` con `tomllib` a dataclasses congeladas (`Settings`). Rutas relativas se resuelven contra la raiz del repo (`BASE_DIR`).
 - **`repository.py`** es el unico acceso a SQLite. `initialize()` hace migracion ligera (crea tablas y agrega columnas faltantes).
 - **`excel_processor.py`** lee/normaliza/une planillas. `normalize_guide` quita guiones y cero inicial — es la forma canonica de la guia en toda la app.
@@ -264,7 +268,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 244 tests en verde (226 corren siempre; 18 con un Postgres de pruebas y 9 con Chromium).
+- Suite de 249 tests en verde (231 corren siempre; 18 con un Postgres de pruebas y 14 con Chromium).
 
 ## Que se puede mejorar
 
