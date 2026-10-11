@@ -38,7 +38,7 @@ COLUMNS = ["OPERADOR", "UNID", "VALOR RECAUDADO", "BANCOS", "NEQUI", "ENVIA", "G
 
 def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
     """Genera el INFORME DIARIO: recaudo (con cierre general) + resumen del dia en un solo Excel."""
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
     daily = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)

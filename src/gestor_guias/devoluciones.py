@@ -32,7 +32,7 @@ DEVOLUCIONES_COLUMNS = [
 def generate_devoluciones_report(
     repository: GuiaRepository, output_dir: Path, target_date: date
 ) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
     daily = filter_by_gestion(dataframe, target_date)
     devoluciones = daily[daily["ESTADO"].str.upper() == ESTADO_DEVOLUCION]
     detail = devoluciones[DEVOLUCIONES_COLUMNS]

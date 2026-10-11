@@ -255,7 +255,7 @@ def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame,
 def generate_monthly_operator_report(
     repository: GuiaRepository, output_dir: Path, year: int, month: int
 ) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"informe mensual por operador {MONTHS_ES[month]} {year}.xlsx"
@@ -618,7 +618,7 @@ def generate_rendimiento_mensual_pdf(
 def generate_operator_report(
     repository: GuiaRepository, output_dir: Path, target_date: date | None = None, operador: str = ""
 ) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
     if target_date is not None:
         dataframe = filter_by_gestion(dataframe, target_date)
 
@@ -856,7 +856,7 @@ def generate_entregadas_operador_excel(
 
 
 def generate_daily_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
     daily = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
