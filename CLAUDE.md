@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 240 tests (18 se saltan sin Postgres; 9 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 244 tests (18 se saltan sin Postgres; 9 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -150,7 +150,8 @@ Una guia en reparto (`R`) **todavia no se gestiono**: no tiene F_ENTREGA y no cu
 ## Informes
 
 - **`informe diario dd mes.xlsx`**: unifica recaudo e informe del dia. Hojas: `RECAUDO` (por operador, con la tabla del cierre general y el resumen de verificacion), `RESUMEN`, `POR ESTADO`, `POR MUNICIPIO`, `POR OPERADOR` (solo guias `E`) y `DETALLE`. Lo generan tanto `informe-dia` como `informe-recaudo`.
-- **`entregas {operador} dd mes.xlsx`**: hojas `ENTREGAS`, `NOVEDADES` (RO/N/D con causal) y `CIERRE` (resumen y conteo de billetes).
+- **`entregas {operador} dd mes.xlsx`**: hojas `ENTREGAS`, `NOVEDADES` (RO/N/D con causal) y `CIERRE`.
+- **Hoja `CIERRE`** (la comparten `informe por operador` y `entregas {operador}`, por `build_cierre_vertical`): va **en vertical**, una etiqueta por fila, como el papel con el que se cuadra la caja; en horizontal tocaba desplazarse para ver el final. Secciones: cabecera con fecha y operador, **MOVIMIENTO DEL DIA** (gestionadas, RO, N, D, E, unidades, recaudado), **FORMAS DE PAGO Y DESCUENTOS** (bancos, Nequi, link Envia, gastos **con su desglose por concepto** en cursiva, adelanto, efectivo a entregar) y **CONTEO DE EFECTIVO EN CAJA** (las once denominaciones, total contado y **diferencia**, en verde si cuadra y en rojo si falta o sobra). En el informe por operador se escribe un bloque por operador, uno debajo del otro.
 - **`informe mensual entregadas {mes} {anio}`** (Excel y PDF) e **informes de rendimiento mensual** (PDF por operador tipo ficha, y PDF horizontal de todos).
 - **`relacion guias ce y rr dd mes.xlsx`**: solo servicios CE/RR entregados con valor > 1; resta el link de Envia. **Es el unico informe que no lleva unidades** (decision del usuario).
 
@@ -263,7 +264,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 240 tests en verde (222 corren siempre; 18 con un Postgres de pruebas y 9 con Chromium).
+- Suite de 244 tests en verde (226 corren siempre; 18 con un Postgres de pruebas y 9 con Chromium).
 
 ## Que se puede mejorar
 

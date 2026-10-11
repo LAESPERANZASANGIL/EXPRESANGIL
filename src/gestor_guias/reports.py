@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 import re
 
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 import pandas as pd
 
 from .exporter import MONTHS_ES, display_date
@@ -615,6 +615,192 @@ def generate_rendimiento_mensual_pdf(
     return output_path
 
 
+# --------------------------- Hoja CIERRE (vertical) -------------------------
+# La hoja se lee de arriba hacia abajo, una etiqueta por fila, como el papel
+# con el que se cuadra la caja. En horizontal (una fila larga por operador)
+# tocaba desplazarse para ver el final del cierre.
+
+CIERRE_AZUL_OSCURO = PatternFill(fill_type="solid", fgColor="1F4E78")
+CIERRE_AZUL_MEDIO = PatternFill(fill_type="solid", fgColor="2E75B6")
+CIERRE_GRIS = PatternFill(fill_type="solid", fgColor="F2F2F2")
+CIERRE_VERDE = PatternFill(fill_type="solid", fgColor="E2EFDA")
+CIERRE_ROJO = PatternFill(fill_type="solid", fgColor="FBE4E4")
+CIERRE_TITULO_FONT = Font(bold=True, size=14, color="FFFFFF")
+CIERRE_SECCION_FONT = Font(bold=True, size=11, color="FFFFFF")
+CIERRE_ETIQUETA_FONT = Font(bold=True)
+CIERRE_TOTAL_FONT = Font(bold=True, size=12)
+CIERRE_OK_FONT = Font(bold=True, color="1E6B33")
+CIERRE_ALERTA_FONT = Font(bold=True, color="B71C1C")
+CIERRE_BORDE = Border(*(Side(style="thin", color="BFBFBF") for _ in range(4)))
+MONEDA = '"$" #,##0'
+
+# Columnas de la hoja: etiqueta, cantidad, valor.
+CIERRE_ANCHOS = (("A", 34), ("B", 14), ("C", 18))
+
+
+def _cierre_titulo(worksheet, fila: int, texto: str, relleno, fuente) -> int:
+    worksheet.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=3)
+    celda = worksheet.cell(row=fila, column=1, value=texto)
+    celda.fill = relleno
+    celda.font = fuente
+    celda.alignment = Alignment(horizontal="center", vertical="center")
+    worksheet.row_dimensions[fila].height = 22 if fuente is CIERRE_TITULO_FONT else 18
+    for columna in (2, 3):
+        worksheet.cell(row=fila, column=columna).fill = relleno
+    return fila + 1
+
+
+def _cierre_dato(worksheet, fila: int, etiqueta: str, valor, *, moneda: bool = False,
+                 sangria: bool = False, resaltar: bool = False) -> int:
+    # La etiqueta ocupa las dos primeras columnas: la del medio solo la usa la
+    # tabla de billetes, y dejarla vacia partia la fila en dos.
+    worksheet.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=2)
+    celda_etiqueta = worksheet.cell(row=fila, column=1, value=("    " + etiqueta) if sangria else etiqueta)
+    celda_etiqueta.font = Font(italic=True) if sangria else CIERRE_ETIQUETA_FONT
+    celda_etiqueta.border = CIERRE_BORDE
+    if resaltar:
+        celda_etiqueta.fill = CIERRE_GRIS
+
+    worksheet.cell(row=fila, column=2).border = CIERRE_BORDE
+    celda_valor = worksheet.cell(row=fila, column=3, value=valor)
+    celda_valor.border = CIERRE_BORDE
+    celda_valor.alignment = Alignment(horizontal="right")
+    if moneda:
+        celda_valor.number_format = MONEDA
+    if resaltar:
+        celda_valor.fill = CIERRE_GRIS
+        celda_valor.font = CIERRE_TOTAL_FONT
+        worksheet.cell(row=fila, column=2).fill = CIERRE_GRIS
+    return fila + 1
+
+
+def build_cierre_vertical(worksheet, fila: int, resumen: dict, gastos_detalle: list[dict] | None = None) -> int:
+    """Escribe el cierre de un operador de arriba hacia abajo y devuelve la fila siguiente."""
+    fila = _cierre_titulo(worksheet, fila, "CIERRE DEL DIA", CIERRE_AZUL_OSCURO, CIERRE_TITULO_FONT)
+    fila = _cierre_dato(worksheet, fila, "FECHA", resumen.get("fecha", ""))
+    fila = _cierre_dato(worksheet, fila, "OPERADOR", resumen.get("operador", ""))
+    fila += 1
+
+    fila = _cierre_titulo(worksheet, fila, "MOVIMIENTO DEL DIA", CIERRE_AZUL_MEDIO, CIERRE_SECCION_FONT)
+    for clave, etiqueta in (
+        ("gestionadas", "GUIAS GESTIONADAS"),
+        ("ro", "RECLAMA OFICINA (RO)"),
+        ("n", "NOVEDADES (N)"),
+        ("d", "DEVOLUCIONES (D)"),
+        ("e", "ENTREGADAS (E)"),
+        ("unidades", "UNIDADES ENTREGADAS"),
+    ):
+        fila = _cierre_dato(worksheet, fila, etiqueta, int(resumen.get(clave, 0)))
+    fila = _cierre_dato(worksheet, fila, "RECAUDADO", int(resumen.get("recaudado", 0)),
+                        moneda=True, resaltar=True)
+    fila += 1
+
+    fila = _cierre_titulo(worksheet, fila, "FORMAS DE PAGO Y DESCUENTOS", CIERRE_AZUL_MEDIO, CIERRE_SECCION_FONT)
+    for clave, etiqueta in (
+        ("bancos", "BANCOS"),
+        ("nequi", "NEQUI"),
+        ("envia", "LINK ENVIA"),
+        ("gastos", "GASTOS"),
+    ):
+        fila = _cierre_dato(worksheet, fila, etiqueta, int(resumen.get(clave, 0)), moneda=True)
+        if clave == "gastos":
+            # Desglose por concepto: en contabilidad hay que saber en que se fue.
+            for linea in gastos_detalle or []:
+                fila = _cierre_dato(worksheet, fila, str(linea.get("concepto", "")),
+                                    int(linea.get("valor", 0)), moneda=True, sangria=True)
+    fila = _cierre_dato(worksheet, fila, "ADELANTO DE SALARIO", int(resumen.get("adelanto_salario", 0)), moneda=True)
+    fila = _cierre_dato(worksheet, fila, "EFECTIVO A ENTREGAR", int(resumen.get("efectivo", 0)),
+                        moneda=True, resaltar=True)
+    fila += 1
+
+    denominaciones = resumen.get("denominaciones") or {}
+    contado = sum(int(valor) * int(cantidad) for valor, cantidad in denominaciones.items())
+    fila = _cierre_titulo(worksheet, fila, "CONTEO DE EFECTIVO EN CAJA", CIERRE_AZUL_MEDIO, CIERRE_SECCION_FONT)
+    for columna, encabezado in enumerate(("DENOMINACION", "CANTIDAD", "SUBTOTAL"), start=1):
+        celda = worksheet.cell(row=fila, column=columna, value=encabezado)
+        celda.font = CIERRE_ETIQUETA_FONT
+        celda.fill = CIERRE_GRIS
+        celda.border = CIERRE_BORDE
+        celda.alignment = Alignment(horizontal="center")
+    fila += 1
+
+    for denominacion in DENOMINACIONES:
+        cantidad = int(denominaciones.get(denominacion, 0) or 0)
+        celda_denominacion = worksheet.cell(row=fila, column=1, value=denominacion)
+        celda_denominacion.number_format = MONEDA
+        celda_denominacion.border = CIERRE_BORDE
+        celda_denominacion.alignment = Alignment(horizontal="right")
+        celda_cantidad = worksheet.cell(row=fila, column=2, value=cantidad)
+        celda_cantidad.border = CIERRE_BORDE
+        celda_cantidad.alignment = Alignment(horizontal="center")
+        celda_subtotal = worksheet.cell(row=fila, column=3, value=denominacion * cantidad)
+        celda_subtotal.number_format = MONEDA
+        celda_subtotal.border = CIERRE_BORDE
+        celda_subtotal.alignment = Alignment(horizontal="right")
+        fila += 1
+
+    fila = _cierre_dato(worksheet, fila, "TOTAL CONTADO", contado, moneda=True, resaltar=True)
+
+    # La diferencia es lo que de verdad se revisa al cuadrar la caja: va en
+    # verde si cuadra y en rojo si no, para que salte a la vista.
+    diferencia = contado - int(resumen.get("efectivo", 0))
+    etiqueta_diferencia = "DIFERENCIA (CUADRA)" if diferencia == 0 else (
+        "DIFERENCIA (SOBRA)" if diferencia > 0 else "DIFERENCIA (FALTA)"
+    )
+    worksheet.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=2)
+    celda_etiqueta = worksheet.cell(row=fila, column=1, value=etiqueta_diferencia)
+    celda_valor = worksheet.cell(row=fila, column=3, value=diferencia)
+    celda_valor.number_format = MONEDA
+    celda_valor.alignment = Alignment(horizontal="right")
+    for celda in (celda_etiqueta, worksheet.cell(row=fila, column=2), celda_valor):
+        celda.fill = CIERRE_VERDE if diferencia == 0 else CIERRE_ROJO
+        celda.font = CIERRE_OK_FONT if diferencia == 0 else CIERRE_ALERTA_FONT
+        celda.border = CIERRE_BORDE
+    fila += 1
+
+    for columna, ancho in CIERRE_ANCHOS:
+        worksheet.column_dimensions[columna].width = ancho
+    worksheet.sheet_view.showGridLines = False
+    return fila + 2
+
+
+def escribir_hoja_cierre(worksheet, repository: GuiaRepository, summary: pd.DataFrame,
+                         target_date: date | None) -> None:
+    """La hoja CIERRE del informe por operador: un bloque vertical por operador."""
+    fecha_texto = target_date.isoformat() if target_date else ""
+    columnas_billetes = {
+        f"BILLETES {denominacion:,}".replace(",", "."): denominacion
+        for denominacion in DENOMINACIONES
+    }
+
+    fila = 1
+    for _, registro in summary.iterrows():
+        operador = str(registro["OPERADOR"])
+        cierre = repository.obtener_cierre(fecha_texto, operador) if fecha_texto else None
+        resumen = {
+            "fecha": display_date(target_date) if target_date else "",
+            "operador": operador,
+            "gestionadas": registro.get("GESTIONADAS", 0),
+            "ro": registro.get("RO", 0),
+            "n": registro.get("N", 0),
+            "d": registro.get("D", 0),
+            "e": registro.get("E", 0),
+            "unidades": registro.get("UNIDADES ENTREGADAS", 0),
+            "recaudado": registro.get("RECAUDADO", 0),
+            "bancos": registro.get("BANCOS", 0),
+            "nequi": registro.get("NEQUI", 0),
+            "envia": registro.get("ENVIA", 0),
+            "gastos": registro.get("GASTOS", 0),
+            "adelanto_salario": registro.get("ADELANTO_SALARIO", 0),
+            "efectivo": registro.get("EFECTIVO", 0),
+            "denominaciones": {
+                denominacion: int(registro.get(columna, 0) or 0)
+                for columna, denominacion in columnas_billetes.items()
+            },
+        }
+        fila = build_cierre_vertical(worksheet, fila, resumen, (cierre or {}).get("gastos_detalle"))
+
+
 def generate_operator_report(
     repository: GuiaRepository, output_dir: Path, target_date: date | None = None, operador: str = ""
 ) -> Path:
@@ -631,10 +817,10 @@ def generate_operator_report(
     entregadas = build_entregadas_detalle(dataframe, operador)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        summary.to_excel(writer, index=False, sheet_name="CIERRE")
         entregadas.to_excel(writer, index=False, sheet_name="GUIAS ENTREGADAS")
-        for sheet_name in writer.sheets:
-            apply_report_format(writer.sheets[sheet_name])
+        apply_report_format(writer.sheets["GUIAS ENTREGADAS"])
+        hoja_cierre = writer.book.create_sheet("CIERRE", 0)
+        escribir_hoja_cierre(hoja_cierre, repository, summary, target_date)
 
     return output_path
 
@@ -721,61 +907,28 @@ RESUMEN_CIERRE_CAMPOS_MONEDA = {
 }
 
 
-def build_cierre_sheet(worksheet, resumen: dict, denominaciones: dict) -> None:
-    header_fill = PatternFill(fill_type="solid", fgColor="4472C4")
-    header_font = Font(bold=True, color="FFFFFF")
-    label_font = Font(bold=True)
+def build_cierre_sheet(
+    worksheet,
+    resumen: dict,
+    denominaciones: dict,
+    operador: str = "",
+    target_date: date | None = None,
+) -> None:
+    """La hoja CIERRE del informe de entregas, con el mismo diseno vertical."""
+    datos = dict(resumen or {})
+    datos.setdefault("operador", operador)
+    datos.setdefault("fecha", display_date(target_date) if target_date else "")
+    datos["denominaciones"] = {
+        int(denominacion): int(cantidad)
+        for denominacion, cantidad in (denominaciones or {}).items()
+    }
+    fila = build_cierre_vertical(worksheet, 1, datos, datos.get("gastos_detalle"))
 
-    worksheet.merge_cells("A1:B1")
-    titulo = worksheet["A1"]
-    titulo.value = "CIERRE DEL DIA"
-    titulo.fill = header_fill
-    titulo.font = header_font
-    titulo.alignment = Alignment(horizontal="center")
-
-    row = 2
-    for clave, etiqueta in RESUMEN_CIERRE_ETIQUETAS:
-        if clave not in resumen:
-            continue
-        worksheet.cell(row=row, column=1, value=etiqueta).font = label_font
-        valor_celda = worksheet.cell(row=row, column=2, value=resumen[clave])
-        if clave in RESUMEN_CIERRE_CAMPOS_MONEDA:
-            valor_celda.number_format = '"$" #,##0'
-        row += 1
-
-    nota = str(resumen.get("nota") or "").strip()
+    nota = str(datos.get("nota") or "").strip()
     if nota:
-        worksheet.cell(row=row, column=1, value="Anotacion").font = label_font
-        worksheet.cell(row=row, column=2, value=nota)
-        row += 1
-
-    entradas = sorted(
-        ((int(denominacion), int(cantidad)) for denominacion, cantidad in (denominaciones or {}).items() if int(cantidad) > 0),
-        reverse=True,
-    )
-    if entradas:
-        row += 1
-        worksheet.merge_cells(f"A{row}:C{row}")
-        cabecera = worksheet.cell(row=row, column=1, value="CONTEO DE EFECTIVO EN CAJA")
-        cabecera.fill = header_fill
-        cabecera.font = header_font
-        cabecera.alignment = Alignment(horizontal="center")
-        row += 1
-
-        for columna, encabezado in enumerate(("Denominacion", "Cantidad", "Subtotal"), start=1):
-            celda = worksheet.cell(row=row, column=columna, value=encabezado)
-            celda.font = label_font
-        row += 1
-
-        for denominacion, cantidad in entradas:
-            worksheet.cell(row=row, column=1, value=denominacion).number_format = '"$" #,##0'
-            worksheet.cell(row=row, column=2, value=cantidad)
-            subtotal_celda = worksheet.cell(row=row, column=3, value=denominacion * cantidad)
-            subtotal_celda.number_format = '"$" #,##0'
-            row += 1
-
-    for columna, ancho in (("A", 32), ("B", 18), ("C", 18)):
-        worksheet.column_dimensions[columna].width = ancho
+        worksheet.cell(row=fila, column=1, value="ANOTACION").font = CIERRE_ETIQUETA_FONT
+        worksheet.merge_cells(start_row=fila, start_column=2, end_row=fila, end_column=3)
+        worksheet.cell(row=fila, column=2, value=nota)
 
 
 def generate_entregadas_operador_excel(
@@ -850,7 +1003,9 @@ def generate_entregadas_operador_excel(
 
         if resumen or denominaciones:
             cierre_sheet = writer.book.create_sheet("CIERRE")
-            build_cierre_sheet(cierre_sheet, resumen or {}, denominaciones or {})
+            build_cierre_sheet(
+                cierre_sheet, resumen or {}, denominaciones or {}, operador, target_date
+            )
 
     return output_path
 
