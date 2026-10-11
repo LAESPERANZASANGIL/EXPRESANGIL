@@ -100,6 +100,65 @@ def _vencimiento() -> str:
 
 ROLES_VALIDOS = {"operador", "admin"}
 
+# Rutas que exigen sesion de administrador. Antes cada una repetia el mismo
+# control a mano (49 copias): bastaba olvidarlo en una para abrirla. Ahora se
+# comprueba una sola vez, al entrar, y la lista queda a la vista.
+RUTAS_ADMIN = {
+    "GET": frozenset({
+        "/api/dashboard",
+        "/api/descargar",
+        "/api/guias",
+        "/api/respaldo/descargar",
+    }),
+    "POST": frozenset({
+        "/api/admin/archivar-entregadas",
+        "/api/admin/cierre-dia/simular",
+        "/api/admin/cierre/regenerar",
+        "/api/admin/cierre/revertir",
+        "/api/admin/cierre/revertir-dia",
+        "/api/admin/deshacer",
+        "/api/admin/entregas-mes",
+        "/api/admin/entregas-mes/eliminar",
+        "/api/admin/entregas-mes/informe",
+        "/api/admin/rendimiento-mensual",
+        "/api/cierre-general",
+        "/api/cierre-recalcular",
+        "/api/empleados",
+        "/api/empleados/guardar",
+        "/api/exportar",
+        "/api/guias/eliminar",
+        "/api/guias/eliminar-estado",
+        "/api/guias/eliminar-fecha",
+        "/api/guias/eliminar-operador",
+        "/api/guias/exportar-marcadas",
+        "/api/guias/guardar",
+        "/api/guias/guardar-muchas",
+        "/api/importar",
+        "/api/informe",
+        "/api/liquidaciones/laboral",
+        "/api/liquidaciones/laboral/calcular",
+        "/api/liquidaciones/laboral/guardar",
+        "/api/liquidaciones/laboral/informe",
+        "/api/liquidaciones/semana",
+        "/api/liquidaciones/semana/guardar",
+        "/api/liquidaciones/semana/informe",
+        "/api/movimientos",
+        "/api/movimientos/crear",
+        "/api/movimientos/eliminar",
+        "/api/nomina",
+        "/api/nomina/empleado",
+        "/api/nomina/informe",
+        "/api/nomina/liquidar",
+        "/api/prestamos",
+        "/api/prestamos/abonar",
+        "/api/prestamos/anular",
+        "/api/prestamos/crear",
+        "/api/prestamos/detalle",
+        "/api/prestamos/informe",
+        "/api/subir-archivo",
+    }),
+}
+
 INFORME_COMANDOS = {
     "operador": "informe-operador",
     "salidas": "informe-salidas",
@@ -356,6 +415,8 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
     def _do_GET(self) -> None:
         route = self.path.split("?")[0]
+        if route in RUTAS_ADMIN["GET"] and not self._require_admin():
+            return
 
         if route == "/api/operador/sesion":
             session = self._get_session()
@@ -377,14 +438,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if route == "/api/guias":
-            if not self._require_admin():
-                return
             self._send_json({"ok": True, "guias": REPOSITORY.list_all()})
             return
 
         if route == "/api/dashboard":
-            if not self._require_admin():
-                return
 
             from urllib.parse import parse_qs, urlsplit
 
@@ -546,8 +603,6 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if route == "/api/descargar":
-            if not self._require_admin():
-                return
             from urllib.parse import parse_qs, urlsplit
 
             query = parse_qs(urlsplit(self.path).query)
@@ -570,8 +625,6 @@ class LauncherHandler(BaseHTTPRequestHandler):
             return
 
         if route == "/api/respaldo/descargar":
-            if not self._require_admin():
-                return
 
             # Se genera en el momento, no se entrega una copia vieja: lo que
             # el administrador se lleva es el estado actual de la base.
@@ -613,9 +666,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": False, "output": f"Error interno: {error}"}, status=500)
 
     def _do_POST(self) -> None:
+        if self.path in RUTAS_ADMIN["POST"] and not self._require_admin():
+            return
+
         if self.path == "/api/subir-archivo":
-            if not self._require_admin():
-                return
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length > MAX_UPLOAD_BYTES:
                 self._send_json(
@@ -641,13 +695,29 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
         data = self._read_json()
 
-        if self.path == "/api/guias/guardar":
-            if not self._require_admin():
+        # El metodo tenia 1.400 lineas con 53 rutas en una sola cadena de
+        # `if`. Se parte por temas; cada parte devuelve True si la ruta era
+        # suya. El orden se conserva, asi que el comportamiento tampoco cambia.
+        for parte in (
+            self._post_trabajo_e_informes,
+            self._post_sesion_y_operacion,
+            self._post_admin_cierres,
+            self._post_prestamos_y_caja,
+            self._post_nomina_y_liquidaciones,
+            self._post_informes_mensuales,
+        ):
+            if parte(data):
                 return
+
+        self.send_error(404)
+
+    def _post_trabajo_e_informes(self, data: dict) -> bool:
+        """Zona de Trabajo, importacion, exportacion e informes."""
+        if self.path == "/api/guias/guardar":
             guia = normalize_guide(str(data.get("guia", "")).strip())
             if not guia:
                 self._send_json({"ok": False, "output": "Indica la guia a guardar."})
-                return
+                return True
             fecha = str(data.get("fecha", "")).strip()
             entrega = str(data.get("entrega", "")).strip()
             servicio = str(data.get("servicio", "")).strip()
@@ -667,15 +737,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 servicio=servicio or None,
             )
             self._send_json({"ok": True, "output": f"Se actualizo la guia {guia}."})
-            return
+            return True
 
         if self.path == "/api/guias/guardar-muchas":
-            if not self._require_admin():
-                return
             guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
             if not guias:
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
-                return
+                return True
             guardar_undo(f"edicion masiva de {len(guias)} guia(s)", REPOSITORY.snapshot_por_guias(guias))
             actualizadas = REPOSITORY.update_many_tracking_fields(
                 guias=guias,
@@ -684,48 +752,42 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 causal=str(data.get("causal", "")).strip(),
             )
             self._send_json({"ok": True, "output": f"Se actualizaron {actualizadas} guia(s)."})
-            return
+            return True
 
         if self.path == "/api/guias/exportar-marcadas":
-            if not self._require_admin():
-                return
             guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
             if not guias:
                 self._send_json({"ok": False, "output": "Marca una o varias guias para descargar."})
-                return
+                return True
             dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
             seleccion = dataframe[dataframe["GUIA"].isin(guias)]
             if seleccion.empty:
                 self._send_json({"ok": False, "output": "No se encontraron guias para exportar."})
-                return
+                return True
             archivo = export_marked_dataframe(seleccion, SETTINGS.paths.output_dir, hoy_colombia())
             self._send_json(
                 {"ok": True, "output": f"Se exportaron {len(seleccion)} guia(s).", "archivo": archivo.name}
             )
-            return
+            return True
 
         if self.path == "/api/guias/eliminar":
-            if not self._require_admin():
-                return
             guias = [normalize_guide(str(g)) for g in data.get("guias", []) if str(g).strip()]
             if not guias:
                 self._send_json({"ok": False, "output": "Indica una o varias guias."})
-                return
+                return True
             guardar_undo(f"eliminacion de {len(guias)} guia(s)", REPOSITORY.snapshot_por_guias(guias))
             eliminadas = REPOSITORY.delete_many(guias)
             registrar_auditoria(
                 self._get_session()["usuario"], "eliminar-guias", f"{eliminadas} guia(s): {guias}"
             )
             self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s)."})
-            return
+            return True
 
         if self.path == "/api/guias/eliminar-fecha":
-            if not self._require_admin():
-                return
             fecha = str(data.get("fecha", "")).strip()
             if not fecha:
                 self._send_json({"ok": False, "output": "Escribe una fecha en formato YYYY-MM-DD."})
-                return
+                return True
             guardar_undo(
                 f"eliminacion por fecha {fecha}",
                 REPOSITORY.snapshot_guias("fecha LIKE ?", (f"{fecha}%",)),
@@ -735,15 +797,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._get_session()["usuario"], "eliminar-guias-por-fecha", f"{eliminadas} guia(s), fecha={fecha}"
             )
             self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) con fecha {fecha}."})
-            return
+            return True
 
         if self.path == "/api/guias/eliminar-estado":
-            if not self._require_admin():
-                return
             estado = str(data.get("estado", "")).strip()
             if not estado:
                 self._send_json({"ok": False, "output": "Escribe un estado."})
-                return
+                return True
             guardar_undo(
                 f"eliminacion por estado {estado}",
                 REPOSITORY.snapshot_guias("estado = ?", (estado,)),
@@ -753,15 +813,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._get_session()["usuario"], "eliminar-guias-por-estado", f"{eliminadas} guia(s), estado={estado}"
             )
             self._send_json({"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) con estado '{estado}'."})
-            return
+            return True
 
         if self.path == "/api/guias/eliminar-operador":
-            if not self._require_admin():
-                return
             operador = str(data.get("operador", "")).strip()
             if not operador:
                 self._send_json({"ok": False, "output": "Escribe un operador."})
-                return
+                return True
             guardar_undo(
                 f"eliminacion por operador {operador}",
                 REPOSITORY.snapshot_guias("UPPER(TRIM(operador)) = UPPER(?)", (operador,)),
@@ -773,11 +831,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json(
                 {"ok": True, "output": f"Se eliminaron {eliminadas} guia(s) del operador '{operador}'."}
             )
-            return
+            return True
 
         if self.path == "/api/importar":
-            if not self._require_admin():
-                return
             archivos = data.get("archivos")
             if not isinstance(archivos, list):
                 archivos = str(data.get("archivo", "")).split(";")
@@ -785,16 +841,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
             fecha = str(data.get("fecha", "")).strip()
             if not archivos:
                 self._send_json({"ok": False, "output": "Indica la ruta del archivo."})
-                return
+                return True
             args = ["importar", *archivos]
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))
-            return
+            return True
 
         if self.path == "/api/exportar":
-            if not self._require_admin():
-                return
             fecha = str(data.get("fecha", "")).strip()
             estado = str(data.get("estado", "")).strip()
             args = ["exportar"]
@@ -803,23 +857,21 @@ class LauncherHandler(BaseHTTPRequestHandler):
             if estado:
                 args += ["--estado", estado]
             self._send_json(run_command(args))
-            return
+            return True
 
         if self.path == "/api/informe":
-            if not self._require_admin():
-                return
             tipo = str(data.get("tipo", ""))
             fecha = str(data.get("fecha", "")).strip()
             comando = INFORME_COMANDOS.get(tipo)
             if not comando:
                 self._send_json({"ok": False, "output": "Tipo de informe no valido."})
-                return
+                return True
             args = [comando]
             if tipo == "salidas":
                 operador = str(data.get("operador", "")).strip()
                 if not operador:
                     self._send_json({"ok": False, "output": "Indica el operador del informe de salidas."})
-                    return
+                    return True
                 args += ["--operador", operador]
             elif tipo == "operador":
                 operador = str(data.get("operador", "")).strip()
@@ -829,25 +881,23 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 mes = str(data.get("mes", "")).strip()
                 if not mes:
                     self._send_json({"ok": False, "output": "Indica el mes del informe mensual."})
-                    return
+                    return True
                 args += ["--mes", mes]
                 self._send_json(run_command(args))
-                return
+                return True
             if fecha:
                 args += ["--fecha", fecha]
             self._send_json(run_command(args))
-            return
+            return True
 
         if self.path == "/api/cierre-general":
-            if not self._require_admin():
-                return
 
             fecha_texto = str(data.get("fecha", "")).strip()
             try:
                 fecha = date.fromisoformat(fecha_texto) if fecha_texto else hoy_colombia()
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
 
             denominaciones_raw = data.get("denominaciones") or {}
             denominaciones = {
@@ -897,22 +947,20 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     },
                 }
             )
-            return
+            return True
 
         if self.path == "/api/cierre-recalcular":
-            if not self._require_admin():
-                return
 
             operador = str(data.get("operador", "")).strip()
             fecha_texto = str(data.get("fecha", "")).strip()
             if not operador or not fecha_texto:
                 self._send_json({"ok": False, "output": "Falta operador o fecha."})
-                return
+                return True
             try:
                 date.fromisoformat(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
 
             resumen = recalcular_cierre(REPOSITORY, operador, fecha_texto)
             self._send_json(
@@ -922,15 +970,19 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "resumen": resumen,
                 }
             )
-            return
+            return True
 
+        return False
+
+    def _post_sesion_y_operacion(self, data: dict) -> bool:
+        """Ingreso, usuarios y la operacion del repartidor (salidas, novedades, cierre)."""
         if self.path == "/api/operador/login":
             usuario = str(data.get("usuario", "")).strip()
             password = str(data.get("password", ""))
             operador = REPOSITORY.obtener_operador(usuario)
             if not operador or not verify_password(password, operador["password_hash"]):
                 self._send_json({"ok": False, "output": "Usuario o contrasena incorrectos."}, status=401)
-                return
+                return True
 
             vencidos = documentos_vencidos(operador)
             if vencidos:
@@ -941,7 +993,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     },
                     status=403,
                 )
-                return
+                return True
 
             # `crear_sesion` cierra por su cuenta las sesiones anteriores de
             # ese usuario, en la misma transaccion.
@@ -959,7 +1011,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 },
                 headers={"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Lax{_cookie_atributos()}"},
             )
-            return
+            return True
 
         if self.path == "/api/usuarios/crear":
             session = self._get_session()
@@ -979,27 +1031,27 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 tecnomecanica_vencimiento = _validar_fecha_opcional(data.get("tecnomecanica_vencimiento", ""))
             except ValueError:
                 self._send_json({"ok": False, "output": "Las fechas deben tener formato YYYY-MM-DD."})
-                return
+                return True
 
             if not es_admin and not primer_admin:
                 self._send_json(
                     {"ok": False, "output": "Requiere sesion de administrador."}, status=401
                 )
-                return
+                return True
             if not es_admin and primer_admin and rol != "admin":
                 self._send_json(
                     {"ok": False, "output": "Primero debes crear un usuario administrador."}
                 )
-                return
+                return True
             if not usuario or not nombre:
                 self._send_json({"ok": False, "output": "Usuario y nombre son obligatorios."})
-                return
+                return True
             if not password and not existente:
                 self._send_json({"ok": False, "output": "La contrasena es obligatoria para usuarios nuevos."})
-                return
+                return True
             if rol not in ROLES_VALIDOS:
                 self._send_json({"ok": False, "output": "Rol no valido (operador o admin)."})
-                return
+                return True
 
             password_hash = hash_password(password) if password else existente["password_hash"]
 
@@ -1012,7 +1064,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     resultado = REPOSITORY.renombrar_operador(usuario, nombre)
                 except ValueError as error:
                     self._send_json({"ok": False, "output": str(error)})
-                    return
+                    return True
                 arrastradas = sum(resultado["cambios"].values())
                 registrar_auditoria(
                     session["usuario"] if session else "bootstrap",
@@ -1046,7 +1098,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "output": f"Usuario '{usuario}' guardado con rol '{rol}'." + aviso_rename,
                 }
             )
-            return
+            return True
 
         if self.path == "/api/usuarios/eliminar":
             session = self._get_session()
@@ -1054,12 +1106,12 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json(
                     {"ok": False, "output": "Requiere sesion de administrador."}, status=401
                 )
-                return
+                return True
 
             usuario = str(data.get("usuario", "")).strip()
             if usuario == session["usuario"]:
                 self._send_json({"ok": False, "output": "No puedes eliminar tu propio usuario."})
-                return
+                return True
 
             eliminado = REPOSITORY.eliminar_operador(usuario)
             if eliminado:
@@ -1067,7 +1119,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "output": f"Usuario '{usuario}' eliminado."})
             else:
                 self._send_json({"ok": False, "output": "Usuario no encontrado."})
-            return
+            return True
 
         if self.path == "/api/operador/logout":
             token = self._session_token()
@@ -1079,13 +1131,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "Set-Cookie": f"session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{_cookie_atributos()}"
                 },
             )
-            return
+            return True
 
         if self.path == "/api/operador/salidas":
             session = self._get_session()
             if session is None:
                 self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
-                return
+                return True
 
             resultado = registrar_salidas(REPOSITORY, session["nombre"], str(data.get("guias", "")))
 
@@ -1101,7 +1153,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     ),
                     "duplicadas": resultado["duplicadas"],
                 })
-                return
+                return True
 
             salida = (
                 f"Guias recibidas: {resultado['recibidas']}. "
@@ -1116,13 +1168,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "no_encontradas": creadas,
                 "duplicadas": [],
             })
-            return
+            return True
 
         if self.path == "/api/operador/novedades":
             session = self._get_session()
             if session is None:
                 self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
-                return
+                return True
 
             fecha = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             resultado = registrar_novedades(
@@ -1146,20 +1198,20 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json(
                 {"ok": True, "output": f"Novedades registradas -> {resumen}", "errores_d": errores_d}
             )
-            return
+            return True
 
         if self.path == "/api/operador/informe-salidas":
             session = self._get_session()
             if session is None:
                 self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
-                return
+                return True
 
             fecha_texto = str(data.get("fecha", "")).strip()
             try:
                 fecha = date.fromisoformat(fecha_texto) if fecha_texto else hoy_colombia()
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
 
             ruta = generate_salidas_operador_excel(
                 REPOSITORY, SETTINGS.paths.output_dir, session["nombre"], fecha
@@ -1167,13 +1219,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
             self._send_json(
                 {"ok": True, "output": "Informe de salidas generado.", "archivo": ruta.name}
             )
-            return
+            return True
 
         if self.path == "/api/operador/cierre":
             session = self._get_session()
             if session is None:
                 self._send_json({"ok": False, "output": "Debes iniciar sesion."}, status=401)
-                return
+                return True
 
             fecha = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             bancos = value_to_number(data.get("bancos", 0))
@@ -1198,7 +1250,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 # Concepto desconocido o valor invalido: se avisa en vez de
                 # guardar un cierre con la plata mal explicada.
                 self._send_json({"ok": False, "output": str(error)})
-                return
+                return True
 
             if simular:
                 self._send_json(
@@ -1209,7 +1261,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                         "simulado": True,
                     }
                 )
-                return
+                return True
 
             ruta_entregas = generate_entregadas_operador_excel(
                 REPOSITORY,
@@ -1227,20 +1279,22 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "archivo_entregas": ruta_entregas.name,
                 }
             )
-            return
+            return True
 
+        return False
+
+    def _post_admin_cierres(self, data: dict) -> bool:
+        """Acciones de administrador sobre los cierres y el archivo mensual."""
         if self.path == "/api/admin/cierre/revertir-dia":
-            if not self._require_admin():
-                return
             fecha_texto = str(data.get("fecha", "")).strip()
             if not fecha_texto:
                 self._send_json({"ok": False, "output": "Falta la fecha."})
-                return
+                return True
             try:
                 date.fromisoformat(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             resultado = REPOSITORY.revertir_cierres_dia(fecha_texto)
             self._send_json({
                 "ok": True,
@@ -1251,21 +1305,19 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 ),
                 "resultado": resultado,
             })
-            return
+            return True
 
         if self.path == "/api/admin/cierre/revertir":
-            if not self._require_admin():
-                return
             operador = str(data.get("operador", "")).strip()
             fecha_texto = str(data.get("fecha", "")).strip()
             if not operador or not fecha_texto:
                 self._send_json({"ok": False, "output": "Faltan operador o fecha."})
-                return
+                return True
             try:
                 date.fromisoformat(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             resultado = revertir_cierre(REPOSITORY, operador, fecha_texto)
             self._send_json({
                 "ok": True,
@@ -1275,21 +1327,19 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 ),
                 "resultado": resultado,
             })
-            return
+            return True
 
         if self.path == "/api/admin/cierre/regenerar":
-            if not self._require_admin():
-                return
             operador = str(data.get("operador", "")).strip()
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             try:
                 fecha_date = date.fromisoformat(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             if not operador:
                 self._send_json({"ok": False, "output": "Falta el operador."})
-                return
+                return True
             bancos = value_to_number(data.get("bancos", 0))
             nequi = value_to_number(data.get("nequi", 0))
             envia = value_to_number(data.get("envia", 0))
@@ -1313,15 +1363,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "resumen": resumen,
                 "archivo_entregas": ruta_entregas.name,
             })
-            return
+            return True
 
         if self.path == "/api/admin/deshacer":
-            if not self._require_admin():
-                return
             global ULTIMA_MODIFICACION
             if not ULTIMA_MODIFICACION:
                 self._send_json({"ok": False, "output": "No hay ninguna modificacion para deshacer."})
-                return
+                return True
             restauradas = REPOSITORY.restaurar_guias(ULTIMA_MODIFICACION["rows"])
             descripcion = ULTIMA_MODIFICACION["descripcion"]
             ULTIMA_MODIFICACION = None
@@ -1332,11 +1380,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "ok": True,
                 "output": f"Se deshizo la {descripcion}: {restauradas} guia(s) restauradas.",
             })
-            return
+            return True
 
         if self.path == "/api/admin/cierre-dia/simular":
-            if not self._require_admin():
-                return
             dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
             entregadas = dataframe[dataframe["ESTADO"].str.strip().str.upper() == "E"]
             if entregadas.empty:
@@ -1344,7 +1390,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "ok": True,
                     "output": "Simulacion: no hay guias en estado E; el cierre del dia no moveria nada.",
                 })
-                return
+                return True
             por_operador = ", ".join(
                 f"{operador}: {int(cantidad)}"
                 for operador, cantidad in entregadas["OPERADOR"].value_counts().items()
@@ -1358,18 +1404,16 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     f"Por operador: {por_operador}."
                 ),
             })
-            return
+            return True
 
         if self.path == "/api/admin/archivar-entregadas":
-            if not self._require_admin():
-                return
             archivadas = REPOSITORY.archivar_entregadas()
             if not archivadas:
                 self._send_json({
                     "ok": False,
                     "output": "No hay guias en estado E para mover al archivo.",
                 })
-                return
+                return True
             session = self._get_session() or {}
             registrar_auditoria(
                 str(session.get("usuario", "")),
@@ -1383,15 +1427,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "trabajo hacia el archivo del mes. Consultalas en Entregas del Mes."
                 ),
             })
-            return
+            return True
 
         if self.path == "/api/admin/entregas-mes":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             entregadas = entregadas_mes_dataframe(REPOSITORY, anio, mes)
             resumen = build_entregadas_mes_resumen(entregadas)
             detalle = (
@@ -1419,15 +1461,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 ],
                 "resumen": resumen.to_dict(orient="records"),
             })
-            return
+            return True
 
         if self.path == "/api/admin/entregas-mes/eliminar":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             resultado = REPOSITORY.eliminar_entregadas_mes(anio, mes)
             total = resultado["archivo"] + resultado["zona"]
             registrar_auditoria(
@@ -1442,13 +1482,15 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     f"({resultado['archivo']} del archivo y {resultado['zona']} de la zona de trabajo)."
                 ),
             })
-            return
+            return True
 
         # ---------------- Prestamos y adelantos de nomina ----------------
 
+        return False
+
+    def _post_prestamos_y_caja(self, data: dict) -> bool:
+        """Prestamos, adelantos y el libro de caja de la oficina."""
         if self.path == "/api/prestamos":
-            if not self._require_admin():
-                return
             mes = str(data.get("mes", "")).strip()
             anio, numero_mes = _parse_mes(mes) if mes else (None, None)
             hasta = f"{anio:04d}-{numero_mes:02d}" if anio else ""
@@ -1466,34 +1508,30 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     for e in REPOSITORY.listar_empleados_nomina()
                 ],
             })
-            return
+            return True
 
         # ----------------------- Ingresos y egresos -----------------------
 
         if self.path == "/api/movimientos":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             resumen = REPOSITORY.resumen_ingresos_egresos(anio, mes)
             self._send_json({
                 "ok": True,
                 "output": f"{len(resumen['movimientos'])} movimiento(s).",
                 **resumen,
             })
-            return
+            return True
 
         if self.path == "/api/movimientos/crear":
-            if not self._require_admin():
-                return
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             try:
                 _validar_fecha_opcional(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             try:
                 movimiento_id = REPOSITORY.crear_movimiento({
                     "fecha": fecha_texto,
@@ -1506,44 +1544,40 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 })
             except ValueError as error:
                 self._send_json({"ok": False, "output": str(error)})
-                return
+                return True
             self._send_json({"ok": True, "output": f"Movimiento #{movimiento_id} registrado."})
-            return
+            return True
 
         if self.path == "/api/movimientos/eliminar":
-            if not self._require_admin():
-                return
             movimiento_id = int(value_to_number(data.get("id", 0)))
             if not REPOSITORY.eliminar_movimiento(movimiento_id):
                 self._send_json({"ok": False, "output": "No se encontro el movimiento."})
-                return
+                return True
             registrar_auditoria(
                 self._get_session()["usuario"], "eliminar-movimiento", f"#{movimiento_id}"
             )
             self._send_json({"ok": True, "output": f"Movimiento #{movimiento_id} eliminado."})
-            return
+            return True
 
         if self.path == "/api/prestamos/crear":
-            if not self._require_admin():
-                return
             empleado = str(data.get("empleado", "")).strip()
             tipo = str(data.get("tipo", "")).strip().upper()
             monto = value_to_number(data.get("monto", 0))
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             if not empleado:
                 self._send_json({"ok": False, "output": "Indica el empleado."})
-                return
+                return True
             if tipo not in TIPOS_VALIDOS:
                 self._send_json({"ok": False, "output": "El tipo debe ser PRESTAMO o ADELANTO."})
-                return
+                return True
             if monto <= 0:
                 self._send_json({"ok": False, "output": "El monto debe ser mayor a cero."})
-                return
+                return True
             try:
                 _validar_fecha_opcional(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             prestamo_id = REPOSITORY.crear_prestamo(
                 empleado=empleado,
                 tipo=tipo,
@@ -1564,20 +1598,18 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"{etiqueta} registrado para {empleado}.",
                 "id": prestamo_id,
             })
-            return
+            return True
 
         if self.path == "/api/prestamos/abonar":
-            if not self._require_admin():
-                return
             prestamo_id = int(value_to_number(data.get("prestamo_id", 0)))
             monto = value_to_number(data.get("monto", 0))
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             if not REPOSITORY.obtener_prestamo(prestamo_id):
                 self._send_json({"ok": False, "output": "No se encontro el prestamo."})
-                return
+                return True
             if monto <= 0:
                 self._send_json({"ok": False, "output": "El abono debe ser mayor a cero."})
-                return
+                return True
             REPOSITORY.registrar_abono(
                 prestamo_id, fecha_texto, monto, str(data.get("concepto", "")).strip()
             )
@@ -1585,58 +1617,54 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 self._get_session()["usuario"], "abonar-prestamo", f"#{prestamo_id} por {monto}"
             )
             self._send_json({"ok": True, "output": f"Abono registrado por $ {monto:,}".replace(",", ".")})
-            return
+            return True
 
         if self.path == "/api/prestamos/detalle":
-            if not self._require_admin():
-                return
             prestamo_id = int(value_to_number(data.get("prestamo_id", 0)))
             prestamo = REPOSITORY.obtener_prestamo(prestamo_id)
             if not prestamo:
                 self._send_json({"ok": False, "output": "No se encontro el prestamo."})
-                return
+                return True
             self._send_json({
                 "ok": True,
                 "output": "Detalle cargado.",
                 "abonos": REPOSITORY.listar_abonos(prestamo_id),
             })
-            return
+            return True
 
         if self.path == "/api/prestamos/anular":
-            if not self._require_admin():
-                return
             prestamo_id = int(value_to_number(data.get("prestamo_id", 0)))
             if not REPOSITORY.anular_prestamo(prestamo_id):
                 self._send_json({"ok": False, "output": "No se encontro el prestamo."})
-                return
+                return True
             registrar_auditoria(self._get_session()["usuario"], "anular-prestamo", f"#{prestamo_id}")
             self._send_json({"ok": True, "output": "Registro anulado."})
-            return
+            return True
 
         if self.path == "/api/prestamos/informe":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             ruta = generate_informe_prestamos_excel(REPOSITORY, SETTINGS.paths.output_dir, anio, mes)
             self._send_json({
                 "ok": True,
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
-            return
+            return True
 
         # ---------------------------- Nomina ----------------------------
 
+        return False
+
+    def _post_nomina_y_liquidaciones(self, data: dict) -> bool:
+        """Nomina, liquidaciones y datos laborales del empleado."""
         if self.path == "/api/nomina":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             periodo = f"{anio:04d}-{mes:02d}"
             liquidados = {r["empleado"]: r for r in REPOSITORY.listar_nomina(periodo)}
             empleados = []
@@ -1668,20 +1696,18 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     "liquidado": registro is not None,
                 })
             self._send_json({"ok": True, "output": f"{len(empleados)} empleado(s).", "empleados": empleados})
-            return
+            return True
 
         if self.path == "/api/nomina/liquidar":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             periodo = f"{anio:04d}-{mes:02d}"
             empleado = str(data.get("empleado", "")).strip()
             if not empleado:
                 self._send_json({"ok": False, "output": "Indica el empleado."})
-                return
+                return True
 
             descuento = data.get("descuento_prestamos")
             if descuento is None or str(descuento).strip() == "":
@@ -1706,15 +1732,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Nomina de {empleado} liquidada para {periodo}.",
                 "liquidacion": liquidacion,
             })
-            return
+            return True
 
         if self.path == "/api/nomina/informe":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             if str(data.get("formato", "excel")).strip().lower() == "pdf":
                 ruta = generate_nomina_pdf(REPOSITORY, SETTINGS.paths.output_dir, anio, mes)
             else:
@@ -1724,19 +1748,17 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
-            return
+            return True
 
         # ------------------- Liquidaciones (semanal) --------------------
 
         if self.path == "/api/liquidaciones/semana":
-            if not self._require_admin():
-                return
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             try:
                 _validar_fecha_opcional(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             semana = preparar_semana(REPOSITORY, fecha_texto)
             self._send_json({
                 "ok": True,
@@ -1746,21 +1768,19 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 ),
                 **semana,
             })
-            return
+            return True
 
         if self.path == "/api/liquidaciones/semana/guardar":
-            if not self._require_admin():
-                return
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             empleado = str(data.get("empleado", "")).strip()
             if not empleado:
                 self._send_json({"ok": False, "output": "Indica el empleado."})
-                return
+                return True
             try:
                 semana_inicio = inicio_de_semana(fecha_texto).isoformat()
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             calculo = calcular_liquidacion_semanal(
                 entregas=int(value_to_number(data.get("entregas", 0))),
                 valor_encomienda=value_to_number(data.get("valor_encomienda", 0)),
@@ -1780,17 +1800,15 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Liquidacion de {empleado} guardada para la semana del {semana_inicio}.",
                 "liquidacion": calculo,
             })
-            return
+            return True
 
         if self.path == "/api/liquidaciones/semana/informe":
-            if not self._require_admin():
-                return
             fecha_texto = str(data.get("fecha", "")).strip() or hoy_colombia().isoformat()
             try:
                 _validar_fecha_opcional(fecha_texto)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fecha invalida."})
-                return
+                return True
             ruta = generate_liquidacion_semanal_excel(
                 REPOSITORY, SETTINGS.paths.output_dir, fecha_texto
             )
@@ -1799,13 +1817,11 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
-            return
+            return True
 
         # ---------------- Liquidacion laboral definitiva ----------------
 
         if self.path == "/api/liquidaciones/laboral/calcular":
-            if not self._require_admin():
-                return
             fecha_ingreso = str(data.get("fecha_ingreso", "")).strip()
             fecha_retiro = str(data.get("fecha_retiro", "")).strip()
             try:
@@ -1813,14 +1829,14 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 _validar_fecha_opcional(fecha_retiro)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fechas invalidas."})
-                return
+                return True
             if not fecha_ingreso or not fecha_retiro:
                 self._send_json({"ok": False, "output": "Indica la fecha de ingreso y la de retiro."})
-                return
+                return True
             tipo_liquidacion = str(data.get("tipo_liquidacion", "")).strip().upper()
             if tipo_liquidacion and tipo_liquidacion not in TIPOS_LIQUIDACION:
                 self._send_json({"ok": False, "output": "Clase de liquidacion invalida."})
-                return
+                return True
             dias_prima = data.get("dias_prima")
             dias_vacaciones = data.get("dias_vacaciones")
             indemnizacion = data.get("indemnizacion")
@@ -1840,23 +1856,21 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 otros_descuentos=value_to_number(data.get("otros_descuentos", 0)),
             )
             self._send_json({"ok": True, "output": "Liquidacion calculada.", "liquidacion": calculo})
-            return
+            return True
 
         if self.path == "/api/liquidaciones/laboral/guardar":
-            if not self._require_admin():
-                return
             empleado = str(data.get("empleado", "")).strip()
             fecha_ingreso = str(data.get("fecha_ingreso", "")).strip()
             fecha_retiro = str(data.get("fecha_retiro", "")).strip()
             if not empleado or not fecha_ingreso or not fecha_retiro:
                 self._send_json({"ok": False, "output": "Indica empleado, fecha de ingreso y de retiro."})
-                return
+                return True
             try:
                 _validar_fecha_opcional(fecha_ingreso)
                 _validar_fecha_opcional(fecha_retiro)
             except ValueError:
                 self._send_json({"ok": False, "output": "Fechas invalidas."})
-                return
+                return True
             dias_prima = data.get("dias_prima")
             dias_vacaciones = data.get("dias_vacaciones")
             indemnizacion = data.get("indemnizacion")
@@ -1890,11 +1904,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "id": liquidacion_id,
                 "liquidacion": calculo,
             })
-            return
+            return True
 
         if self.path == "/api/liquidaciones/laboral":
-            if not self._require_admin():
-                return
             self._send_json({
                 "ok": True,
                 "output": "Historico cargado.",
@@ -1907,11 +1919,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     for valor, etiqueta in ETIQUETAS_LIQUIDACION.items()
                 ],
             })
-            return
+            return True
 
         if self.path == "/api/liquidaciones/laboral/informe":
-            if not self._require_admin():
-                return
             ruta = generate_liquidaciones_laborales_excel(
                 REPOSITORY, SETTINGS.paths.output_dir, str(data.get("empleado", "")).strip()
             )
@@ -1920,34 +1930,30 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
-            return
+            return True
 
         # ------------------- Datos laborales del empleado ----------------
 
         if self.path == "/api/empleados":
-            if not self._require_admin():
-                return
             self._send_json({
                 "ok": True,
                 "output": "Empleados cargados.",
                 "empleados": REPOSITORY.listar_empleados_nomina(),
             })
-            return
+            return True
 
         if self.path == "/api/empleados/guardar":
-            if not self._require_admin():
-                return
             usuario = str(data.get("usuario", "")).strip()
             tipo_contrato = str(data.get("tipo_contrato", "")).strip().upper() or CONTRATO_NOMINA
             if tipo_contrato not in CONTRATOS_VALIDOS:
                 self._send_json({"ok": False, "output": "El contrato debe ser NOMINA o SERVICIOS."})
-                return
+                return True
             for campo in ("fecha_ingreso", "fecha_retiro"):
                 try:
                     _validar_fecha_opcional(data.get(campo, ""))
                 except ValueError:
                     self._send_json({"ok": False, "output": f"La {campo.replace('_', ' ')} es invalida."})
-                    return
+                    return True
             # El nombre viaja aparte: al cambiarlo hay que arrastrar las guias,
             # los cierres, los prestamos y la nomina, que lo guardan como texto.
             aviso_rename = ""
@@ -1957,7 +1963,7 @@ class LauncherHandler(BaseHTTPRequestHandler):
                     resultado = REPOSITORY.renombrar_operador(usuario, nombre)
                 except ValueError as error:
                     self._send_json({"ok": False, "output": str(error)})
-                    return
+                    return True
                 arrastradas = sum(resultado["cambios"].values())
                 if resultado["cambios"] or resultado["nombre_anterior"].upper() != nombre:
                     registrar_auditoria(
@@ -1974,18 +1980,16 @@ class LauncherHandler(BaseHTTPRequestHandler):
 
             if not REPOSITORY.actualizar_datos_empleado(usuario, {**data, "tipo_contrato": tipo_contrato}):
                 self._send_json({"ok": False, "output": "No se encontro el empleado."})
-                return
+                return True
             registrar_auditoria(
                 self._get_session()["usuario"], "editar-empleado", f"{usuario} ({tipo_contrato})"
             )
             self._send_json(
                 {"ok": True, "output": f"Datos de {usuario} actualizados." + aviso_rename}
             )
-            return
+            return True
 
         if self.path == "/api/nomina/empleado":
-            if not self._require_admin():
-                return
             usuario = str(data.get("usuario", "")).strip()
             if not REPOSITORY.actualizar_datos_nomina_operador(
                 usuario=usuario,
@@ -1995,17 +1999,19 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 cargo=str(data.get("cargo", "")).strip(),
             ):
                 self._send_json({"ok": False, "output": "No se encontro el empleado."})
-                return
+                return True
             self._send_json({"ok": True, "output": f"Datos de nomina de {usuario} actualizados."})
-            return
+            return True
 
+        return False
+
+    def _post_informes_mensuales(self, data: dict) -> bool:
+        """Informes mensuales de administrador."""
         if self.path == "/api/admin/rendimiento-mensual":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             operador = str(data.get("operador", "")).strip()
             if operador:
                 ruta = generate_rendimiento_mensual_operador_pdf(
@@ -2020,15 +2026,13 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
-            return
+            return True
 
         if self.path == "/api/admin/entregas-mes/informe":
-            if not self._require_admin():
-                return
             anio, mes = _parse_mes(str(data.get("mes", "")))
             if anio is None:
                 self._send_json({"ok": False, "output": "Indica el mes en formato AAAA-MM."})
-                return
+                return True
             formato = str(data.get("formato", "excel")).strip().lower()
             if formato == "pdf":
                 ruta = generate_cierre_mensual_entregadas_pdf(
@@ -2043,9 +2047,10 @@ class LauncherHandler(BaseHTTPRequestHandler):
                 "output": f"Informe generado: {ruta.name}",
                 "descargas": [ruta.name],
             })
-            return
+            return True
 
-        self.send_error(404)
+        return False
+
 
     def log_message(self, format_: str, *args: object) -> None:
         pass
