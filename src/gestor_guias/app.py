@@ -417,9 +417,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """Punto de entrada de la CLI.
+
+    Acepta los argumentos para que el panel pueda ejecutar la misma orden
+    dentro de su propio proceso, en vez de arrancar un Python nuevo (que
+    costaba ~1,6 s de importaciones antes de calcular nada).
+    """
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     settings = load_settings()
 
     if args.command == "consolidar":

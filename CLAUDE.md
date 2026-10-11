@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 255 tests (18 se saltan sin Postgres; 14 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 260 tests (18 se saltan sin Postgres; 14 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -32,7 +32,7 @@ Tras un cambio de frontend hay que recargar con **Ctrl+F5**: el navegador conser
 ## Arquitectura (importante para no romper nada)
 
 - **`app.py`** es la CLI con `argparse`. Toda accion (importar, exportar, informes, operadores) es un subcomando aqui.
-- **`launcher_server.py`** es el panel web: handler HTTP (`http.server`, sin frameworks). Llama a `app.py` por `subprocess` (`run_command`) para informes/importar/exportar, e invoca directamente `operadores.py` + `repository.py` para login, salidas, novedades, cierres y acciones de admin. Las sesiones viven en la tabla `sesiones` (cookie `session`) y **sobreviven a un reinicio**: de la cookie se guarda solo el hash SHA-256, porque los respaldos salen del servidor y una copia no debe entregar sesiones vivas. Vencen a las 12 horas (`SESSION_MAX_EDAD_SEGUNDOS`), medidas contra el reloj y no con `time.monotonic()`, que se reinicia con el proceso. El hilo de respaldo barre las vencidas. Tambien arranca el hilo de respaldo periodico.
+- **`launcher_server.py`** es el panel web: handler HTTP (`http.server`, sin frameworks). `run_command` ejecuta la orden de la CLI **dentro del mismo proceso** (`app.main(args)`), no por `subprocess`: arrancar un Python nuevo costaba ~0,8 s de importaciones antes de calcular nada (0,84 s -> 0,09 s por informe, medido). Un **candado** serializa esas ordenes, porque `main()` escribe en la salida estandar, que es del proceso entero y dos informes a la vez se mezclarian el texto; se capturan `SystemExit` (argparse) y cualquier excepcion, para que un fallo llegue legible al panel en vez de tumbar el hilo. Invoca directamente `operadores.py` + `repository.py` para login, salidas, novedades, cierres y acciones de admin. Las sesiones viven en la tabla `sesiones` (cookie `session`) y **sobreviven a un reinicio**: de la cookie se guarda solo el hash SHA-256, porque los respaldos salen del servidor y una copia no debe entregar sesiones vivas. Vencen a las 12 horas (`SESSION_MAX_EDAD_SEGUNDOS`), medidas contra el reloj y no con `time.monotonic()`, que se reinicia con el proceso. El hilo de respaldo barre las vencidas. Tambien arranca el hilo de respaldo periodico.
 - **`launcher/`** es frontend estatico (HTML/CSS/JS plano, sin build). Se sirve desde `STATIC_FILES` en `launcher_server.py`; **si agregas un archivo nuevo hay que registrarlo en ese diccionario** o devuelve 404.
 - **`launcher/avisos.js`** lo cargan **todas** las pantallas del panel, antes de su propio `.js`: trae `mostrarAviso`, `mostrarLog` y `mostrarDescargas`, que antes estaban copiadas en cada archivo. **No volver a definirlas en una pagina**: se duplicarian y la ultima ganaria.
   - No hay recuadro de resultados: el mensaje sale como **aviso flotante**. Los de exito e info se van solos a los 4 segundos; los de **error se quedan** con un boton de cerrar, porque hay que poder leerlos con calma (antes ese era el papel del recuadro).
@@ -269,7 +269,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 255 tests en verde (237 corren siempre; 18 con un Postgres de pruebas y 14 con Chromium).
+- Suite de 260 tests en verde (242 corren siempre; 18 con un Postgres de pruebas y 14 con Chromium).
 
 ## Que se puede mejorar
 
@@ -282,7 +282,6 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - `launcher_server.py` supera las 1.300 lineas con toda la logica HTTP en un solo `do_POST`/`do_GET`. Separarlo por modulos (rutas de admin, operador, informes) lo haria mantenible.
 - Los tests del servidor HTTP cubren las sesiones (`test_sesiones_persistentes.py`) y el resaltado de salidas en Chromium (`test_salidas_navegador.py`); ambos levantan el panel de verdad. El resto de endpoints se prueba a mano; las regresiones del panel (403 al descargar, cierre general en cero) se habrian detectado extendiendo ese patron.
 - Archivos muertos: `launcher/zona.html`, `zona.css`, `zona.js` no estan en `STATIC_FILES` y no se sirven. `editor_gui.py` (Tkinter) quedo obsoleto tras la Zona de Trabajo web y es el unico consumidor de `generate_daily_report`.
-- `run_command` lanza un subproceso Python por cada informe; llamar a las funciones directamente seria mas rapido y daria mejores errores.
 
 **Funcionalidad**
 - Ingresos y Egresos no genera todavia un informe en Excel ni compara meses; solo se consulta en pantalla.

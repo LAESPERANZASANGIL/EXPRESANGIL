@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from contextlib import redirect_stderr, redirect_stdout
 from http.cookies import SimpleCookie
 import hashlib
+import io
 import json
 import os
 import re
 import secrets
 import ssl
-import subprocess
 import sys
 import tempfile
 import threading
@@ -72,7 +73,6 @@ from .repository import GuiaRepository
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 LAUNCHER_DIR = BASE_DIR / "launcher"
-PYTHON = sys.executable
 HOST = os.environ.get("GESTOR_GUIAS_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GESTOR_GUIAS_PORT", "8765"))
 
@@ -226,17 +226,40 @@ def registrar_auditoria(usuario: str, accion: str, detalle: str) -> None:
         archivo.write(linea)
 
 
+# Solo una orden de la CLI a la vez: `main()` escribe en la salida estandar,
+# que es del proceso entero, y dos informes simultaneos se mezclarian el texto.
+_CANDADO_COMANDOS = threading.Lock()
+
+
 def run_command(args: list[str]) -> dict:
-    result = subprocess.run(
-        [PYTHON, "-m", "gestor_guias.app", *args],
-        cwd=BASE_DIR,
-        capture_output=True,
-        text=True,
-    )
-    output = (result.stdout + result.stderr).strip() or "Listo."
+    """Ejecuta una orden de la CLI dentro de este mismo proceso.
+
+    Antes se lanzaba `python -m gestor_guias.app`, que costaba ~1,6 s de
+    arranque e importaciones antes de calcular nada, y volvia a leer la
+    configuracion y a abrir la base. Se sigue llamando a `app.main()` con los
+    mismos argumentos, para que el panel y la CLI recorran exactamente el
+    mismo camino y una no se adelante a la otra.
+    """
+    from . import app as cli
+
+    salida = io.StringIO()
+    ok = True
+    with _CANDADO_COMANDOS:
+        try:
+            with redirect_stdout(salida), redirect_stderr(salida):
+                cli.main(args)
+        except SystemExit as salida_argparse:
+            # argparse termina el proceso cuando los argumentos no sirven.
+            ok = not salida_argparse.code
+        except Exception as error:
+            ok = False
+            salida.write(f"\n{type(error).__name__}: {error}")
+            print(f"Aviso: fallo la orden {' '.join(args)}: {error}")
+
+    output = salida.getvalue().strip() or "Listo."
     archivos = re.findall(r"^.+generado:\s*(.+)$", output, re.MULTILINE)
     descargas = [Path(ruta.strip()).name for ruta in archivos if Path(ruta.strip()).suffix in {".xlsx", ".pdf"}]
-    return {"ok": result.returncode == 0, "output": output, "descargas": descargas}
+    return {"ok": ok, "output": output, "descargas": descargas}
 
 
 class LauncherHandler(BaseHTTPRequestHandler):
