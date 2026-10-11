@@ -132,7 +132,9 @@ def test_renombrar_arrastra_el_historial(repositorio: GuiaRepository) -> None:
 def test_archivar_entregadas_y_consultar_el_mes(repositorio: GuiaRepository) -> None:
     repositorio.save_consolidated(pd.DataFrame([_guia("200"), _guia("201")]))
     repositorio.crear_operador("pipe", "hash", "PIPE")
-    repositorio.update_tracking_fields("200", "PIPE", "E", "")
+    # La fecha de gestion se fija aqui: tomarla del reloj ataba la prueba al
+    # mes en que se escribio y la rompia al mes siguiente.
+    repositorio.update_tracking_fields("200", "PIPE", "E", "", "2026-09-15")
 
     archivadas = repositorio.archivar_entregadas()
 

@@ -110,20 +110,27 @@ def build_breakdown(dataframe: pd.DataFrame, column: str) -> pd.DataFrame:
     )
 
 
-def filter_by_date(dataframe: pd.DataFrame, target_date: date) -> pd.DataFrame:
-    if "F_INGRESO" not in dataframe.columns:
+# Los informes de la operacion se filtran por F_ENTREGA (el dia en que la guia
+# se gestiono), nunca por F_INGRESO (el dia en que entro por planilla). Una guia
+# puede llegar un dia y entregarse otro: filtrar por planilla le atribuye el
+# movimiento al dia equivocado y deja el informe sin cuadrar contra el cierre
+# del repartidor, que si se arma por F_ENTREGA.
+def filter_by_gestion(dataframe: pd.DataFrame, target_date: date) -> pd.DataFrame:
+    """Las guias gestionadas ESE dia (F_ENTREGA), sin importar cuando llegaron."""
+    if "F_ENTREGA" not in dataframe.columns:
         return dataframe.iloc[0:0]
 
     prefix = target_date.isoformat()
-    return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
+    return dataframe[dataframe["F_ENTREGA"].astype(str).str.startswith(prefix)]
 
 
-def filter_by_month(dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
-    if "F_INGRESO" not in dataframe.columns:
+def filter_by_gestion_mes(dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    """Las guias gestionadas en ESE mes (F_ENTREGA)."""
+    if "F_ENTREGA" not in dataframe.columns:
         return dataframe.iloc[0:0]
 
     prefix = f"{year:04d}-{month:02d}"
-    return dataframe[dataframe["F_INGRESO"].astype(str).str.startswith(prefix)]
+    return dataframe[dataframe["F_ENTREGA"].astype(str).str.startswith(prefix)]
 
 
 def build_cierre_breakdown(
@@ -211,7 +218,7 @@ def build_cierre_breakdown(
 
 
 def build_monthly_breakdown(repository: GuiaRepository, dataframe: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
-    monthly = filter_by_month(dataframe, year, month)
+    monthly = filter_by_gestion_mes(dataframe, year, month)
 
     columns = ["OPERADOR", "GASTOS", "ADELANTO_SALARIO", "GESTIONADAS", "ENTREGADAS", "UNIDADES ENTREGADAS", "EFECTIVIDAD"]
     if monthly.empty:
@@ -613,7 +620,7 @@ def generate_operator_report(
 ) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
     if target_date is not None:
-        dataframe = filter_by_date(dataframe, target_date)
+        dataframe = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f" {target_date.day:02d} {MONTHS_ES[target_date.month]}" if target_date else ""
@@ -850,7 +857,7 @@ def generate_entregadas_operador_excel(
 
 def generate_daily_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
+    daily = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"informe del dia {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"

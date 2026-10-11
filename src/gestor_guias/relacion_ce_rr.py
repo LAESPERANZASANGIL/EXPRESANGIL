@@ -7,7 +7,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from .exporter import MONTHS_ES
-from .reports import ESTADO_RECAUDO, filter_by_date, normalize_dataframe
+from .reports import ESTADO_RECAUDO, filter_by_gestion, normalize_dataframe
 from .repository import GuiaRepository
 
 
@@ -33,7 +33,7 @@ def generate_relacion_ce_rr_report(
     oficina_nombre: str = OFICINA_NOMBRE,
 ) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
+    daily = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"relacion guias ce y rr {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"

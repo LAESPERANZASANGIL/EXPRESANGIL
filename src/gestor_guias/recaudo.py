@@ -15,7 +15,7 @@ from .reports import (
     apply_report_format,
     build_breakdown,
     build_resumen_sheet,
-    filter_by_date,
+    filter_by_gestion,
     normalize_dataframe,
 )
 from .repository import GuiaRepository
@@ -39,7 +39,7 @@ COLUMNS = ["OPERADOR", "UNID", "VALOR RECAUDADO", "BANCOS", "NEQUI", "ENVIA", "G
 def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
     """Genera el INFORME DIARIO: recaudo (con cierre general) + resumen del dia en un solo Excel."""
     dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
+    daily = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"informe diario {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"

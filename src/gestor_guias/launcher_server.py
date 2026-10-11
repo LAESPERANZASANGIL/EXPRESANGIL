@@ -58,7 +58,6 @@ from .exporter import export_marked_dataframe
 from .reports import (
     build_entregadas_mes_resumen,
     entregadas_mes_dataframe,
-    filter_by_date,
     generate_cierre_mensual_entregadas_excel,
     generate_cierre_mensual_entregadas_pdf,
     generate_entregadas_operador_excel,
@@ -387,7 +386,6 @@ class LauncherHandler(BaseHTTPRequestHandler):
             ]
             valor_en_reparto = int(en_reparto["VALOR_NUMERICO"].sum())
 
-            daily = filter_by_date(dataframe, fecha)
             totales_panel = REPOSITORY.sumar_totales_cierres_dia(fecha.isoformat())
             recaudado_total = totales_panel["recaudado"]
             bancos_total = totales_panel["bancos"]
@@ -834,8 +832,9 @@ class LauncherHandler(BaseHTTPRequestHandler):
             }
 
             dataframe = normalize_dataframe(REPOSITORY.to_dataframe())
-            daily = filter_by_date(dataframe, fecha)
-            en_reparto = int((daily["ESTADO"].astype(str).str.strip().str.upper() == ESTADO_SALIDA).sum())
+            # Las guias en reparto todavia no tienen F_ENTREGA y pudieron entrar
+            # cualquier dia, asi que el aviso cuenta todas las que siguen en R.
+            en_reparto = int((dataframe["ESTADO"].astype(str).str.strip().str.upper() == ESTADO_SALIDA).sum())
 
             totales = REPOSITORY.sumar_totales_cierres_dia(fecha.isoformat())
             recaudado_total = totales["recaudado"]
