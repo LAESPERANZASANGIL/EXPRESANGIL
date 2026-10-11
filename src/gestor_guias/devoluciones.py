@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from .exporter import MONTHS_ES
-from .reports import apply_report_format, filter_by_date, normalize_dataframe
+from .reports import apply_report_format, filter_by_gestion, normalize_dataframe
 from .repository import GuiaRepository
 
 
@@ -33,7 +33,7 @@ def generate_devoluciones_report(
     repository: GuiaRepository, output_dir: Path, target_date: date
 ) -> Path:
     dataframe = normalize_dataframe(repository.to_dataframe())
-    daily = filter_by_date(dataframe, target_date)
+    daily = filter_by_gestion(dataframe, target_date)
     devoluciones = daily[daily["ESTADO"].str.upper() == ESTADO_DEVOLUCION]
     detail = devoluciones[DEVOLUCIONES_COLUMNS]
 

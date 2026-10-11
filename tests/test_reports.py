@@ -11,7 +11,7 @@ from gestor_guias.repository import GuiaRepository
 from gestor_guias.reports import (
     build_cierre_breakdown,
     build_monthly_breakdown,
-    filter_by_date,
+    filter_by_gestion,
     generate_entregadas_operador_excel,
     generate_monthly_operator_report,
     generate_operator_report,
@@ -92,14 +92,14 @@ def test_build_cierre_breakdown_incluye_cierre_sin_guias_del_dia(tmp_path: Path)
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-05 00:00:00"))
-    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.update_tracking_fields("100", "OMAR", "E", "", "2026-06-05")
 
     repository.guardar_cierre(
         fecha="2026-06-10", operador="OMAR", gestionadas=0, ro=0, n=0, d=0, e=0,
         recaudado=0, bancos=0, nequi=0, envia=0, efectivo=7_161_650,
     )
 
-    dataframe = filter_by_date(normalize_dataframe(repository.to_dataframe()), date(2026, 6, 10))
+    dataframe = filter_by_gestion(normalize_dataframe(repository.to_dataframe()), date(2026, 6, 10))
     resumen = build_cierre_breakdown(repository, dataframe, date(2026, 6, 10))
 
     assert int(resumen.set_index("OPERADOR").loc["OMAR", "EFECTIVO"]) == 7_161_650
@@ -109,7 +109,7 @@ def test_generate_operator_report_incluye_detalle_de_guias_entregadas(tmp_path: 
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-10 00:00:00"))
-    repository.update_tracking_fields("100", "OMAR", "E", "")
+    repository.update_tracking_fields("100", "OMAR", "E", "", "2026-06-10")
     repository.save_consolidated(build_dataframe_con_fecha("200", "", "", "20000", "2026-06-10 00:00:00"))
     repository.update_tracking_fields("200", "KEVIN", "R", "")
 
@@ -302,10 +302,10 @@ def test_generate_relacion_ce_rr_report(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "", "", "15000", "RR"))
-    repository.update_tracking_fields("100", "JOHAN ORTIZ", "E", "")
+    repository.update_tracking_fields("100", "JOHAN ORTIZ", "E", "", "2026-06-10")
 
     repository.save_consolidated(build_dataframe("200", "", "", "19900", "CE"))
-    repository.update_tracking_fields("200", "JOHAN ORTIZ", "E", "")
+    repository.update_tracking_fields("200", "JOHAN ORTIZ", "E", "", "2026-06-10")
 
     repository.save_consolidated(build_dataframe("300", "", "", "20000", "PT"))
     repository.update_tracking_fields("300", "JOHAN ORTIZ", "E", "")
@@ -324,10 +324,10 @@ def test_generate_relacion_ce_rr_report_resta_link_envia(tmp_path: Path) -> None
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "", "", "15000", "RR"))
-    repository.update_tracking_fields("100", "JOHAN ORTIZ", "E", "")
+    repository.update_tracking_fields("100", "JOHAN ORTIZ", "E", "", "2026-06-10")
 
     repository.save_consolidated(build_dataframe("200", "", "", "19900", "CE"))
-    repository.update_tracking_fields("200", "JOHAN ORTIZ", "E", "")
+    repository.update_tracking_fields("200", "JOHAN ORTIZ", "E", "", "2026-06-10")
 
     repository.guardar_cierre(
         fecha="2026-06-10", operador="JOHAN ORTIZ", gestionadas=2, ro=0, n=0, d=0, e=2,
@@ -361,10 +361,10 @@ def test_generate_devoluciones_report(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe("100", "", "", "10000"))
-    repository.update_tracking_fields("100", "OMAR", "D", "DIRECCION ERRADA")
+    repository.update_tracking_fields("100", "OMAR", "D", "DIRECCION ERRADA", "2026-06-10")
 
     repository.save_consolidated(build_dataframe("200", "", "", "20000"))
-    repository.update_tracking_fields("200", "OMAR", "E", "")
+    repository.update_tracking_fields("200", "OMAR", "E", "", "2026-06-10")
 
     output_path = generate_devoluciones_report(repository, tmp_path / "output", date(2026, 6, 10))
 
@@ -386,11 +386,14 @@ def test_build_monthly_breakdown_calcula_efectividad_por_operador(tmp_path: Path
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-05 00:00:00"))
-    repository.update_tracking_fields("100", "KEVIN", "E", "")
+    repository.update_tracking_fields("100", "KEVIN", "E", "", "2026-06-05")
     repository.save_consolidated(build_dataframe_con_fecha("200", "", "", "20000", "2026-06-15 00:00:00"))
-    repository.update_tracking_fields("200", "KEVIN", "R", "")
+    repository.update_tracking_fields("200", "KEVIN", "RO", "", "2026-06-15")
+    # Sigue en reparto: no se gestiono, asi que no entra al mes.
+    repository.save_consolidated(build_dataframe_con_fecha("250", "", "", "25000", "2026-06-20 00:00:00"))
+    repository.update_tracking_fields("250", "KEVIN", "R", "")
     repository.save_consolidated(build_dataframe_con_fecha("300", "", "", "30000", "2026-07-01 00:00:00"))
-    repository.update_tracking_fields("300", "KEVIN", "E", "")
+    repository.update_tracking_fields("300", "KEVIN", "E", "", "2026-07-01")
 
     repository.guardar_cierre(
         fecha="2026-06-05", operador="KEVIN", gestionadas=1, ro=0, n=0, d=0, e=1,
@@ -413,7 +416,7 @@ def test_generate_monthly_operator_report(tmp_path: Path) -> None:
     repository = GuiaRepository(tmp_path / "guias.db")
 
     repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "10000", "2026-06-05 00:00:00"))
-    repository.update_tracking_fields("100", "KEVIN", "E", "")
+    repository.update_tracking_fields("100", "KEVIN", "E", "", "2026-06-05")
 
     output_path = generate_monthly_operator_report(repository, tmp_path / "output", 2026, 6)
 
@@ -602,3 +605,82 @@ def test_informe_diario_combina_recaudo_resumen_y_cierre_general(tmp_path: Path)
     # El conteo guardado del cierre general aparece en la tabla.
     fila_100k = next(r for r in range(1, hoja_recaudo.max_row + 1) if hoja_recaudo.cell(row=r, column=1).value == 100_000)
     assert hoja_recaudo.cell(row=fila_100k, column=2).value == 2
+
+
+# ------ Los informes del dia se arman por F_ENTREGA, no por F_INGRESO ------
+# Una guia puede llegar un dia y entregarse otro. Filtrar por la fecha de
+# planilla le atribuia el movimiento al dia equivocado: el informe del dia en
+# que el repartidor trabajo salia vacio, y el dia de la importacion mostraba
+# entregas que no eran de ese dia.
+
+
+def _repo_guia_llega_un_dia_y_se_gestiona_otro(tmp_path: Path) -> GuiaRepository:
+    """Tres guias importadas el mismo dia: dos entregadas el 10, una con novedad el 11."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    for numero in ("100", "200", "300"):
+        repository.save_consolidated(
+            build_dataframe_con_fecha(numero, "", "", "50000", "2026-10-01 00:00:00")
+        )
+    repository.asignar_salida(["100", "200", "300"], "OMAR", "R")
+    repository.cerrar_dia_operador("OMAR", "2026-10-10", "R", "E")
+    repository.registrar_novedad(["300"], "OMAR", "2026-10-11", "RO")
+    return repository
+
+
+def test_el_informe_por_operador_cuenta_el_dia_en_que_se_gestiono(tmp_path: Path) -> None:
+    repository = _repo_guia_llega_un_dia_y_se_gestiona_otro(tmp_path)
+    dataframe = normalize_dataframe(repository.to_dataframe())
+
+    del_10 = build_cierre_breakdown(
+        repository, filter_by_gestion(dataframe, date(2026, 10, 10)), date(2026, 10, 10), "OMAR"
+    ).set_index("OPERADOR").loc["OMAR"]
+    assert int(del_10["GESTIONADAS"]) == 2
+    assert int(del_10["E"]) == 2
+    assert int(del_10["RO"]) == 0
+
+    del_11 = build_cierre_breakdown(
+        repository, filter_by_gestion(dataframe, date(2026, 10, 11)), date(2026, 10, 11), "OMAR"
+    ).set_index("OPERADOR").loc["OMAR"]
+    assert int(del_11["GESTIONADAS"]) == 1
+    assert int(del_11["E"]) == 0
+    assert int(del_11["RO"]) == 1
+
+    # Ninguno de los dos movimientos se le atribuye al dia de la planilla.
+    del_01 = build_cierre_breakdown(
+        repository, filter_by_gestion(dataframe, date(2026, 10, 1)), date(2026, 10, 1), "OMAR"
+    )
+    assert del_01.empty
+
+
+def test_el_informe_por_operador_cuadra_con_lo_que_dice_la_operacion(tmp_path: Path) -> None:
+    """El informe y el cierre del repartidor deben dar el mismo numero."""
+    repository = _repo_guia_llega_un_dia_y_se_gestiona_otro(tmp_path)
+    dataframe = normalize_dataframe(repository.to_dataframe())
+
+    for dia, esperadas in (("2026-10-10", 2), ("2026-10-11", 1)):
+        fecha = date.fromisoformat(dia)
+        resumen = build_cierre_breakdown(
+            repository, filter_by_gestion(dataframe, fecha), fecha, "OMAR"
+        ).set_index("OPERADOR").loc["OMAR"]
+        assert int(resumen["GESTIONADAS"]) == len(repository.guias_de_operador("OMAR", dia)) == esperadas
+
+
+def test_el_informe_diario_cuenta_el_mismo_dia_que_el_de_operador(tmp_path: Path) -> None:
+    repository = _repo_guia_llega_un_dia_y_se_gestiona_otro(tmp_path)
+
+    for dia, esperadas in ((date(2026, 10, 10), 2), (date(2026, 10, 11), 1)):
+        salida = generate_recaudo_report(repository, tmp_path / "output", dia)
+        hoja = load_workbook(salida)["RECAUDO"]
+        fila = next(fila for fila in hoja.iter_rows() if fila[0].value == "OMAR")
+        assert hoja.cell(row=fila[0].row, column=2).value == esperadas
+
+
+def test_una_guia_en_reparto_no_cuenta_como_gestionada(tmp_path: Path) -> None:
+    """Hasta que no se entrega o se le pone novedad, no tiene F_ENTREGA."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe_con_fecha("100", "", "", "50000", "2026-10-01 00:00:00"))
+    repository.asignar_salida(["100"], "OMAR", "R")
+
+    dataframe = normalize_dataframe(repository.to_dataframe())
+    assert dataframe.iloc[0]["F_ENTREGA"] == ""
+    assert filter_by_gestion(dataframe, date(2026, 10, 1)).empty

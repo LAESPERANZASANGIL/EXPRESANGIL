@@ -437,9 +437,14 @@ class GuiaRepository:
                 "SELECT * FROM guias WHERE guia = ?", (guia,)
             )
 
-    def update_tracking_fields(self, guia: str, operador: str, estado: str, causal: str) -> None:
+    def update_tracking_fields(
+        self, guia: str, operador: str, estado: str, causal: str, fecha: str | None = None
+    ) -> None:
         self.initialize()
-        entrega = fecha_entrega(estado)
+        # F_ENTREGA se sella solo para los estados de gestion: una guia que
+        # apenas sale a reparto (R) todavia no se gestiono, y marcarla como
+        # gestionada hoy la hacia contar en el informe del dia equivocado.
+        entrega = fecha_entrega(estado, fecha or hoy_colombia().isoformat())
         with transaccion(self._connect()) as connection:
             connection.execute(
                 """
@@ -447,7 +452,7 @@ class GuiaRepository:
                 SET operador = ?, estado = ?, causal = ?, ingreso = ?
                 WHERE guia = ?
                 """,
-                (operador, estado, causal, hoy_colombia().isoformat(), guia),
+                (operador, estado, causal, entrega, guia),
             )
 
     def update_guide_details(
