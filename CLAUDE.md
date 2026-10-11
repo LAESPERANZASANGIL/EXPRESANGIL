@@ -12,7 +12,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
-- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 236 tests (18 se saltan sin Postgres; 9 mas sin navegador).
+- **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 240 tests (18 se saltan sin Postgres; 9 mas sin navegador).
 - **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
@@ -111,6 +111,8 @@ Distincion critica y fuente de varios bugs pasados:
 La operacion del repartidor, los cierres **y todos los informes del dia y del mes** se filtran por **F_ENTREGA**, no por fecha de planilla: una guia puede llegar un dia y entregarse otro. La utilidad compartida es `filter_by_gestion()` / `filter_by_gestion_mes()` en `reports.py` — **no** existe ya un filtro por F_INGRESO, a proposito: filtrar por planilla dejaba el informe del dia en que el repartidor trabajo en cero y le atribuia sus entregas al dia de la importacion, sin cuadrar contra el cierre.
 
 Una guia en reparto (`R`) **todavia no se gestiono**: no tiene F_ENTREGA y no cuenta como gestionada en ningun informe, igual que en el cierre del repartidor (`gestionadas = len(guias_de_operador())`, que ya filtraba por F_ENTREGA).
+
+**Los informes leen `guias` + `guias_archivo`**, con `repository.to_dataframe_con_archivo()`. Al "Cerrar el dia" las entregadas pasan al archivo y salen de `guias`: un informe que mire solo `guias` pierde justamente las entregas y deja el cierre con efectivo recaudado pero con `E` y `RECAUDADO` en cero. `to_dataframe()` (solo las vivas) se queda para la Zona de Trabajo, la exportacion y la simulacion del cierre del dia, que si deben ver nada mas lo vivo.
 
 ## Modulos del panel web
 
@@ -261,7 +263,7 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 - Adelantos de salario del cierre y cuotas de prestamos descontados automaticamente de la nomina del mes.
 - Sesiones persistentes: un despliegue o un reinicio del VPS ya no expulsa a los usuarios a mitad de la jornada.
 - Consulta publica de guias para el cliente final, con el repartidor y su celular cuando la guia va en reparto, o la direccion de la oficina cuando sigue alli. Pagina rediseñada para el publico, legible en celular.
-- Suite de 236 tests en verde (218 corren siempre; 18 con un Postgres de pruebas y 9 con Chromium).
+- Suite de 240 tests en verde (222 corren siempre; 18 con un Postgres de pruebas y 9 con Chromium).
 
 ## Que se puede mejorar
 

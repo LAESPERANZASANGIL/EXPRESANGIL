@@ -32,7 +32,7 @@ def generate_relacion_ce_rr_report(
     admin_name: str = ADMIN_NAME,
     oficina_nombre: str = OFICINA_NOMBRE,
 ) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe())
+    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
     daily = filter_by_gestion(dataframe, target_date)
 
     output_dir.mkdir(parents=True, exist_ok=True)

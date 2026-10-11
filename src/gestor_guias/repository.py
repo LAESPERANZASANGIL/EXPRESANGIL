@@ -1810,8 +1810,39 @@ class GuiaRepository:
                 for row in rows
             }
 
+    def listar_con_archivo(self) -> list[dict]:
+        """Las guias vivas mas las archivadas, para los informes.
+
+        Al "Cerrar el dia" las entregadas pasan a `guias_archivo` y salen de
+        `guias`. Un informe que solo mire `guias` pierde justamente las
+        entregas: el cierre del repartidor sigue mostrando el efectivo, pero
+        las E aparecen en cero. Si una guia esta en ambos lados gana la de la
+        zona de trabajo, por ser la mas reciente.
+        """
+        self.initialize()
+        columnas = (
+            "guia, planilla, servicio, unid, tipo_de_servicio, destinatario, "
+            "direccion, municipio, valor, operador, estado, causal, fecha, ingreso"
+        )
+        with transaccion(self._connect()) as connection:
+            return connection.consultar(
+                f"""
+                SELECT {columnas} FROM guias
+                UNION ALL
+                SELECT {columnas} FROM guias_archivo
+                WHERE guia NOT IN (SELECT guia FROM guias)
+                ORDER BY guia
+                """
+            )
+
+    def to_dataframe_con_archivo(self) -> pd.DataFrame:
+        """Como `to_dataframe`, pero incluyendo el archivo historico."""
+        return self._filas_a_dataframe(self.listar_con_archivo())
+
     def to_dataframe(self) -> pd.DataFrame:
-        rows = self.list_all()
+        return self._filas_a_dataframe(self.list_all())
+
+    def _filas_a_dataframe(self, rows: list[dict]) -> pd.DataFrame:
         columns = [
             "PLANILLA",
             "SERVICIO",

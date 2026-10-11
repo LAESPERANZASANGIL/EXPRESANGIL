@@ -684,3 +684,76 @@ def test_una_guia_en_reparto_no_cuenta_como_gestionada(tmp_path: Path) -> None:
     dataframe = normalize_dataframe(repository.to_dataframe())
     assert dataframe.iloc[0]["F_ENTREGA"] == ""
     assert filter_by_gestion(dataframe, date(2026, 10, 1)).empty
+
+
+# ---- Archivar las entregadas no debe borrarlas de los informes del dia ----
+# "Cerrar el dia" mueve las E a guias_archivo. Un informe que solo mirara
+# guias perdia justamente las entregas: el cierre seguia mostrando el efectivo
+# recaudado, pero E y RECAUDADO salian en cero.
+
+
+def _repo_dia_con_entregas_y_novedades(tmp_path: Path) -> GuiaRepository:
+    """Once guias gestionadas el 10: ocho entregadas y tres con novedad."""
+    repository = GuiaRepository(tmp_path / "guias.db")
+    numeros = [f"{numero:03d}" for numero in range(101, 112)]
+    for numero in numeros:
+        repository.save_consolidated(
+            build_dataframe_con_fecha(numero, "", "", "100000", "2026-10-01 00:00:00")
+        )
+    repository.asignar_salida(numeros, "OMAR", "R")
+    repository.registrar_novedad(numeros[8:], "OMAR", "2026-10-10", "RO")
+    repository.cerrar_dia_operador("OMAR", "2026-10-10", "R", "E")
+    repository.guardar_cierre(
+        fecha="2026-10-10", operador="OMAR", gestionadas=11, ro=3, n=0, d=0, e=8,
+        recaudado=800_000, bancos=0, nequi=199_400, envia=0, efectivo=600_600,
+    )
+    return repository
+
+
+def _cierre_del_informe(repository: GuiaRepository, tmp_path: Path) -> pd.Series:
+    salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
+    return pd.read_excel(salida, sheet_name="CIERRE").set_index("OPERADOR").loc["OMAR"]
+
+
+def test_el_informe_del_dia_no_pierde_las_entregas_al_archivarlas(tmp_path: Path) -> None:
+    repository = _repo_dia_con_entregas_y_novedades(tmp_path)
+
+    antes = _cierre_del_informe(repository, tmp_path)
+    assert (int(antes["GESTIONADAS"]), int(antes["E"]), int(antes["RO"])) == (11, 8, 3)
+    assert int(antes["RECAUDADO"]) == 800_000
+
+    repository.archivar_entregadas()
+
+    despues = _cierre_del_informe(repository, tmp_path)
+    assert (int(despues["GESTIONADAS"]), int(despues["E"]), int(despues["RO"])) == (11, 8, 3)
+    assert int(despues["RECAUDADO"]) == 800_000
+
+
+def test_el_efectivo_del_cierre_no_queda_sin_entregas_que_lo_expliquen(tmp_path: Path) -> None:
+    """El sintoma que lo delato: efectivo recaudado con E en cero."""
+    repository = _repo_dia_con_entregas_y_novedades(tmp_path)
+    repository.archivar_entregadas()
+
+    fila = _cierre_del_informe(repository, tmp_path)
+    assert int(fila["EFECTIVO"]) > 0
+    assert int(fila["E"]) > 0
+
+
+def test_el_informe_diario_tampoco_pierde_las_archivadas(tmp_path: Path) -> None:
+    repository = _repo_dia_con_entregas_y_novedades(tmp_path)
+    repository.archivar_entregadas()
+
+    salida = generate_recaudo_report(repository, tmp_path / "output", date(2026, 10, 10))
+    hoja = load_workbook(salida)["RECAUDO"]
+    fila = next(fila for fila in hoja.iter_rows() if fila[0].value == "OMAR")
+    assert hoja.cell(row=fila[0].row, column=2).value == 11
+    assert hoja.cell(row=fila[0].row, column=3).value == 800_000
+
+
+def test_la_zona_de_trabajo_sigue_viendo_solo_las_guias_vivas(tmp_path: Path) -> None:
+    """to_dataframe no cambia: el archivo solo entra en los informes."""
+    repository = _repo_dia_con_entregas_y_novedades(tmp_path)
+    repository.archivar_entregadas()
+
+    assert len(repository.to_dataframe()) == 3
+    assert len(repository.to_dataframe_con_archivo()) == 11
