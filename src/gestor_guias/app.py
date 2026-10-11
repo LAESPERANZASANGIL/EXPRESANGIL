@@ -119,16 +119,7 @@ def report_by_operator(target_date: date | None, operador: str = "") -> Path:
 
 
 def report_of_day(target_date: date) -> Path:
-    # El informe del dia y el de recaudo salen juntos en un solo archivo
-    # "informe diario", generado por generate_recaudo_report.
-    settings = load_settings()
-    repository = GuiaRepository(settings.paths.database_file)
-    output_path = generate_recaudo_report(repository, settings.paths.output_dir, target_date)
-    print(f"Informe generado: {output_path}")
-    return output_path
-
-
-def report_of_recaudo(target_date: date) -> Path:
+    """El informe diario: recaudo y resumen del dia en un solo archivo."""
     settings = load_settings()
     repository = GuiaRepository(settings.paths.database_file)
     output_path = generate_recaudo_report(repository, settings.paths.output_dir, target_date)
@@ -181,15 +172,6 @@ def report_monthly_by_operator(year: int, month: int) -> Path:
     print(f"Informe generado: {output_path}")
     return output_path
 
-
-def open_editor() -> None:
-    # Import perezoso: tkinter solo esta disponible/es necesario en uso local
-    # de escritorio, no en el servidor donde corre el panel web.
-    from .editor_gui import run_editor
-
-    settings = load_settings()
-    repository = GuiaRepository(settings.paths.database_file)
-    run_editor(repository, settings.paths.output_dir, settings.oficina)
 
 
 def operador_crear(usuario: str, password: str, nombre: str, rol: str = "operador") -> None:
@@ -336,20 +318,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--fecha", help="Fecha de cierre a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
+    # "informe diario" unifica recaudo e informe del dia en un solo archivo.
+    # Antes habia dos subcomandos que generaban exactamente el mismo Excel.
     daily_report_parser = subparsers.add_parser(
         "informe-dia",
-        help="Genera el informe del dia a partir de las guias guardadas",
+        help="Genera el informe diario (recaudo + resumen del dia) en un solo Excel",
     )
     daily_report_parser.add_argument(
-        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
-    )
-
-    recaudo_report_parser = subparsers.add_parser(
-        "informe-recaudo",
-        help="Genera el informe de recaudo diario a partir de las guias guardadas",
-    )
-    recaudo_report_parser.add_argument(
-        "--fecha", help="Fecha de planilla a consultar en formato YYYY-MM-DD (por defecto hoy)"
+        "--fecha", help="Fecha a consultar en formato YYYY-MM-DD (por defecto hoy)"
     )
 
     relacion_ce_rr_parser = subparsers.add_parser(
@@ -374,7 +350,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     monthly_report_parser.add_argument("--mes", required=True, help="Mes a consultar en formato YYYY-MM")
 
-    subparsers.add_parser("editar", help="Abre la interfaz para editar operador, estado y causal")
 
     operador_crear_parser = subparsers.add_parser(
         "operador-crear",
@@ -449,8 +424,6 @@ def main(argv: list[str] | None = None) -> None:
         report_of_entregas_operador(args.operador, fecha)
     elif args.command == "informe-dia":
         report_of_day(parse_date(args.fecha, settings.gmail.timezone))
-    elif args.command == "informe-recaudo":
-        report_of_recaudo(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-relacion-ce-rr":
         report_relacion_ce_rr(parse_date(args.fecha, settings.gmail.timezone))
     elif args.command == "informe-devoluciones":
@@ -458,8 +431,6 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "informe-mensual":
         anio, mes = (int(parte) for parte in args.mes.split("-"))
         report_monthly_by_operator(anio, mes)
-    elif args.command == "editar":
-        open_editor()
     elif args.command == "operador-crear":
         operador_crear(args.usuario, args.password, args.nombre, args.rol)
     elif args.command == "operador-listar":

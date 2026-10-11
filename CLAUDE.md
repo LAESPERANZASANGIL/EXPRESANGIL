@@ -13,7 +13,7 @@ Gestor diario de guias de la oficina de Envia (Colvanes) en San Gil. Importa pla
 - **Entorno local**: Windows + PowerShell. El interprete vive en `.venv\Scripts\python.exe`.
 - **Setup inicial**: doble clic en `INICIAR_GESTOR.bat` (crea `.venv`, instala con `pip install -e .`, copia `settings.toml`). Manual: `pip install -e ".[dev]"`.
 - **Tests**: `.venv\Scripts\python.exe -m pytest` (config en `pyproject.toml`: `pythonpath=["src"]`, `testpaths=["tests"]`). Hoy son 260 tests (18 se saltan sin Postgres; 14 mas sin navegador).
-- **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-recaudo`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `editar`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
+- **CLI**: `python -m gestor_guias.app <comando>` — la fachada de negocio. Comandos: `consolidar`, `importar`, `procesar-archivos`, `exportar`, `informes`, `borrar-datos`, `informe-operador`, `informe-salidas`, `informe-entregas`, `informe-dia`, `informe-relacion-ce-rr`, `informe-devoluciones`, `informe-mensual`, `operador-crear`, `operador-listar`, `operador-eliminar`, `respaldo-externo`, `migrar-a-supabase`.
 - **Panel web**: `PANEL.bat` -> `python -m gestor_guias.launcher_server` -> `http://127.0.0.1:8765/`.
 
 ### Despliegue en el VPS (manual, por SSH)
@@ -153,7 +153,7 @@ Una guia en reparto (`R`) **todavia no se gestiono**: no tiene F_ENTREGA y no cu
 
 ## Informes
 
-- **`informe diario dd mes.xlsx`**: unifica recaudo e informe del dia. Hojas: `RECAUDO` (por operador, con la tabla del cierre general y el resumen de verificacion), `RESUMEN`, `POR ESTADO`, `POR MUNICIPIO`, `POR OPERADOR` (solo guias `E`) y `DETALLE`. Lo generan tanto `informe-dia` como `informe-recaudo`.
+- **`informe diario dd mes.xlsx`**: unifica recaudo e informe del dia. Hojas: `RECAUDO` (por operador, con la tabla del cierre general y el resumen de verificacion), `RESUMEN`, `POR ESTADO`, `POR MUNICIPIO`, `POR OPERADOR` (solo guias `E`) y `DETALLE`. Lo genera `informe-dia`; antes habia dos subcomandos (`informe-dia` e `informe-recaudo`) que producian exactamente el mismo archivo.
 - **`entregas {operador} dd mes.xlsx`**: hojas `ENTREGAS`, `NOVEDADES` (RO/N/D con causal) y `CIERRE`.
 - **El cierre guardado contra las guias de hoy**: `cierres_operador` guarda los contadores del cierre que firmo el repartidor, pero los informes **vuelven a contar** las guias. Si despues de cerrar alguien corrige una guia en la Zona de Trabajo, la fila se contradice sola: el recaudado baja y el **efectivo no**, porque ese si sale del cierre guardado. **No se elige cual manda** — el dinero entregado es un hecho y la correccion tambien —: `desfase_con_el_cierre()` detecta la diferencia y se avisa, que es lo que faltaba. La hoja `CIERRE` muestra un bloque rojo con lo que decia el cierre y lo que dicen las guias hoy; el informe diario marca al operador en rojo con una nota al pie. El remedio es **regenerar el cierre** desde la Zona de Trabajo (`recalcular_cierre`), y hay un test que comprueba que eso apaga el aviso.
 - **Hoja `CIERRE`** (la comparten `informe por operador` y `entregas {operador}`, por `build_cierre_vertical`): va **en vertical**, una etiqueta por fila, como el papel con el que se cuadra la caja; en horizontal tocaba desplazarse para ver el final. Secciones: cabecera con fecha y operador, **MOVIMIENTO DEL DIA** (gestionadas, RO, N, D, E, unidades, recaudado), **FORMAS DE PAGO Y DESCUENTOS** (bancos, Nequi, link Envia, gastos **con su desglose por concepto** en cursiva, adelanto, efectivo a entregar) y **CONTEO DE EFECTIVO EN CAJA** (las once denominaciones, total contado y **diferencia**, en verde si cuadra y en rojo si falta o sobra). En el informe por operador se escribe un bloque por operador, uno debajo del otro.
@@ -281,7 +281,6 @@ Para recuperar una base danada: elegir el respaldo sano mas reciente (`PRAGMA qu
 **Calidad de codigo**
 - `launcher_server.py` supera las 1.300 lineas con toda la logica HTTP en un solo `do_POST`/`do_GET`. Separarlo por modulos (rutas de admin, operador, informes) lo haria mantenible.
 - Los tests del servidor HTTP cubren las sesiones (`test_sesiones_persistentes.py`) y el resaltado de salidas en Chromium (`test_salidas_navegador.py`); ambos levantan el panel de verdad. El resto de endpoints se prueba a mano; las regresiones del panel (403 al descargar, cierre general en cero) se habrian detectado extendiendo ese patron.
-- Archivos muertos: `launcher/zona.html`, `zona.css`, `zona.js` no estan en `STATIC_FILES` y no se sirven. `editor_gui.py` (Tkinter) quedo obsoleto tras la Zona de Trabajo web y es el unico consumidor de `generate_daily_report`.
 
 **Funcionalidad**
 - Ingresos y Egresos no genera todavia un informe en Excel ni compara meses; solo se consulta en pantalla.
