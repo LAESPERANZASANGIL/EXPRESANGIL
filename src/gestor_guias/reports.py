@@ -625,6 +625,7 @@ CIERRE_AZUL_MEDIO = PatternFill(fill_type="solid", fgColor="2E75B6")
 CIERRE_GRIS = PatternFill(fill_type="solid", fgColor="F2F2F2")
 CIERRE_VERDE = PatternFill(fill_type="solid", fgColor="E2EFDA")
 CIERRE_ROJO = PatternFill(fill_type="solid", fgColor="FBE4E4")
+CIERRE_AZUL_ROJO = PatternFill(fill_type="solid", fgColor="B71C1C")
 CIERRE_TITULO_FONT = Font(bold=True, size=14, color="FFFFFF")
 CIERRE_SECCION_FONT = Font(bold=True, size=11, color="FFFFFF")
 CIERRE_ETIQUETA_FONT = Font(bold=True)
@@ -636,6 +637,58 @@ MONEDA = '"$" #,##0'
 
 # Columnas de la hoja: etiqueta, cantidad, valor.
 CIERRE_ANCHOS = (("A", 34), ("B", 14), ("C", 18))
+
+
+# ------------------ Cierre guardado contra guias de hoy ---------------------
+# El cierre que firmo el repartidor queda guardado en `cierres_operador`, pero
+# el informe vuelve a contar las guias. Si despues del cierre alguien corrige
+# una guia en la Zona de Trabajo, las dos cuentas dejan de coincidir y la fila
+# del informe se contradice sola: el recaudado baja y el efectivo, que sale del
+# cierre guardado, se queda como estaba. Aqui no se elige cual manda (el dinero
+# entregado es un hecho y las correcciones tambien): se detecta y se avisa, que
+# es lo que faltaba. El remedio esta en la Zona de Trabajo: regenerar el cierre.
+
+# Que se compara, y como se llama en el aviso.
+CAMPOS_COTEJADOS = (
+    ("gestionadas", "GESTIONADAS", "guias gestionadas"),
+    ("ro", "RO", "RO"),
+    ("n", "N", "N"),
+    ("d", "D", "D"),
+    ("e", "E", "entregadas"),
+    ("recaudado", "RECAUDADO", "recaudado"),
+)
+
+# De los cotejados, el unico que es dinero: se pinta con formato de moneda.
+CAMPOS_COTEJADOS_MONEDA = {"recaudado"}
+
+
+def desfase_con_el_cierre(cierre: dict | None, registro, solo: tuple[str, ...] = ()) -> list[dict]:
+    """Las diferencias entre el cierre guardado y lo que dicen las guias hoy.
+
+    `solo` limita la comparacion a esas columnas, para las hojas que no traen
+    todos los contadores: comparar contra una columna que no existe la leeria
+    como cero y marcaria un desfase que no es.
+    """
+    if not cierre:
+        return []
+
+    diferencias = []
+    for clave, columna, etiqueta in CAMPOS_COTEJADOS:
+        if solo and columna not in solo:
+            continue
+        try:
+            guardado = int(cierre.get(clave, 0) or 0)
+            ahora = int(registro.get(columna, 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if guardado != ahora:
+            diferencias.append({
+                "etiqueta": etiqueta,
+                "guardado": guardado,
+                "ahora": ahora,
+                "moneda": clave in CAMPOS_COTEJADOS_MONEDA,
+            })
+    return diferencias
 
 
 def _cierre_titulo(worksheet, fila: int, texto: str, relleno, fuente) -> int:
@@ -674,11 +727,67 @@ def _cierre_dato(worksheet, fila: int, etiqueta: str, valor, *, moneda: bool = F
     return fila + 1
 
 
-def build_cierre_vertical(worksheet, fila: int, resumen: dict, gastos_detalle: list[dict] | None = None) -> int:
+def _cierre_aviso_desfase(worksheet, fila: int, desfase: list[dict] | None) -> int:
+    """Avisa, dentro de la hoja, que el cierre guardado ya no dice lo mismo."""
+    if not desfase:
+        return fila
+
+    fila += 1
+    fila = _cierre_titulo(
+        worksheet, fila, "ATENCION: EL CIERRE GUARDADO NO COINCIDE", CIERRE_AZUL_ROJO, CIERRE_SECCION_FONT
+    )
+    for columna, encabezado in enumerate(("CONCEPTO", "EN EL CIERRE", "HOY"), start=1):
+        celda = worksheet.cell(row=fila, column=columna, value=encabezado)
+        celda.font = CIERRE_ETIQUETA_FONT
+        celda.fill = CIERRE_ROJO
+        celda.border = CIERRE_BORDE
+        celda.alignment = Alignment(horizontal="center")
+    fila += 1
+
+    for diferencia in desfase:
+        for columna, valor in enumerate(
+            (diferencia["etiqueta"], diferencia["guardado"], diferencia["ahora"]), start=1
+        ):
+            celda = worksheet.cell(row=fila, column=columna, value=valor)
+            celda.fill = CIERRE_ROJO
+            celda.font = CIERRE_ALERTA_FONT
+            celda.border = CIERRE_BORDE
+            if columna > 1:
+                celda.alignment = Alignment(horizontal="center")
+                if diferencia.get("moneda"):
+                    celda.number_format = MONEDA
+        fila += 1
+
+    worksheet.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=3)
+    nota = worksheet.cell(
+        row=fila,
+        column=1,
+        value=(
+            "Una guia cambio despues de cerrar el dia. Las cifras de abajo salen de las "
+            "guias de hoy, pero el dinero sale del cierre guardado, asi que la caja puede "
+            "no cuadrar. Para dejarlo parejo: Zona de Trabajo -> regenerar el cierre."
+        ),
+    )
+    nota.fill = CIERRE_ROJO
+    nota.font = Font(italic=True, color="B71C1C")
+    nota.alignment = Alignment(wrap_text=True, vertical="top")
+    nota.border = CIERRE_BORDE
+    worksheet.row_dimensions[fila].height = 46
+    return fila + 1
+
+
+def build_cierre_vertical(
+    worksheet,
+    fila: int,
+    resumen: dict,
+    gastos_detalle: list[dict] | None = None,
+    desfase: list[dict] | None = None,
+) -> int:
     """Escribe el cierre de un operador de arriba hacia abajo y devuelve la fila siguiente."""
     fila = _cierre_titulo(worksheet, fila, "CIERRE DEL DIA", CIERRE_AZUL_OSCURO, CIERRE_TITULO_FONT)
     fila = _cierre_dato(worksheet, fila, "FECHA", resumen.get("fecha", ""))
     fila = _cierre_dato(worksheet, fila, "OPERADOR", resumen.get("operador", ""))
+    fila = _cierre_aviso_desfase(worksheet, fila, desfase)
     fila += 1
 
     fila = _cierre_titulo(worksheet, fila, "MOVIMIENTO DEL DIA", CIERRE_AZUL_MEDIO, CIERRE_SECCION_FONT)
@@ -798,7 +907,13 @@ def escribir_hoja_cierre(worksheet, repository: GuiaRepository, summary: pd.Data
                 for columna, denominacion in columnas_billetes.items()
             },
         }
-        fila = build_cierre_vertical(worksheet, fila, resumen, (cierre or {}).get("gastos_detalle"))
+        fila = build_cierre_vertical(
+            worksheet,
+            fila,
+            resumen,
+            (cierre or {}).get("gastos_detalle"),
+            desfase_con_el_cierre(cierre, registro),
+        )
 
 
 def generate_operator_report(
