@@ -710,22 +710,36 @@ def _repo_dia_con_entregas_y_novedades(tmp_path: Path) -> GuiaRepository:
     return repository
 
 
-def _cierre_del_informe(repository: GuiaRepository, tmp_path: Path) -> pd.Series:
+def _cierre_del_informe(repository: GuiaRepository, tmp_path: Path) -> dict:
+    """La hoja CIERRE es vertical: se lee como pares etiqueta -> valor."""
     salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
-    return pd.read_excel(salida, sheet_name="CIERRE").set_index("OPERADOR").loc["OMAR"]
+    hoja = load_workbook(salida)["CIERRE"]
+    return {
+        str(fila[0].value).strip(): fila[2].value
+        for fila in hoja.iter_rows(min_row=1, max_row=hoja.max_row, max_col=3)
+        if fila[0].value is not None and fila[2].value is not None
+    }
 
 
 def test_el_informe_del_dia_no_pierde_las_entregas_al_archivarlas(tmp_path: Path) -> None:
     repository = _repo_dia_con_entregas_y_novedades(tmp_path)
 
     antes = _cierre_del_informe(repository, tmp_path)
-    assert (int(antes["GESTIONADAS"]), int(antes["E"]), int(antes["RO"])) == (11, 8, 3)
+    assert (
+        int(antes["GUIAS GESTIONADAS"]),
+        int(antes["ENTREGADAS (E)"]),
+        int(antes["RECLAMA OFICINA (RO)"]),
+    ) == (11, 8, 3)
     assert int(antes["RECAUDADO"]) == 800_000
 
     repository.archivar_entregadas()
 
     despues = _cierre_del_informe(repository, tmp_path)
-    assert (int(despues["GESTIONADAS"]), int(despues["E"]), int(despues["RO"])) == (11, 8, 3)
+    assert (
+        int(despues["GUIAS GESTIONADAS"]),
+        int(despues["ENTREGADAS (E)"]),
+        int(despues["RECLAMA OFICINA (RO)"]),
+    ) == (11, 8, 3)
     assert int(despues["RECAUDADO"]) == 800_000
 
 
@@ -735,8 +749,8 @@ def test_el_efectivo_del_cierre_no_queda_sin_entregas_que_lo_expliquen(tmp_path:
     repository.archivar_entregadas()
 
     fila = _cierre_del_informe(repository, tmp_path)
-    assert int(fila["EFECTIVO"]) > 0
-    assert int(fila["E"]) > 0
+    assert int(fila["EFECTIVO A ENTREGAR"]) > 0
+    assert int(fila["ENTREGADAS (E)"]) > 0
 
 
 def test_el_informe_diario_tampoco_pierde_las_archivadas(tmp_path: Path) -> None:
@@ -757,3 +771,85 @@ def test_la_zona_de_trabajo_sigue_viendo_solo_las_guias_vivas(tmp_path: Path) ->
 
     assert len(repository.to_dataframe()) == 3
     assert len(repository.to_dataframe_con_archivo()) == 11
+
+
+# ----------------- La hoja CIERRE es vertical y con secciones -----------------
+
+
+def _hoja_cierre(tmp_path: Path):
+    repository = GuiaRepository(tmp_path / "guias.db")
+    numeros = [f"{numero:03d}" for numero in range(201, 204)]
+    for numero in numeros:
+        repository.save_consolidated(
+            build_dataframe_con_fecha(numero, "", "", "100000", "2026-10-01 00:00:00")
+        )
+    repository.asignar_salida(numeros, "OMAR", "R")
+    repository.cerrar_dia_operador("OMAR", "2026-10-10", "R", "E")
+    repository.guardar_cierre(
+        fecha="2026-10-10", operador="OMAR", gestionadas=3, ro=0, n=0, d=0, e=3,
+        recaudado=300_000, bancos=0, nequi=50_000, envia=0, efectivo=205_000, gastos=45_000,
+        denominaciones={100_000: 2, 5_000: 1},
+        gastos_detalle=[
+            {"concepto": "COMBUSTIBLE VAN", "valor": 30_000},
+            {"concepto": "RESTAURANTE", "valor": 15_000},
+        ],
+    )
+    salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
+    return load_workbook(salida)["CIERRE"]
+
+
+def _etiquetas(hoja) -> list[str]:
+    return [
+        str(fila[0].value).strip()
+        for fila in hoja.iter_rows(min_row=1, max_row=hoja.max_row, max_col=1)
+        if fila[0].value is not None
+    ]
+
+
+def test_la_hoja_cierre_va_en_vertical_con_sus_secciones(tmp_path: Path) -> None:
+    etiquetas = _etiquetas(_hoja_cierre(tmp_path))
+
+    for titulo in (
+        "CIERRE DEL DIA",
+        "MOVIMIENTO DEL DIA",
+        "FORMAS DE PAGO Y DESCUENTOS",
+        "CONTEO DE EFECTIVO EN CAJA",
+    ):
+        assert titulo in etiquetas
+
+    # Las secciones van en ese orden, de arriba hacia abajo.
+    assert etiquetas.index("MOVIMIENTO DEL DIA") < etiquetas.index("FORMAS DE PAGO Y DESCUENTOS")
+    assert etiquetas.index("FORMAS DE PAGO Y DESCUENTOS") < etiquetas.index("CONTEO DE EFECTIVO EN CAJA")
+
+
+def test_la_hoja_cierre_desglosa_los_gastos_por_concepto(tmp_path: Path) -> None:
+    etiquetas = [texto.strip() for texto in _etiquetas(_hoja_cierre(tmp_path))]
+    assert "COMBUSTIBLE VAN" in etiquetas
+    assert "RESTAURANTE" in etiquetas
+
+
+def test_la_hoja_cierre_avisa_la_diferencia_de_caja(tmp_path: Path) -> None:
+    """Contado 205.000 contra 205.000 esperados: cuadra."""
+    hoja = _hoja_cierre(tmp_path)
+    valores = {
+        str(fila[0].value).strip(): fila[2].value
+        for fila in hoja.iter_rows(min_row=1, max_row=hoja.max_row, max_col=3)
+        if fila[0].value is not None and fila[2].value is not None
+    }
+    assert valores["TOTAL CONTADO"] == 205_000
+    assert valores["DIFERENCIA (CUADRA)"] == 0
+
+
+def test_la_hoja_cierre_marca_cuando_la_caja_no_cuadra(tmp_path: Path) -> None:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    repository.save_consolidated(build_dataframe_con_fecha("301", "", "", "100000", "2026-10-01 00:00:00"))
+    repository.asignar_salida(["301"], "OMAR", "R")
+    repository.cerrar_dia_operador("OMAR", "2026-10-10", "R", "E")
+    repository.guardar_cierre(
+        fecha="2026-10-10", operador="OMAR", gestionadas=1, ro=0, n=0, d=0, e=1,
+        recaudado=100_000, bancos=0, nequi=0, envia=0, efectivo=100_000,
+        denominaciones={50_000: 1},
+    )
+    salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
+    etiquetas = _etiquetas(load_workbook(salida)["CIERRE"])
+    assert "DIFERENCIA (FALTA)" in etiquetas
