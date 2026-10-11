@@ -15,6 +15,7 @@ from .reports import (
     apply_report_format,
     build_breakdown,
     build_resumen_sheet,
+    desfase_con_el_cierre,
     filter_by_gestion,
     normalize_dataframe,
 )
@@ -97,8 +98,10 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     first_data_row = header_row + 1
     row_index = first_data_row
 
+    operadores_desfasados = []
     for operador in operators:
-        sheet.cell(row=row_index, column=1, value=operador).border = THIN_BORDER
+        celda_operador = sheet.cell(row=row_index, column=1, value=operador)
+        celda_operador.border = THIN_BORDER
         sheet.cell(row=row_index, column=2, value=int(totals.get(operador, 0))).border = THIN_BORDER
 
         valor_recaudado_cell = sheet.cell(row=row_index, column=3, value=int(recaudo.get(operador, 0)))
@@ -106,6 +109,19 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
         valor_recaudado_cell.border = THIN_BORDER
 
         cierre = repository.obtener_cierre(target_date.isoformat(), operador)
+
+        # Las unidades y el recaudado se recuentan de las guias, pero el dinero
+        # sale del cierre guardado: si alguien corrigio una guia despues de
+        # cerrar, la fila no cuadra consigo misma. Se marca en rojo en vez de
+        # dejar que pase inadvertido.
+        fila_actual = {
+            "GESTIONADAS": int(totals.get(operador, 0)),
+            "RECAUDADO": int(recaudo.get(operador, 0)),
+        }
+        if desfase_con_el_cierre(cierre, fila_actual, solo=("GESTIONADAS", "RECAUDADO")):
+            celda_operador.font = WARNING_FONT
+            valor_recaudado_cell.font = WARNING_FONT
+            operadores_desfasados.append(operador)
         valores_cierre = (
             (cierre.get("bancos", 0), cierre.get("nequi", 0), cierre.get("envia", 0),
              cierre.get("gastos", 0), cierre.get("adelanto_salario", 0))
@@ -250,6 +266,26 @@ def generate_recaudo_report(repository: GuiaRepository, output_dir: Path, target
     subtotal_total.fill = HEADER_FILL
     subtotal_total.font = HEADER_FONT
     subtotal_total.number_format = CURRENCY_FORMAT
+
+    # Los operadores marcados en rojo arriba necesitan explicacion: sin ella la
+    # cifra se ve rara y nadie sabe que hacer.
+    if operadores_desfasados:
+        fila_nota = subtotal_row + 2
+        sheet.merge_cells(start_row=fila_nota, start_column=1, end_row=fila_nota, end_column=last_column)
+        nota = sheet.cell(
+            row=fila_nota,
+            column=1,
+            value=(
+                "En rojo: "
+                + ", ".join(operadores_desfasados)
+                + ". Una guia cambio despues de cerrar el dia, asi que las unidades y el "
+                "recaudado ya no son los del cierre guardado, de donde sale el dinero. "
+                "Para dejarlo parejo: Zona de Trabajo -> regenerar el cierre."
+            ),
+        )
+        nota.font = WARNING_FONT
+        nota.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        sheet.row_dimensions[fila_nota].height = 32
 
     widths = {"A": 28, "B": 12, "C": 18, "D": 14, "E": 14, "F": 14, "G": 14, "H": 18, "I": 16}
     for column_letter, width in widths.items():

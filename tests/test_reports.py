@@ -853,3 +853,121 @@ def test_la_hoja_cierre_marca_cuando_la_caja_no_cuadra(tmp_path: Path) -> None:
     salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
     etiquetas = _etiquetas(load_workbook(salida)["CIERRE"])
     assert "DIFERENCIA (FALTA)" in etiquetas
+
+
+# --------- El cierre guardado contra las guias de hoy: avisar el desfase ------
+# El cierre que firmo el repartidor queda guardado, pero el informe vuelve a
+# contar las guias. Si despues del cierre se corrige una guia en la Zona de
+# Trabajo, la fila del informe se contradice sola: el recaudado baja y el
+# efectivo, que sale del cierre guardado, se queda como estaba. Antes eso
+# pasaba en silencio.
+
+
+def _repo_cerrado_el_diez(tmp_path: Path) -> GuiaRepository:
+    repository = GuiaRepository(tmp_path / "guias.db")
+    numeros = [f"{numero:03d}" for numero in range(401, 406)]
+    for numero in numeros:
+        repository.save_consolidated(
+            build_dataframe_con_fecha(numero, "", "", "100000", "2026-10-01 00:00:00")
+        )
+    repository.asignar_salida(numeros, "OMAR", "R")
+    repository.cerrar_dia_operador("OMAR", "2026-10-10", "R", "E")
+    repository.guardar_cierre(
+        fecha="2026-10-10", operador="OMAR", gestionadas=5, ro=0, n=0, d=0, e=5,
+        recaudado=500_000, bancos=0, nequi=0, envia=0, efectivo=500_000,
+        denominaciones={100_000: 5},
+    )
+    return repository
+
+
+def _corregir_una_guia(repository: GuiaRepository) -> None:
+    """El admin repara en la Zona de Trabajo: no era entregada, era devolucion."""
+    repository.update_guide_details(
+        "401", "1", "Persona", "", "SAN GIL", "100000", "OMAR", "D", "03"
+    )
+
+
+def _etiquetas_cierre(tmp_path: Path, repository: GuiaRepository) -> list[str]:
+    salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
+    hoja = load_workbook(salida)["CIERRE"]
+    return [
+        str(fila[0].value).strip()
+        for fila in hoja.iter_rows(min_row=1, max_row=hoja.max_row, max_col=1)
+        if fila[0].value is not None
+    ]
+
+
+def test_sin_cambios_el_informe_no_inventa_un_desfase(tmp_path: Path) -> None:
+    repository = _repo_cerrado_el_diez(tmp_path)
+    assert "ATENCION: EL CIERRE GUARDADO NO COINCIDE" not in _etiquetas_cierre(tmp_path, repository)
+
+
+def test_corregir_una_guia_despues_de_cerrar_queda_avisado(tmp_path: Path) -> None:
+    repository = _repo_cerrado_el_diez(tmp_path)
+    _corregir_una_guia(repository)
+
+    etiquetas = _etiquetas_cierre(tmp_path, repository)
+    assert "ATENCION: EL CIERRE GUARDADO NO COINCIDE" in etiquetas
+    # Y dice exactamente que cambio, no solo que algo cambio.
+    assert "entregadas" in etiquetas
+    assert "recaudado" in etiquetas
+
+
+def test_el_aviso_nombra_el_valor_de_antes_y_el_de_ahora(tmp_path: Path) -> None:
+    repository = _repo_cerrado_el_diez(tmp_path)
+    _corregir_una_guia(repository)
+
+    salida = generate_operator_report(repository, tmp_path / "output", date(2026, 10, 10), "OMAR")
+    hoja = load_workbook(salida)["CIERRE"]
+    filas = {
+        str(fila[0].value).strip(): (fila[1].value, fila[2].value)
+        for fila in hoja.iter_rows(min_row=1, max_row=hoja.max_row, max_col=3)
+        if fila[0].value is not None
+    }
+    assert filas["entregadas"] == (5, 4)
+    assert filas["recaudado"] == (500_000, 400_000)
+
+
+def test_el_informe_diario_marca_al_operador_desfasado(tmp_path: Path) -> None:
+    repository = _repo_cerrado_el_diez(tmp_path)
+    _corregir_una_guia(repository)
+
+    salida = generate_recaudo_report(repository, tmp_path / "output", date(2026, 10, 10))
+    hoja = load_workbook(salida)["RECAUDO"]
+    fila = next(fila for fila in hoja.iter_rows() if fila[0].value == "OMAR")
+    assert "C00000" in str(fila[0].font.color.rgb)
+
+    notas = [
+        str(celda.value)
+        for fila in hoja.iter_rows()
+        for celda in fila
+        if celda.value and "En rojo:" in str(celda.value)
+    ]
+    assert notas and "OMAR" in notas[0]
+
+
+def test_el_informe_diario_no_marca_a_quien_esta_al_dia(tmp_path: Path) -> None:
+    repository = _repo_cerrado_el_diez(tmp_path)
+
+    salida = generate_recaudo_report(repository, tmp_path / "output", date(2026, 10, 10))
+    hoja = load_workbook(salida)["RECAUDO"]
+    notas = [
+        celda.value
+        for fila in hoja.iter_rows()
+        for celda in fila
+        if celda.value and "En rojo:" in str(celda.value)
+    ]
+    assert notas == []
+
+
+def test_regenerar_el_cierre_deja_de_avisar(tmp_path: Path) -> None:
+    """El remedio que propone el aviso tiene que funcionar de verdad."""
+    from gestor_guias.operadores import recalcular_cierre
+
+    repository = _repo_cerrado_el_diez(tmp_path)
+    _corregir_una_guia(repository)
+    assert "ATENCION: EL CIERRE GUARDADO NO COINCIDE" in _etiquetas_cierre(tmp_path, repository)
+
+    recalcular_cierre(repository, "OMAR", "2026-10-10")
+
+    assert "ATENCION: EL CIERRE GUARDADO NO COINCIDE" not in _etiquetas_cierre(tmp_path, repository)
