@@ -1,4 +1,3 @@
-const log = document.getElementById("log");
 const campoSemana = document.getElementById("semana-fecha");
 const rangoSemana = document.getElementById("rango-semana");
 const tablaSemana = document.getElementById("tabla-semana");
@@ -7,10 +6,6 @@ const liqEmpleado = document.getElementById("liq-empleado");
 const liqClase = document.getElementById("liq-clase");
 
 let empleadosNomina = [];
-
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
 
 function pesos(valor) {
   return "$ " + Number(valor || 0).toLocaleString("es-CO");
@@ -25,23 +20,6 @@ function hoy() {
   const mes = String(ahora.getMonth() + 1).padStart(2, "0");
   const dia = String(ahora.getDate()).padStart(2, "0");
   return `${ahora.getFullYear()}-${mes}-${dia}`;
-}
-
-function mostrarDescargas(descargas) {
-  const anterior = document.getElementById("descargas");
-  if (anterior) anterior.remove();
-  if (!descargas || !descargas.length) return;
-  const contenedor = document.createElement("div");
-  contenedor.id = "descargas";
-  for (const nombre of descargas) {
-    const enlace = document.createElement("a");
-    enlace.className = "boton boton-accion";
-    enlace.href = "/api/descargar?archivo=" + encodeURIComponent(nombre);
-    enlace.textContent = "Descargar " + nombre;
-    enlace.setAttribute("download", nombre);
-    contenedor.appendChild(enlace);
-  }
-  log.parentElement.insertBefore(contenedor, log);
 }
 
 async function llamar(ruta, datos, silencioso) {

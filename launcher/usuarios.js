@@ -1,7 +1,6 @@
 const pantallaBootstrap = document.getElementById("pantalla-bootstrap");
 const pantallaLogin = document.getElementById("pantalla-login");
 const pantallaAdmin = document.getElementById("pantalla-admin");
-const log = document.getElementById("log");
 const nombreAdmin = document.getElementById("nombre-admin");
 const tablaUsuariosBody = document.getElementById("tabla-usuarios-body");
 const tituloFormulario = document.getElementById("titulo-formulario");
@@ -31,10 +30,6 @@ function limpiarFormulario() {
   tituloFormulario.textContent = "Crear o actualizar usuario";
   notaPassword.textContent = "";
   btnCancelarEdicion.classList.add("oculto");
-}
-
-function mostrarLog(texto) {
-  log.textContent = texto;
 }
 
 async function llamar(ruta, datos) {

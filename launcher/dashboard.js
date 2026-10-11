@@ -1,9 +1,4 @@
-const log = document.getElementById("log");
 const dashFecha = document.getElementById("dash-fecha");
-
-function mostrarLog(texto) {
-  log.textContent = texto;
-}
 
 function hoy() {
   const ahora = new Date();

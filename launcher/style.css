@@ -441,29 +441,6 @@ header .subtitulo {
   flex-direction: column;
 }
 
-.log-seccion {
-  margin-top: 40px;
-  background: #fff;
-  border: 1px solid var(--gris-borde);
-  border-radius: 12px;
-  padding: 32px 36px;
-  box-shadow: 0 4px 14px rgba(31, 56, 100, 0.09);
-}
-
-.log-seccion h3 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--texto-titulo);
-  font-size: 1.4rem;
-  margin: 0 0 18px;
-}
-
-.log-seccion h3::before {
-  content: "📋";
-  font-size: 1.4rem;
-}
-
 #avisos {
   position: fixed;
   top: 22px;
@@ -476,8 +453,11 @@ header .subtitulo {
 }
 
 .aviso {
-  max-width: 380px;
-  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 420px;
+  padding: 14px 14px 14px 18px;
   border-radius: 8px;
   border-left: 5px solid rgba(255, 255, 255, 0.5);
   font-weight: bold;
@@ -509,16 +489,30 @@ header .subtitulo {
   color: #fff;
 }
 
-#log {
-  background: #1a1a1a;
-  color: #d4f7d4;
-  padding: 16px;
-  border-radius: 8px;
-  min-height: 90px;
+.aviso-texto {
+  flex: 1;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 1rem;
-  line-height: 1.5;
+}
+
+/* Un error se queda hasta que lo cierren: hay que poder leerlo con calma. */
+.aviso-cerrar {
+  flex: 0 0 auto;
+  width: 22px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.aviso-cerrar:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .barra-sesion {
