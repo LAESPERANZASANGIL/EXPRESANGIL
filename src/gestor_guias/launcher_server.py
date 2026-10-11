@@ -104,7 +104,6 @@ INFORME_COMANDOS = {
     "operador": "informe-operador",
     "salidas": "informe-salidas",
     "dia": "informe-dia",
-    "recaudo": "informe-recaudo",
     "relacion": "informe-relacion-ce-rr",
     "devoluciones": "informe-devoluciones",
     "mensual": "informe-mensual",

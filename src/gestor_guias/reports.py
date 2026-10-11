@@ -1125,33 +1125,6 @@ def generate_entregadas_operador_excel(
     return output_path
 
 
-def generate_daily_report(repository: GuiaRepository, output_dir: Path, target_date: date) -> Path:
-    dataframe = normalize_dataframe(repository.to_dataframe_con_archivo())
-    daily = filter_by_gestion(dataframe, target_date)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"informe del dia {target_date.day:02d} {MONTHS_ES[target_date.month]}.xlsx"
-
-    by_estado = build_breakdown(daily, "ESTADO")
-    by_municipio = build_breakdown(daily, "MUNICIPIO")
-    by_operador = build_breakdown(daily, "OPERADOR")
-    detail = daily[DETAIL_COLUMNS]
-
-    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        by_estado.to_excel(writer, index=False, sheet_name="POR ESTADO")
-        by_municipio.to_excel(writer, index=False, sheet_name="POR MUNICIPIO")
-        by_operador.to_excel(writer, index=False, sheet_name="POR OPERADOR")
-        detail.to_excel(writer, index=False, sheet_name="DETALLE")
-
-        for sheet_name in writer.sheets:
-            apply_report_format(writer.sheets[sheet_name])
-
-        resumen_sheet = writer.book.create_sheet("RESUMEN", 0)
-        build_resumen_sheet(resumen_sheet, daily, target_date)
-
-    return output_path
-
-
 # Estilos del bloque RESUMEN del Informe Diario.
 RESUMEN_DARK_FILL = PatternFill(fill_type="solid", fgColor="1F3864")
 RESUMEN_TITLE_FONT = Font(bold=True, size=14, color="FFFFFF")
